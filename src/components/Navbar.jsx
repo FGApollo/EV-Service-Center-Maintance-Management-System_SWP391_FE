@@ -1,9 +1,28 @@
 // Navbar.jsx - Tesla Style
-import { useState } from "react";
-import { FaQuestionCircle, FaUserCircle, FaGlobe } from "react-icons/fa";
+import { useState, useEffect, useRef } from "react";
+import { FaQuestionCircle, FaUserCircle, FaGlobe, FaCar, FaSignOutAlt } from "react-icons/fa";
 
-export default function Navbar({ onNavigate }) {
+export default function Navbar({ onNavigate, isLoggedIn, onLogout }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
+
+  // Đóng dropdown khi click bên ngoài
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    if (isUserMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isUserMenuOpen]);
 
   const scrollToSection = (sectionId) => {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
@@ -15,6 +34,24 @@ export default function Navbar({ onNavigate }) {
       onNavigate(page);
     }
     setIsMenuOpen(false);
+    setIsUserMenuOpen(false);
+  };
+
+  const handleUserIconClick = () => {
+    if (isLoggedIn) {
+      setIsUserMenuOpen(!isUserMenuOpen);
+    } else {
+      handleNavigate('login');
+    }
+  };
+
+  const handleLogout = () => {
+    if (onLogout) {
+      onLogout();
+    }
+    setIsUserMenuOpen(false);
+    alert('Đã đăng xuất thành công!');
+    handleNavigate('home');
   };
 
   return (
@@ -69,12 +106,53 @@ export default function Navbar({ onNavigate }) {
           <button className="w-8 h-8 rounded-full border border-white/30 flex items-center justify-center hover:bg-white/10 transition-colors duration-200">
             <FaGlobe size={14} className="text-white" />
           </button>
-          <button 
-            onClick={() => handleNavigate('login')}
-            className="w-8 h-8 rounded-full border border-white/30 flex items-center justify-center hover:bg-white/10 transition-colors duration-200"
-          >
-            <FaUserCircle size={14} className="text-white" />
-          </button>
+          
+          {/* User Menu with Dropdown */}
+          <div className="relative" ref={userMenuRef}>
+            <button 
+              onClick={handleUserIconClick}
+              className="w-8 h-8 rounded-full border border-white/30 flex items-center justify-center hover:bg-white/10 transition-colors duration-200"
+              title={isLoggedIn ? "Menu người dùng" : "Đăng nhập"}
+            >
+              <FaUserCircle size={14} className="text-white" />
+            </button>
+
+            {/* Dropdown Menu - Only show when logged in */}
+            {isLoggedIn && isUserMenuOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl py-2 z-50">
+                <div className="px-4 py-3 border-b border-gray-200">
+                  <p className="text-sm font-semibold text-gray-800">Nguyễn Văn A</p>
+                  <p className="text-xs text-gray-500">nguyenvana@example.com</p>
+                </div>
+                
+                <button 
+                  onClick={() => handleNavigate('profile')}
+                  className="w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors flex items-center gap-3"
+                >
+                  <FaUserCircle size={16} className="text-gray-600" />
+                  <span className="text-sm text-gray-800">Hồ sơ của tôi</span>
+                </button>
+                
+                <button 
+                  onClick={() => handleNavigate('mycar')}
+                  className="w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors flex items-center gap-3"
+                >
+                  <FaCar size={16} className="text-gray-600" />
+                  <span className="text-sm text-gray-800">Xe của tôi</span>
+                </button>
+                
+                <div className="border-t border-gray-200 mt-2"></div>
+                
+                <button 
+                  onClick={handleLogout}
+                  className="w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors flex items-center gap-3 text-red-600"
+                >
+                  <FaSignOutAlt size={16} />
+                  <span className="text-sm font-medium">Đăng xuất</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Mobile Menu Button */}
@@ -122,12 +200,38 @@ export default function Navbar({ onNavigate }) {
             >
               Đặt Lịch Hẹn
             </button>
-            <button 
-              onClick={() => handleNavigate('login')}
-              className="block w-full text-left text-blue-600 font-medium hover:text-blue-800 transition-colors border-t pt-4"
-            >
-              Đăng Nhập
-            </button>
+            {isLoggedIn ? (
+              <>
+                <button 
+                  onClick={() => handleNavigate('profile')}
+                  className="block w-full text-left text-blue-600 font-medium hover:text-blue-800 transition-colors border-t pt-4 flex items-center gap-2"
+                >
+                  <FaUserCircle size={16} />
+                  Hồ sơ của tôi
+                </button>
+                <button 
+                  onClick={() => handleNavigate('mycar')}
+                  className="block w-full text-left text-blue-600 font-medium hover:text-blue-800 transition-colors flex items-center gap-2"
+                >
+                  <FaCar size={16} />
+                  Xe của tôi
+                </button>
+                <button 
+                  onClick={handleLogout}
+                  className="block w-full text-left text-red-600 font-medium hover:text-red-800 transition-colors flex items-center gap-2"
+                >
+                  <FaSignOutAlt size={16} />
+                  Đăng xuất
+                </button>
+              </>
+            ) : (
+              <button 
+                onClick={() => handleNavigate('login')}
+                className="block w-full text-left text-blue-600 font-medium hover:text-blue-800 transition-colors border-t pt-4"
+              >
+                Đăng Nhập
+              </button>
+            )}
           </nav>
         </div>
       )}
