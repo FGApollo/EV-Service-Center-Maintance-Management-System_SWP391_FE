@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { FaQuestionCircle, FaUserCircle, FaGlobe, FaCar, FaSignOutAlt } from "react-icons/fa";
 
-export default function Navbar({ onNavigate, isLoggedIn, onLogout }) {
+export default function Navbar({ onNavigate, isLoggedIn, onLogout, user }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef(null);
@@ -121,8 +121,8 @@ export default function Navbar({ onNavigate, isLoggedIn, onLogout }) {
             {isLoggedIn && isUserMenuOpen && (
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl py-2 z-50">
                 <div className="px-4 py-3 border-b border-gray-200">
-                  <p className="text-sm font-semibold text-gray-800">Nguyễn Văn A</p>
-                  <p className="text-xs text-gray-500">nguyenvana@example.com</p>
+                  <p className="text-sm font-semibold text-gray-800">{user?.fullName || 'Người dùng'}</p>
+                  <p className="text-xs text-gray-500">{user?.email || '---'}</p>
                 </div>
                 
                 <button 
@@ -170,6 +170,12 @@ export default function Navbar({ onNavigate, isLoggedIn, onLogout }) {
       {isMenuOpen && (
         <div className="md:hidden bg-white border-t border-gray-200">
           <nav className="px-6 py-4 space-y-4">
+            {isLoggedIn && (
+              <div className="pb-4 border-b">
+                <p className="font-semibold text-black">{user?.fullName || 'Người dùng'}</p>
+                <p className="text-xs text-gray-500">{user?.email || ''}</p>
+              </div>
+            )}
             <button 
               onClick={() => scrollToSection('home')}
               className="block w-full text-left text-black font-medium hover:text-gray-600 transition-colors"

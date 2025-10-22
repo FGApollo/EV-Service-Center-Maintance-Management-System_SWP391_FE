@@ -1,78 +1,129 @@
-import React, { useState } from 'react';
-import './Login.css';
+import React, { useState } from "react";
+import "./Login.css";
+import { login, register } from "../api"; // ✅ import từ API thật
 
 function Login({ onNavigate, onLogin }) {
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    rememberMe: false
+    fullName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    rememberMe: false,
   });
 
   const [isSignUp, setIsSignUp] = useState(false);
+  const [loading, setLoading] = useState(false);
 
+  // ✅ Xử lý thay đổi input
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prevState => ({
-      ...prevState,
-      [name]: type === 'checkbox' ? checked : value
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
-  const handleSubmit = (e) => {
+  // ✅ Xử lý submit form (đăng nhập / đăng ký thật)
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
+    setLoading(true);
 
-    // Giả lập đăng nhập thành công
-    if (onLogin) {
-      onLogin(true);
+    try {
+      if (isSignUp) {
+        // ----- 🟩 ĐĂNG KÝ -----
+        if (formData.password !== formData.confirmPassword) {
+          alert("❌ Mật khẩu xác nhận không khớp!");
+          setLoading(false);
+          return;
+        }
+
+        const newUser = {
+          fullName: formData.fullName,
+          email: formData.email,
+          password: formData.password,
+        };
+
+        const res = await register(newUser);
+        console.log("✅ Đăng ký thành công:", res);
+        alert("Đăng ký thành công! Hãy đăng nhập.");
+        setIsSignUp(false);
+      } else {
+        // ----- 🟦 ĐĂNG NHẬP -----
+        const credentials = {
+          email: formData.email,
+          password: formData.password,
+        };
+
+        const res = await login(credentials);
+        console.log("✅ Đăng nhập thành công:", res);
+
+        if (res.token) {
+          localStorage.setItem("token", res.token);
+          
+          // Lưu thông tin user
+          const userData = res.user || {
+            fullName: res.fullName || '',
+            email: res.email || credentials.email
+          };
+          
+          localStorage.setItem("user", JSON.stringify(userData));
+          
+          alert("🎉 Đăng nhập thành công!");
+          if (onLogin) onLogin(userData);
+          onNavigate("home");
+        } else {
+          alert("❌ Không nhận được token!");
+        }
+      }
+    } catch (error) {
+      console.error("❌ Lỗi khi gọi API:", error.response?.data || error.message);
+      alert("Lỗi khi gọi API, xem console để biết thêm chi tiết!");
+    } finally {
+      setLoading(false);
     }
-    alert(isSignUp ? 'Đăng ký thành công!' : 'Đăng nhập thành công!');
-    onNavigate('home');
   };
 
   const toggleSignUp = () => {
     setIsSignUp(!isSignUp);
     setFormData({
-      email: '',
-      password: '',
-      rememberMe: false
+      fullName: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      rememberMe: false,
     });
   };
 
   return (
     <div className="login-container">
-
-      {/* Back to Home Button */}
-      <button 
+      {/* 🔙 Back to Home */}
+      <button
         className="back-to-home-btn"
-        onClick={() => onNavigate('home')}
+        onClick={() => onNavigate("home")}
         title="Quay về trang chủ"
       >
         <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"/>
+          <path d="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z" />
         </svg>
         <span>Trang chủ</span>
       </button>
 
-      {/* Background Video/Image */}
+      {/* 🌆 Background */}
       <div className="login-background">
         <div className="login-bg-overlay"></div>
       </div>
 
-      {/* Login Form */}
+      {/* 📋 Form */}
       <div className="login-form-container">
         <div className="login-form-wrapper">
-
-          {/* Logo */}
           <div className="login-logo">
             <h1>CarCare</h1>
             <p>Dịch vụ xe hơi chuyên nghiệp</p>
           </div>
 
-          {/* Form */}
           <div className="login-form-box">
-            <h2>{isSignUp ? 'Tạo Tài Khoản' : 'Đăng Nhập'}</h2>
-            
+            <h2>{isSignUp ? "Tạo Tài Khoản" : "Đăng Nhập"}</h2>
+
             <form onSubmit={handleSubmit} className="login-form">
               {isSignUp && (
                 <div className="form-group">
@@ -81,6 +132,8 @@ function Login({ onNavigate, onLogin }) {
                     type="text"
                     id="fullName"
                     name="fullName"
+                    value={formData.fullName}
+                    onChange={handleInputChange}
                     placeholder="Nhập họ và tên của bạn"
                     required={isSignUp}
                   />
@@ -120,8 +173,10 @@ function Login({ onNavigate, onLogin }) {
                     type="password"
                     id="confirmPassword"
                     name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
                     placeholder="Nhập lại mật khẩu"
-                    required={isSignUp}
+                    required
                   />
                 </div>
               )}
@@ -138,35 +193,35 @@ function Login({ onNavigate, onLogin }) {
                     <span className="checkmark"></span>
                     Ghi nhớ đăng nhập
                   </label>
-                  
                   <a href="#forgot" className="forgot-password">
                     Quên mật khẩu?
                   </a>
                 </div>
               )}
 
-              <button type="submit" className="login-btn">
-                {isSignUp ? 'Tạo Tài Khoản' : 'Đăng Nhập'}
+              <button type="submit" className="login-btn" disabled={loading}>
+                {loading
+                  ? "Đang xử lý..."
+                  : isSignUp
+                  ? "Tạo Tài Khoản"
+                  : "Đăng Nhập"}
               </button>
-
-             
 
               <div className="form-toggle">
                 <p>
-                  {isSignUp ? 'Đã có tài khoản?' : 'Chưa có tài khoản?'}
-                  <button 
-                    type="button" 
+                  {isSignUp ? "Đã có tài khoản?" : "Chưa có tài khoản?"}
+                  <button
+                    type="button"
                     onClick={toggleSignUp}
                     className="toggle-btn"
                   >
-                    {isSignUp ? 'Đăng nhập ngay' : 'Đăng ký ngay'}
+                    {isSignUp ? "Đăng nhập ngay" : "Đăng ký ngay"}
                   </button>
                 </p>
               </div>
             </form>
           </div>
 
-          {/* Footer */}
           <div className="login-footer">
             <p>© 2025 CarCare. Tất cả quyền được bảo lưu.</p>
           </div>

@@ -1,0 +1,164 @@
+/* Register Page Styles - Tesla Inspired Design */
+.register-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fafafa;
+  padding: 20px;
+}
+
+.register-container {
+  width: 100%;
+  max-width: 480px;
+}
+
+.register-card {
+  background: #ffffff;
+  border-radius: 2px;
+  border: 1px solid #e8e8e8;
+  padding: 48px 40px;
+}
+
+.register-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.register-header h1 {
+  font-size: 32px;
+  font-weight: 500;
+  color: #171a20;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.5px;
+}
+
+.register-header p {
+  font-size: 14px;
+  color: #5c5e62;
+  margin: 0;
+}
+
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #171a20;
+  text-transform: uppercase;
+  letter-spacing: -0.3px;
+}
+
+.form-group input {
+  padding: 12px 16px;
+  border: 1px solid #d6d6d6;
+  border-radius: 2px;
+  font-size: 14px;
+  color: #171a20;
+  background: #ffffff;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #171a20;
+}
+
+.form-group input::placeholder {
+  color: #a0a0a0;
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #fff5f5;
+  border: 1px solid #feb2b2;
+  border-radius: 2px;
+  color: #c53030;
+  font-size: 13px;
+}
+
+.error-message svg {
+  flex-shrink: 0;
+}
+
+.register-btn {
+  margin-top: 8px;
+  padding: 14px 24px;
+  background: #171a20;
+  color: #ffffff;
+  border: none;
+  border-radius: 2px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.register-btn:hover:not(:disabled) {
+  background: #393c41;
+}
+
+.register-btn:disabled {
+  background: #d6d6d6;
+  color: #5c5e62;
+  cursor: not-allowed;
+}
+
+.register-footer {
+  margin-top: 24px;
+  text-align: center;
+  padding-top: 24px;
+  border-top: 1px solid #e8e8e8;
+}
+
+.register-footer p {
+  font-size: 14px;
+  color: #5c5e62;
+  margin: 0;
+}
+
+.login-link {
+  background: none;
+  border: none;
+  color: #171a20;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font-size: 14px;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.login-link:hover {
+  color: #393c41;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .register-page {
+    padding: 16px;
+  }
+
+  .register-card {
+    padding: 32px 24px;
+  }
+
+  .register-header h1 {
+    font-size: 28px;
+  }
+}

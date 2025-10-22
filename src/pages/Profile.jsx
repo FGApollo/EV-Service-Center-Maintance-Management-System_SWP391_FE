@@ -1,16 +1,32 @@
 import React, { useState } from 'react';
 import './Profile.css';
 
-function Profile({ onNavigate }) {
+function Profile({ onNavigate, user: propUser }) {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('info'); // info, password, history
   
-  const [profileData, setProfileData] = useState({
-    fullName: 'Nguyễn Văn A',
-    email: 'nguyenvana@example.com',
-    phone: '0123456789',
-    address: '123 Đường ABC, Quận 1, TP.HCM',
-    avatar: null
+  const [profileData, setProfileData] = useState(() => {
+    // ưu tiên prop user, sau đó localStorage, sau đó fallback mặc định
+    try {
+      const stored = localStorage.getItem('user');
+      const parsed = stored ? JSON.parse(stored) : null;
+      const src = propUser || parsed;
+      return {
+        fullName: src?.fullName || 'Người dùng',
+        email: src?.email || 'user@example.com',
+        phone: src?.phone || '0123456789',
+        address: src?.address || 'Chưa cập nhật',
+        avatar: src?.avatar || null
+      };
+    } catch (e) {
+      return {
+        fullName: 'Người dùng',
+        email: 'user@example.com',
+        phone: '0123456789',
+        address: 'Chưa cập nhật',
+        avatar: null
+      };
+    }
   });
 
   const [passwordData, setPasswordData] = useState({

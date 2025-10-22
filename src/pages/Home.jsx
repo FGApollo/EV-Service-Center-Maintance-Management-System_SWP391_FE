@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import ImageSlider from "../components/ImageSlider";
 import "./Home.css";
 
@@ -6,6 +6,69 @@ function Home({ onNavigate }) {
   const scrollToServices = () => {
     document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  // Small inner component: Map iframe that reacts to `selectedAddress` prop
+  function MapFrame() {
+    const [selectedAddress, setSelectedAddress] = useState('123 Đường Nguyễn Huệ, Quận 1, TP.HCM');
+
+    // expose a global helper so BranchesList can update map without prop-drilling in this file scope
+    // (acceptable for a small page) — BranchesList will call window.__setBranchAddress
+    window.__setBranchAddress = (address) => {
+      setSelectedAddress(address);
+    };
+
+    // Use maps.google.com maps?q= to embed without api key
+    const src = `https://www.google.com/maps?q=${encodeURIComponent(selectedAddress)}&output=embed`;
+
+    return (
+      <div className="map-placeholder">
+        <iframe
+          src={src}
+          width="100%"
+          height="100%"
+          style={{ border: 0, borderRadius: '12px' }}
+          allowFullScreen
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          title="Bản đồ chi nhánh CarCare"
+        ></iframe>
+      </div>
+    );
+  }
+
+  function BranchesList({ branches }) {
+    const [activeIndex, setActiveIndex] = useState(0);
+
+    const handleClick = (b, idx) => {
+      setActiveIndex(idx);
+      // set map address
+      if (window && typeof window.__setBranchAddress === 'function') {
+        window.__setBranchAddress(b.address);
+      }
+      // scroll map into view on small screens
+      document.querySelector('.map-container')?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    return (
+      <>
+        {branches.map((b, idx) => (
+          <div key={b.title} className={`branch-card ${idx === activeIndex ? 'active' : ''}`} onClick={() => handleClick(b, idx)}>
+            <div className="branch-icon">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2Z"/>
+              </svg>
+            </div>
+            <div className="branch-info">
+              <h4>{b.title}</h4>
+              <p className="branch-address">{b.address}</p>
+              <p className="branch-phone">📞 {b.phone}</p>
+              <p className="branch-hours">🕒 {b.hours}</p>
+            </div>
+          </div>
+        ))}
+      </>
+    );
+  }
 
 
 
@@ -132,7 +195,7 @@ function Home({ onNavigate }) {
       </section>
 
       {/* Branches Map Section */}
-      <section id="branches" className="branches-section">
+  <section id="branches" className="branches-section">
         <div className="section-header">
           <h2>Hệ Thống Chi Nhánh</h2>
           <p>Tìm chi nhánh gần nhất để được phục vụ tốt nhất</p>
@@ -140,76 +203,44 @@ function Home({ onNavigate }) {
 
         <div className="branches-container">
           <div className="branches-sidebar">
-            <div className="branch-card active">
-              <div className="branch-icon">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2Z"/>
-                </svg>
-              </div>
-              <div className="branch-info">
-                <h4>Chi Nhánh Quận 1</h4>
-                <p className="branch-address">123 Đường Nguyễn Huệ, Quận 1, TP.HCM</p>
-                <p className="branch-phone">📞 028 3822 1234</p>
-                <p className="branch-hours">🕒 7:00 - 19:00 (Thứ 2 - CN)</p>
-              </div>
-            </div>
+            {/** Define branches here so we can map and attach click handlers **/}
+            {(() => {
+              const branches = [
+                {
+                  title: 'Chi Nhánh Quận 1',
+                  address: '123 Đường Nguyễn Huệ, Quận 1, TP.HCM',
+                  phone: '028 3822 1234',
+                  hours: '7:00 - 19:00 (Thứ 2 - CN)'
+                },
+                {
+                  title: 'Chi Nhánh Thủ Đức',
+                  address: '32 Đường T4A, Tây Thạnh, TP.HCM',
+                  phone: '090 9013 317',
+                  hours: '7:00 - 19:00 (Thứ 2 - CN)'
+                },
+                {
+                  title: 'Chi Nhánh Tân Bình',
+                  address: '789 Đường Cộng Hòa, Quận Tân Bình, TP.HCM',
+                  phone: '028 3844 9012',
+                  hours: '7:00 - 19:00 (Thứ 2 - CN)'
+                },
+                {
+                  title: 'Chi Nhánh Bình Thạnh',
+                  address: '321 Đường Xô Viết Nghệ Tĩnh, Quận Bình Thạnh, TP.HCM',
+                  phone: '028 3899 3456',
+                  hours: '7:00 - 19:00 (Thứ 2 - CN)'
+                }
+              ];
 
-            <div className="branch-card">
-              <div className="branch-icon">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2Z"/>
-                </svg>
-              </div>
-              <div className="branch-info">
-                <h4>Chi Nhánh Thủ Đức</h4>
-                <p className="branch-address">32 Đường T4A, Tây Thạnh, TP.HCM</p>
-                <p className="branch-phone">📞 090 9013 317</p>
-                <p className="branch-hours">🕒 7:00 - 19:00 (Thứ 2 - CN)</p>
-              </div>
-            </div>
-
-            <div className="branch-card">
-              <div className="branch-icon">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2Z"/>
-                </svg>
-              </div>
-              <div className="branch-info">
-                <h4>Chi Nhánh Tân Bình</h4>
-                <p className="branch-address">789 Đường Cộng Hòa, Quận Tân Bình, TP.HCM</p>
-                <p className="branch-phone">📞 028 3844 9012</p>
-                <p className="branch-hours">🕒 7:00 - 19:00 (Thứ 2 - CN)</p>
-              </div>
-            </div>
-
-            <div className="branch-card">
-              <div className="branch-icon">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2Z"/>
-                </svg>
-              </div>
-              <div className="branch-info">
-                <h4>Chi Nhánh Bình Thạnh</h4>
-                <p className="branch-address">321 Đường Xô Viết Nghệ Tĩnh, Quận Bình Thạnh, TP.HCM</p>
-                <p className="branch-phone">📞 028 3899 3456</p>
-                <p className="branch-hours">🕒 7:00 - 19:00 (Thứ 2 - CN)</p>
-              </div>
-            </div>
+              // use local state for selected branch
+              return (
+                <BranchesList branches={branches} />
+              );
+            })()}
           </div>
 
           <div className="map-container">
-            <div className="map-placeholder">
-              <iframe 
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.325135276939!2d106.69662097503163!3d10.775431760959862!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f4b3330bce1%3A0xdf2c0bb1c956c5b!2zTmd1eeG7hW4gSHXhu4MsIEJlbiBOZ2jDqiwgUXXhuq1uIDEsIFRow6BuaCBwaOG7kSBI4buTIENow60gTWluaCwgVmnhu4d0IE5hbQ!5e0!3m2!1svi!2s!4v1697535000000!5m2!1svi!2s"
-                width="100%" 
-                height="100%" 
-                style={{border: 0, borderRadius: '12px'}} 
-                allowFullScreen 
-                loading="lazy" 
-                referrerPolicy="no-referrer-when-downgrade"
-                title="Bản đồ chi nhánh CarCare"
-              ></iframe>
-            </div>
+            <MapFrame />
           </div>
         </div>
 

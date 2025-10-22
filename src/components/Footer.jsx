@@ -86,15 +86,7 @@ function Footer({ onNavigate }) {
             <a href="#" className="text-gray-400 hover:text-white text-sm">Chính sách bảo mật</a>
             <a href="#" className="text-gray-400 hover:text-white text-sm">Điều khoản sử dụng</a>
             <a href="#" className="text-gray-400 hover:text-white text-sm">Chính sách bảo hành</a>
-            {onNavigate && (
-              <button 
-                onClick={() => onNavigate('staff')}
-                className="text-gray-600 hover:text-blue-400 text-sm transition-colors"
-                title="Dành cho nhân viên"
-              >
-                👨‍💼 Staff
-              </button>
-            )}
+           
           </div>
         </div>
       </div>
