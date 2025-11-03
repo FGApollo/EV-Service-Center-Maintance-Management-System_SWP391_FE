@@ -19,6 +19,7 @@ function App() {
       return null;
     }
   });
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
 
   const handleLogin = (userData) => {
     setIsLoggedIn(true);
@@ -26,27 +27,39 @@ function App() {
     try { localStorage.setItem('user', JSON.stringify(userData)); } catch (e) {}
   };
 
+  // Navigate thông thường - clear vehicle data
+  const handleNavigate = (page) => {
+    setSelectedVehicle(null); // Reset thông tin xe khi navigate thông thường
+    setCurrentPage(page);
+  };
+
+  // Navigate với vehicle data - chỉ dùng khi bấm "Đặt lịch" từ MyCar
+  const handleNavigateWithVehicle = (page, vehicleData) => {
+    setSelectedVehicle(vehicleData);
+    setCurrentPage(page);
+  };
+
   const renderPage = () => {
     switch(currentPage) {
       case 'login':
-        return <Login onNavigate={setCurrentPage} onLogin={handleLogin} />;
+        return <Login onNavigate={handleNavigate} onLogin={handleLogin} />;
       case 'booking':
-        return <BookingPage onNavigate={setCurrentPage} />;
+        return <BookingPage onNavigate={handleNavigate} prefilledVehicle={selectedVehicle} />;
       case 'profile':
-        return <Profile onNavigate={setCurrentPage} />;
+        return <Profile onNavigate={handleNavigate} />;
       case 'mycar':
-        return <MyCar onNavigate={setCurrentPage} />;
+        return <MyCar onNavigate={handleNavigate} onNavigateWithVehicle={handleNavigateWithVehicle} />;
       case 'staff':
-        return <StaffDashboard onNavigate={setCurrentPage} />;
+        return <StaffDashboard onNavigate={handleNavigate} />;
       case 'home':
       default:
         return (
           <>
-            <Navbar onNavigate={setCurrentPage} isLoggedIn={isLoggedIn} onLogout={() => { setIsLoggedIn(false); setUser(null); localStorage.removeItem('token'); localStorage.removeItem('user'); }} user={user} />
+            <Navbar onNavigate={handleNavigate} isLoggedIn={isLoggedIn} onLogout={() => { setIsLoggedIn(false); setUser(null); localStorage.removeItem('token'); localStorage.removeItem('user'); }} user={user} />
             <main>
-              <Home onNavigate={setCurrentPage} />
+              <Home onNavigate={handleNavigate} />
             </main>
-            <Footer onNavigate={setCurrentPage} />
+            <Footer onNavigate={handleNavigate} />
           </>
         );
     }

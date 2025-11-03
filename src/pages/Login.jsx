@@ -5,6 +5,7 @@ import { login, register } from "../api"; // ✅ import từ API thật
 function Login({ onNavigate, onLogin }) {
   const [formData, setFormData] = useState({
     fullName: "",
+    phone: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -39,6 +40,7 @@ function Login({ onNavigate, onLogin }) {
 
         const newUser = {
           fullName: formData.fullName,
+          phone: formData.phone,
           email: formData.email,
           password: formData.password,
         };
@@ -58,9 +60,24 @@ function Login({ onNavigate, onLogin }) {
         console.log("✅ Đăng nhập thành công:", res);
 
         if (res.token) {
-          // lưu token (API helper cũng đã lưu token), lưu thêm thông tin user nếu có
-          const userData = res.user || { fullName: res.fullName || '', email: res.email || credentials.email };
-          try { localStorage.setItem('user', JSON.stringify(userData)); } catch (e) {}
+          // Xử lý dữ liệu user từ backend (có thể trong res.user hoặc ở top level)
+          const userInfo = res.user || res;
+          const userData = {
+            user_id: userInfo.user_id || userInfo.id || userInfo.userId,
+            fullName: userInfo.fullName || '',
+            email: userInfo.email || credentials.email,
+            phone: userInfo.phone || '',
+            address: userInfo.address || '',
+            avatar: userInfo.avatar || null,
+            role: userInfo.role || 'customer',
+            center_id: userInfo.center_id || userInfo.centerId || null
+          };
+          
+          console.log("💾 Lưu user data vào localStorage:", userData);
+          try { localStorage.setItem('user', JSON.stringify(userData)); } catch (e) {
+            console.error("Lỗi lưu localStorage:", e);
+          }
+          
           alert("🎉 Đăng nhập thành công!");
           if (onLogin) onLogin(userData);
           onNavigate("home");
@@ -80,6 +97,7 @@ function Login({ onNavigate, onLogin }) {
     setIsSignUp(!isSignUp);
     setFormData({
       fullName: "",
+      phone: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -119,18 +137,33 @@ function Login({ onNavigate, onLogin }) {
 
             <form onSubmit={handleSubmit} className="login-form">
               {isSignUp && (
-                <div className="form-group">
-                  <label htmlFor="fullName">Họ và Tên</label>
-                  <input
-                    type="text"
-                    id="fullName"
-                    name="fullName"
-                    value={formData.fullName}
-                    onChange={handleInputChange}
-                    placeholder="Nhập họ và tên của bạn"
-                    required={isSignUp}
-                  />
-                </div>
+                <>
+                  <div className="form-group">
+                    <label htmlFor="fullName">Họ và Tên</label>
+                    <input
+                      type="text"
+                      id="fullName"
+                      name="fullName"
+                      value={formData.fullName}
+                      onChange={handleInputChange}
+                      placeholder="Nhập họ và tên của bạn"
+                      required={isSignUp}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="phone">Số điện thoại</label>
+                    <input
+                      type="tel"
+                      id="phone"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      placeholder="Nhập số điện thoại của bạn"
+                      required={isSignUp}
+                    />
+                  </div>
+                </>
               )}
 
               <div className="form-group">

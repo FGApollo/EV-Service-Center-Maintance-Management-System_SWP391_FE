@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './StaffDashboard.css';
 import { FaUser, FaCar, FaComments, FaSearch, FaPlus, FaHistory, FaClock, FaPhone, FaEnvelope, FaMapMarkerAlt, FaCalendarAlt, FaTools, FaCheckCircle, FaTimes, FaEdit } from 'react-icons/fa';
+import { getCustomersByRole, getAppointmentsForStaff, acceptAppointment, cancelAppointment, startAppointment, completeAppointment, getVehicleById } from '../api';
 
 function StaffDashboard({ onNavigate }) {
   const [activeTab, setActiveTab] = useState('customers'); // customers, cars, chat, appointments, maintenance, parts
@@ -15,79 +16,30 @@ function StaffDashboard({ onNavigate }) {
   const [selectedPart, setSelectedPart] = useState(null);
   const [partsSearchQuery, setPartsSearchQuery] = useState('');
 
-  // Dữ liệu mẫu khách hàng
-  const [customers] = useState([
-    {
-      id: 1,
-      name: 'Nguyễn Văn A',
-      email: 'nguyenvana@example.com',
-      phone: '0123456789',
-      address: '123 Đường ABC, Quận 1, TP.HCM',
-      joinDate: '2024-01-15',
-      totalVisits: 12,
-      cars: [
-        {
-          id: 101,
-          brand: 'Tesla',
-          model: 'Model 3',
-          year: 2023,
-          vin: 'WBA3B5C50DF123456',
-          licensePlate: '29A-12345',
-          color: 'Đỏ',
-          serviceHistory: [
-            { date: '2025-09-15', service: 'Bảo dưỡng định kỳ', cost: '1,500,000 VNĐ', status: 'Hoàn thành' },
-            { date: '2025-06-10', service: 'Thay dầu máy', cost: '500,000 VNĐ', status: 'Hoàn thành' },
-          ]
-        }
-      ]
-    },
-    {
-      id: 2,
-      name: 'Trần Thị B',
-      email: 'tranthib@example.com',
-      phone: '0987654321',
-      address: '456 Đường XYZ, Quận 3, TP.HCM',
-      joinDate: '2024-03-20',
-      totalVisits: 8,
-      cars: [
-        {
-          id: 102,
-          brand: 'VinFast',
-          model: 'VF e34',
-          year: 2024,
-          vin: 'VF8A1B2C3D4E56789',
-          licensePlate: '30B-67890',
-          color: 'Trắng',
-          serviceHistory: [
-            { date: '2025-10-01', service: 'Kiểm tra tổng quát', cost: '800,000 VNĐ', status: 'Hoàn thành' },
-          ]
-        }
-      ]
-    },
-    {
-      id: 3,
-      name: 'Lê Văn C',
-      email: 'levanc@example.com',
-      phone: '0912345678',
-      address: '789 Đường DEF, Quận 5, TP.HCM',
-      joinDate: '2024-07-10',
-      totalVisits: 5,
-      cars: [
-        {
-          id: 103,
-          brand: 'BMW',
-          model: 'i4',
-          year: 2023,
-          vin: 'BMW5C50DF789012',
-          licensePlate: '51C-11111',
-          color: 'Xanh',
-          serviceHistory: [
-            { date: '2025-09-25', service: 'Thay lốp', cost: '2,000,000 VNĐ', status: 'Hoàn thành' },
-          ]
-        }
-      ]
-    }
-  ]);
+  // Dữ liệu khách hàng từ API
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Fetch danh sách khách hàng khi component mount
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getCustomersByRole();
+        console.log('📋 Danh sách khách hàng:', data);
+        setCustomers(data);
+      } catch (err) {
+        console.error('Lỗi khi tải danh sách khách hàng:', err);
+        setError(err.response?.data?.message || 'Không thể tải danh sách khách hàng');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCustomers();
+  }, []);
 
   // Dữ liệu chat mẫu
   const [chatCustomers] = useState([
@@ -96,57 +48,137 @@ function StaffDashboard({ onNavigate }) {
     { id: 3, name: 'Lê Văn C', lastMessage: 'Tôi muốn đặt lịch', time: 'Hôm qua', unread: 1 },
   ]);
 
-  // Dữ liệu lịch hẹn
-  const [appointments, setAppointments] = useState([
-    {
-      id: 1,
-      customerName: 'Nguyễn Văn A',
-      phone: '0123456789',
-      carInfo: 'Tesla Model 3 - 29A-12345',
-      service: 'Bảo dưỡng định kỳ',
-      date: '2025-10-20',
-      time: '09:00',
-      status: 'pending', // pending, confirmed, in-progress, completed, cancelled
-      technician: null,
-      notes: 'Khách hàng yêu cầu kiểm tra hệ thống phanh'
-    },
-    {
-      id: 2,
-      customerName: 'Trần Thị B',
-      phone: '0987654321',
-      carInfo: 'VinFast VF e34 - 30B-67890',
-      service: 'Thay lốp xe',
-      date: '2025-10-20',
-      time: '10:30',
-      status: 'confirmed',
-      technician: 'Kỹ thuật viên: Phạm Văn D',
-      notes: 'Thay 4 lốp mới'
-    },
-    {
-      id: 3,
-      customerName: 'Lê Văn C',
-      phone: '0912345678',
-      carInfo: 'BMW i4 - 51C-11111',
-      service: 'Kiểm tra tổng quát',
-      date: '2025-10-21',
-      time: '14:00',
-      status: 'in-progress',
-      technician: 'Kỹ thuật viên: Nguyễn Văn E',
-      notes: 'Kiểm tra hệ thống điện'
-    },
-    {
-      id: 4,
-      customerName: 'Hoàng Thị F',
-      phone: '0934567890',
-      carInfo: 'Tesla Model Y - 60A-22222',
-      service: 'Sửa chữa động cơ',
-      date: '2025-10-19',
-      time: '08:00',
-      status: 'completed',
-      technician: 'Kỹ thuật viên: Trần Văn G',
-      notes: 'Đã hoàn thành kiểm tra và sửa chữa'
+  // Dữ liệu lịch hẹn từ API
+  const [allAppointments, setAllAppointments] = useState([]); // Tất cả lịch hẹn
+  const [appointments, setAppointments] = useState([]); // Lịch hẹn sau khi filter
+  const [appointmentsLoading, setAppointmentsLoading] = useState(false);
+  const [appointmentsError, setAppointmentsError] = useState(null);
+  const [selectedStatus, setSelectedStatus] = useState(null); // Filter theo status
+  const [vehiclesCache, setVehiclesCache] = useState({}); // Cache thông tin xe
+
+  // Lấy thông tin center_id của staff từ localStorage
+  const [staffCenterId, setStaffCenterId] = useState(null);
+
+  useEffect(() => {
+    // Lấy thông tin user từ localStorage
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const userData = JSON.parse(userStr);
+        const centerId = userData.center_id || userData.centerId;
+        setStaffCenterId(centerId);
+        console.log('🏢 Staff Center ID:', centerId);
+        console.log('📋 Full user data:', userData);
+      }
+    } catch (error) {
+      console.error('Lỗi khi đọc thông tin user:', error);
     }
-  ]);
+  }, []);
+
+  // Fetch appointments khi component mount hoặc khi tab appointments được chọn
+  useEffect(() => {
+    if (activeTab === 'appointments') {
+      fetchAppointments();
+    }
+  }, [activeTab, staffCenterId]);
+
+  // Filter appointments theo selectedStatus
+  useEffect(() => {
+    if (selectedStatus) {
+      const filtered = allAppointments.filter(apt => apt.status === selectedStatus);
+      console.log(`🔍 Lọc client-side: status=${selectedStatus}, từ ${allAppointments.length} → ${filtered.length}`);
+      setAppointments(filtered);
+    } else {
+      console.log('✅ Hiển thị tất cả:', allAppointments.length);
+      setAppointments(allAppointments);
+    }
+  }, [selectedStatus, allAppointments]);
+
+  const fetchAppointments = async () => {
+    try {
+      setAppointmentsLoading(true);
+      setAppointmentsError(null);
+      console.log('🔄 Đang fetch TẤT CẢ lịch hẹn... Staff Center ID:', staffCenterId);
+      
+      // Luôn fetch TẤT CẢ lịch hẹn (không filter theo status ở API)
+      const data = await getAppointmentsForStaff(null);
+      console.log('📦 Dữ liệu từ API:', data);
+      console.log('📦 Số lượng:', Array.isArray(data) ? data.length : 'Không phải array');
+      
+      // Đảm bảo data là array
+      if (!Array.isArray(data)) {
+        console.error('❌ Data không phải array:', data);
+        setAllAppointments([]);
+        setAppointments([]);
+        return;
+      }
+      
+      // Log sample appointment để kiểm tra cấu trúc
+      if (data.length > 0) {
+        console.log('🔬 Sample appointment structure:', data[0]);
+        console.log('🔬 Keys:', Object.keys(data[0]));
+      }
+      
+      // Lọc lịch hẹn theo center_id của staff (nếu có)
+      let filteredData = data;
+      if (staffCenterId !== null && staffCenterId !== undefined) {
+        filteredData = data.filter(appointment => {
+          // Kiểm tra cả camelCase và snake_case
+          const aptCenterId = appointment.serviceCenterId || appointment.service_center_id || appointment.centerId || appointment.center_id;
+          const appointmentId = appointment.id || appointment.appointmentId;
+          console.log(`🔍 Lịch hẹn #${appointmentId}: centerId=${aptCenterId}, Staff centerId=${staffCenterId}, Match=${aptCenterId === staffCenterId}`);
+          return aptCenterId === staffCenterId;
+        });
+        console.log('✅ Đã lọc lịch hẹn theo center_id:', staffCenterId);
+        console.log('📊 Tổng số lịch hẹn:', data.length, '→ Lịch hẹn của chi nhánh:', filteredData.length);
+      } else {
+        // Nếu không có center_id, hiển thị tất cả (trường hợp admin hoặc role khác)
+        console.log('⚠️ Không tìm thấy center_id, hiển thị tất cả lịch hẹn:', data.length);
+      }
+      
+      // Lưu tất cả appointments vào state
+      setAllAppointments(filteredData);
+      
+      // Fetch thông tin xe cho các appointments
+      const vehicleIds = [...new Set(filteredData.map(apt => apt.vehicleId).filter(Boolean))];
+      fetchVehicleInfo(vehicleIds);
+      
+      // appointments sẽ được set bởi useEffect filter theo selectedStatus
+    } catch (err) {
+      console.error('❌ Lỗi khi tải danh sách lịch hẹn:', err);
+      setAppointmentsError(err.response?.data?.message || 'Không thể tải danh sách lịch hẹn');
+      setAllAppointments([]);
+      setAppointments([]);
+    } finally {
+      setAppointmentsLoading(false);
+    }
+  };
+
+  // Fetch thông tin xe
+  const fetchVehicleInfo = async (vehicleIds) => {
+    const newCache = { ...vehiclesCache };
+    
+    for (const vehicleId of vehicleIds) {
+      if (!newCache[vehicleId]) {
+        try {
+          const vehicleInfo = await getVehicleById(vehicleId);
+          newCache[vehicleId] = vehicleInfo;
+          console.log(`✅ Loaded vehicle #${vehicleId}:`, vehicleInfo);
+        } catch (err) {
+          console.error(`❌ Failed to load vehicle #${vehicleId}:`, err);
+          newCache[vehicleId] = { error: true, vehicleId };
+        }
+      }
+    }
+    
+    setVehiclesCache(newCache);
+  };
+
+  // Handler để filter theo status
+  const handleStatusFilter = (status) => {
+    console.log('🔍 Lọc theo status:', status);
+    setSelectedStatus(status === selectedStatus ? null : status); // Toggle: click lại để bỏ filter
+  };
 
   // Dữ liệu quy trình bảo dưỡng
   const [maintenanceList, setMaintenanceList] = useState([
@@ -443,11 +475,16 @@ function StaffDashboard({ onNavigate }) {
     }
   ]);
 
-  const filteredCustomers = customers.filter(customer =>
-    customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.phone.includes(searchQuery)
-  );
+  const filteredCustomers = customers.filter(customer => {
+    const name = customer.fullName || customer.name || '';
+    const email = customer.email || '';
+    const phone = customer.phone || '';
+    const query = searchQuery.toLowerCase();
+    
+    return name.toLowerCase().includes(query) ||
+           email.toLowerCase().includes(query) ||
+           phone.includes(searchQuery);
+  });
 
   const filteredParts = partsList.filter(part =>
     part.name.toLowerCase().includes(partsSearchQuery.toLowerCase()) ||
@@ -508,11 +545,42 @@ function StaffDashboard({ onNavigate }) {
     }
   };
 
-  const handleAppointmentStatusChange = (appointmentId, newStatus) => {
-    setAppointments(appointments.map(apt => 
-      apt.id === appointmentId ? { ...apt, status: newStatus } : apt
-    ));
-    alert(`Đã cập nhật trạng thái lịch hẹn #${appointmentId}`);
+  const handleAppointmentStatusChange = async (appointmentId, newStatus) => {
+    try {
+      // Gọi API tương ứng với từng action
+      switch(newStatus) {
+        case 'confirmed':
+          await acceptAppointment(appointmentId);
+          break;
+        case 'cancelled':
+          await cancelAppointment(appointmentId);
+          break;
+        case 'in-progress':
+          await startAppointment(appointmentId);
+          break;
+        case 'completed':
+          await completeAppointment(appointmentId);
+          break;
+        default:
+          throw new Error('Trạng thái không hợp lệ');
+      }
+      
+      // Refresh danh sách appointments sau khi cập nhật
+      await fetchAppointments();
+      
+      // Cập nhật selectedAppointment nếu đang xem chi tiết
+      if (selectedAppointment?.id === appointmentId) {
+        const updatedAppointment = appointments.find(apt => apt.id === appointmentId);
+        if (updatedAppointment) {
+          setSelectedAppointment({ ...updatedAppointment, status: newStatus });
+        }
+      }
+      
+      alert(`✅ Đã cập nhật trạng thái lịch hẹn #${appointmentId}`);
+    } catch (error) {
+      console.error('Lỗi khi cập nhật trạng thái:', error);
+      alert(`❌ Không thể cập nhật trạng thái: ${error.response?.data?.message || error.message}`);
+    }
   };
 
   const handleMaintenanceStatusChange = (maintenanceId, newStatus) => {
@@ -577,7 +645,14 @@ function StaffDashboard({ onNavigate }) {
             </div>
             <div className="staff-details">
               <p className="staff-name">Nhân viên: Admin</p>
-              <p className="staff-role">Quản lý khách hàng</p>
+              <p className="staff-role">
+                Quản lý khách hàng
+                {staffCenterId !== null && staffCenterId !== undefined && (
+                  <span style={{ marginLeft: '10px', padding: '2px 8px', background: '#4CAF50', color: 'white', borderRadius: '4px', fontSize: '12px' }}>
+                    Chi nhánh {staffCenterId}
+                  </span>
+                )}
+              </p>
             </div>
           </div>
         </div>
@@ -657,25 +732,47 @@ function StaffDashboard({ onNavigate }) {
               <div className="customer-list">
                 <h3>Danh sách khách hàng ({filteredCustomers.length})</h3>
                 <div className="list-items">
-                  {filteredCustomers.map(customer => (
-                    <div 
-                      key={customer.id} 
-                      className={`customer-item ${selectedCustomer?.id === customer.id ? 'active' : ''}`}
-                      onClick={() => handleCustomerClick(customer)}
-                    >
-                      <div className="customer-avatar">
-                        <FaUser />
-                      </div>
-                      <div className="customer-info">
-                        <h4>{customer.name}</h4>
-                        <p>{customer.email}</p>
-                        <div className="customer-stats">
-                          <span><FaPhone /> {customer.phone}</span>
-                          <span>{customer.cars.length} xe</span>
+                  {loading ? (
+                    <div className="loading-state">
+                      <div className="spinner"></div>
+                      <p>Đang tải danh sách khách hàng...</p>
+                    </div>
+                  ) : error ? (
+                    <div className="error-state">
+                      <p>❌ {error}</p>
+                      <button 
+                        className="retry-btn" 
+                        onClick={() => window.location.reload()}
+                      >
+                        Thử lại
+                      </button>
+                    </div>
+                  ) : filteredCustomers.length === 0 ? (
+                    <div className="empty-state">
+                      <FaUser size={40} />
+                      <p>Không tìm thấy khách hàng nào</p>
+                    </div>
+                  ) : (
+                    filteredCustomers.map(customer => (
+                      <div 
+                        key={customer.id} 
+                        className={`customer-item ${selectedCustomer?.id === customer.id ? 'active' : ''}`}
+                        onClick={() => handleCustomerClick(customer)}
+                      >
+                        <div className="customer-avatar">
+                          <FaUser />
+                        </div>
+                        <div className="customer-info">
+                          <h4>{customer.fullName || customer.name || 'Không có tên'}</h4>
+                          <p>{customer.email}</p>
+                          <div className="customer-stats">
+                            <span><FaPhone /> {customer.phone || 'Chưa có'}</span>
+                            <span>{customer.vehicles?.length || customer.cars?.length || 0} xe</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -688,7 +785,7 @@ function StaffDashboard({ onNavigate }) {
                         <FaUser />
                       </div>
                       <div>
-                        <h2>{selectedCustomer.name}</h2>
+                        <h2>{selectedCustomer.fullName || selectedCustomer.name || 'Không có tên'}</h2>
                         <p className="customer-id">ID: #{selectedCustomer.id}</p>
                       </div>
                     </div>
@@ -707,72 +804,115 @@ function StaffDashboard({ onNavigate }) {
                           <FaPhone />
                           <div>
                             <span className="label">Số điện thoại</span>
-                            <span className="value">{selectedCustomer.phone}</span>
+                            <span className="value">{selectedCustomer.phone || 'Chưa cập nhật'}</span>
                           </div>
                         </div>
                         <div className="info-item">
-                          <FaMapMarkerAlt />
+                          <FaCheckCircle />
                           <div>
-                            <span className="label">Địa chỉ</span>
-                            <span className="value">{selectedCustomer.address}</span>
+                            <span className="label">Trạng thái</span>
+                            <span className="value">
+                              {selectedCustomer.status === 'ACTIVE' ? '✅ Hoạt động' : 
+                               selectedCustomer.status === 'INACTIVE' ? '❌ Không hoạt động' : 
+                               selectedCustomer.status || 'Chưa xác định'}
+                            </span>
                           </div>
                         </div>
                         <div className="info-item">
                           <FaClock />
                           <div>
                             <span className="label">Ngày tham gia</span>
-                            <span className="value">{selectedCustomer.joinDate}</span>
+                            <span className="value">
+                              {selectedCustomer.joinDate || selectedCustomer.createdAt 
+                                ? new Date(selectedCustomer.joinDate || selectedCustomer.createdAt).toLocaleDateString('vi-VN')
+                                : 'Chưa có thông tin'}
+                            </span>
                           </div>
                         </div>
                       </div>
                     </div>
 
                     <div className="details-section">
-                      <h3>Danh sách xe ({selectedCustomer.cars.length})</h3>
+                      <h3>Danh sách xe ({(selectedCustomer.vehicles || selectedCustomer.cars)?.length || 0})</h3>
                       <div className="car-cards">
-                        {selectedCustomer.cars.map(car => (
-                          <div 
-                            key={car.id} 
-                            className="car-card-mini"
-                            onClick={() => handleCarClick(car)}
-                          >
-                            <div className="car-icon">
-                              <FaCar />
+                        {((selectedCustomer.vehicles || selectedCustomer.cars) && (selectedCustomer.vehicles || selectedCustomer.cars).length > 0) ? (
+                          (selectedCustomer.vehicles || selectedCustomer.cars).map(car => (
+                            <div 
+                              key={car.id || car.vehicleId} 
+                              className="car-card-mini"
+                              onClick={() => handleCarClick(car)}
+                            >
+                              <div className="car-icon">
+                                <FaCar />
+                              </div>
+                              <div className="car-info-mini">
+                                <h4>{car.model || `${car.brand || ''} ${car.model || ''}`.trim() || 'Xe'}</h4>
+                                <p>Năm: {car.year || 'N/A'}</p>
+                                <p>Biển số: {car.licensePlate || 'Chưa có'}</p>
+                                <p>VIN: {car.vin || 'Chưa có'}</p>
+                                {car.color && (
+                                  <p>Màu: {car.color}</p>
+                                )}
+                                {(car.maintenanceCount !== undefined && car.maintenanceCount !== null) && (
+                                  <p className="maintenance-count" style={{ color: '#667eea', fontWeight: '600' }}>
+                                    ✓ Đã bảo trì: {car.maintenanceCount} lần
+                                  </p>
+                                )}
+                              </div>
                             </div>
-                            <div className="car-info-mini">
-                              <h4>{car.brand} {car.model}</h4>
-                              <p>Biển số: {car.licensePlate}</p>
-                              <p>VIN: {car.vin}</p>
-                            </div>
-                          </div>
-                        ))}
+                          ))
+                        ) : (
+                          <p style={{ color: '#a0aec0', textAlign: 'center', padding: '20px' }}>
+                            Khách hàng chưa có xe nào
+                          </p>
+                        )}
                       </div>
                     </div>
 
                     {selectedCar && (
                       <div className="details-section">
-                        <h3>Lịch sử dịch vụ - {selectedCar.brand} {selectedCar.model}</h3>
+                        <h3>Lịch sử bảo trì - {selectedCar.model || selectedCar.brand || 'Xe'}</h3>
                         <div className="service-history-table">
-                          <table>
-                            <thead>
-                              <tr>
-                                <th>Ngày</th>
-                                <th>Dịch vụ</th>
-                                <th>Chi phí</th>
-                                <th>Trạng thái</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {selectedCar.serviceHistory.map((service, index) => (
-                                <tr key={index}>
-                                  <td>{service.date}</td>
-                                  <td>{service.service}</td>
-                                  <td className="cost">{service.cost}</td>
-                                  <td><span className="status-badge completed">{service.status}</span></td>
+                          {(selectedCar.maintenanceServices || selectedCar.serviceHistory) && 
+                           (selectedCar.maintenanceServices || selectedCar.serviceHistory).length > 0 ? (
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>STT</th>
+                                  <th>Dịch vụ</th>
+                                  <th>Thông tin</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </thead>
+                              <tbody>
+                                {(selectedCar.maintenanceServices || selectedCar.serviceHistory).map((service, index) => (
+                                  <tr key={index}>
+                                    <td style={{ textAlign: 'center' }}>{index + 1}</td>
+                                    <td>{service.serviceName || service.service || 'Dịch vụ bảo trì'}</td>
+                                    <td>
+                                      {service.date && (
+                                        <div>Ngày: {new Date(service.date).toLocaleDateString('vi-VN')}</div>
+                                      )}
+                                      {service.cost && (
+                                        <div>Chi phí: {typeof service.cost === 'number' 
+                                          ? `${service.cost.toLocaleString('vi-VN')} VNĐ`
+                                          : service.cost}
+                                        </div>
+                                      )}
+                                      {service.status && (
+                                        <span className="status-badge completed" style={{ marginTop: '5px' }}>
+                                          {service.status}
+                                        </span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          ) : (
+                            <p style={{ color: '#a0aec0', textAlign: 'center', padding: '20px' }}>
+                              Xe chưa có lịch sử bảo trì
+                            </p>
+                          )}
                         </div>
                       </div>
                     )}
@@ -802,45 +942,46 @@ function StaffDashboard({ onNavigate }) {
             </div>
 
             <div className="cars-grid">
-              {customers.flatMap(customer => 
-                customer.cars.map(car => (
-                  <div key={car.id} className="car-card-full">
+              {customers.flatMap(customer => {
+                const vehicles = customer.vehicles || customer.cars || [];
+                return vehicles.map(car => (
+                  <div key={car.id || car.vehicleId} className="car-card-full">
                     <div className="car-header">
                       <div className="car-icon-large">
                         <FaCar />
                       </div>
                       <div>
-                        <h3>{car.brand} {car.model}</h3>
-                        <p className="car-year">Năm {car.year}</p>
+                        <h3>{car.model || `${car.brand || ''} ${car.model || ''}`.trim() || 'Xe'}</h3>
+                        <p className="car-year">Năm {car.year || 'N/A'}</p>
                       </div>
                     </div>
                     
                     <div className="car-details-grid">
                       <div className="detail-row">
                         <span className="label">VIN:</span>
-                        <span className="value">{car.vin}</span>
+                        <span className="value">{car.vin || 'N/A'}</span>
                       </div>
                       <div className="detail-row">
                         <span className="label">Biển số:</span>
-                        <span className="value">{car.licensePlate}</span>
+                        <span className="value">{car.licensePlate || 'N/A'}</span>
                       </div>
                       <div className="detail-row">
                         <span className="label">Màu:</span>
-                        <span className="value">{car.color}</span>
+                        <span className="value">{car.color || 'N/A'}</span>
                       </div>
                       <div className="detail-row">
                         <span className="label">Chủ xe:</span>
-                        <span className="value">{customers.find(c => c.cars.some(cr => cr.id === car.id))?.name}</span>
+                        <span className="value">{customer.fullName || customer.name || 'N/A'}</span>
                       </div>
                     </div>
 
                     <div className="car-history-summary">
                       <FaHistory />
-                      <span>{car.serviceHistory.length} lần bảo dưỡng</span>
+                      <span>{car.maintenanceCount || 0} lần bảo trì</span>
                     </div>
                   </div>
-                ))
-              )}
+                ));
+              })}
             </div>
           </div>
         )}
@@ -848,6 +989,26 @@ function StaffDashboard({ onNavigate }) {
         {/* Appointments Tab */}
         {activeTab === 'appointments' && (
           <div className="appointments-section">
+            {staffCenterId !== null && staffCenterId !== undefined && (
+              <div style={{ 
+                background: '#e3f2fd', 
+                border: '1px solid #2196F3', 
+                borderRadius: '8px', 
+                padding: '12px 16px', 
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                color: '#1565C0'
+              }}>
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                  <path d="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/>
+                </svg>
+                <span style={{ fontWeight: '500' }}>
+                  Bạn đang xem lịch hẹn của <strong>Chi nhánh {staffCenterId}</strong>
+                </span>
+              </div>
+            )}
             <div className="section-toolbar">
               <div className="search-box">
                 <FaSearch />
@@ -856,38 +1017,68 @@ function StaffDashboard({ onNavigate }) {
                   placeholder="Tìm kiếm lịch hẹn (tên khách hàng, biển số)..."
                 />
               </div>
-              <button className="add-btn">
-                <FaPlus />
-                Thêm lịch hẹn
-              </button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                {selectedStatus && (
+                  <button 
+                    className="add-btn" 
+                    onClick={() => setSelectedStatus(null)}
+                    style={{ background: '#64748b' }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                      <path d="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z"/>
+                    </svg>
+                    Xóa bộ lọc
+                  </button>
+                )}
+                <button className="add-btn">
+                  <FaPlus />
+                  Thêm lịch hẹn
+                </button>
+              </div>
             </div>
 
             <div className="appointments-stats">
-              <div className="stat-card pending">
+              <div 
+                className={`stat-card pending ${selectedStatus === 'pending' ? 'active-filter' : ''}`}
+                onClick={() => handleStatusFilter('pending')}
+                style={{ cursor: 'pointer' }}
+              >
                 <FaClock />
                 <div>
-                  <h4>{appointments.filter(a => a.status === 'pending').length}</h4>
+                  <h4>{allAppointments.filter(a => a.status === 'pending').length}</h4>
                   <p>Chờ xác nhận</p>
                 </div>
               </div>
-              <div className="stat-card confirmed">
+              <div 
+                className={`stat-card confirmed ${selectedStatus === 'confirmed' ? 'active-filter' : ''}`}
+                onClick={() => handleStatusFilter('confirmed')}
+                style={{ cursor: 'pointer' }}
+              >
                 <FaCheckCircle />
                 <div>
-                  <h4>{appointments.filter(a => a.status === 'confirmed').length}</h4>
+                  <h4>{allAppointments.filter(a => a.status === 'confirmed').length}</h4>
                   <p>Đã xác nhận</p>
                 </div>
               </div>
-              <div className="stat-card in-progress">
+              <div 
+                className={`stat-card in-progress ${selectedStatus === 'in-progress' ? 'active-filter' : ''}`}
+                onClick={() => handleStatusFilter('in-progress')}
+                style={{ cursor: 'pointer' }}
+              >
                 <FaTools />
                 <div>
-                  <h4>{appointments.filter(a => a.status === 'in-progress').length}</h4>
+                  <h4>{allAppointments.filter(a => a.status === 'in-progress').length}</h4>
                   <p>Đang thực hiện</p>
                 </div>
               </div>
-              <div className="stat-card completed">
+              <div 
+                className={`stat-card completed ${selectedStatus === 'completed' ? 'active-filter' : ''}`}
+                onClick={() => handleStatusFilter('completed')}
+                style={{ cursor: 'pointer' }}
+              >
                 <FaCheckCircle />
                 <div>
-                  <h4>{appointments.filter(a => a.status === 'completed').length}</h4>
+                  <h4>{allAppointments.filter(a => a.status === 'completed').length}</h4>
                   <p>Hoàn thành</p>
                 </div>
               </div>
@@ -896,28 +1087,100 @@ function StaffDashboard({ onNavigate }) {
             <div className="content-layout">
               {/* Appointments List */}
               <div className="appointments-list">
-                <h3>Danh sách lịch hẹn</h3>
+                <h3>
+                  Danh sách lịch hẹn
+                  {selectedStatus && (
+                    <span style={{ 
+                      fontSize: '14px', 
+                      fontWeight: '400', 
+                      color: '#667eea',
+                      marginLeft: '10px'
+                    }}>
+                      (Lọc: {getStatusText(selectedStatus)})
+                    </span>
+                  )}
+                  {!selectedStatus && allAppointments.length > 0 && (
+                    <span style={{ 
+                      fontSize: '14px', 
+                      fontWeight: '400', 
+                      color: '#666',
+                      marginLeft: '10px'
+                    }}>
+                      (Tất cả: {allAppointments.length})
+                    </span>
+                  )}
+                </h3>
                 <div className="list-items">
-                  {appointments.map(appointment => (
-                    <div 
-                      key={appointment.id}
-                      className={`appointment-item ${selectedAppointment?.id === appointment.id ? 'active' : ''}`}
-                      onClick={() => setSelectedAppointment(appointment)}
-                    >
-                      <div className="appointment-header">
-                        <h4>{appointment.customerName}</h4>
-                        <span className={`status-badge ${getStatusColor(appointment.status)}`}>
-                          {getStatusText(appointment.status)}
-                        </span>
-                      </div>
-                      <p className="car-info">{appointment.carInfo}</p>
-                      <p className="service-type">{appointment.service}</p>
-                      <div className="appointment-time">
-                        <FaCalendarAlt />
-                        <span>{appointment.date} - {appointment.time}</span>
-                      </div>
+                  {appointmentsLoading ? (
+                    <div className="loading-state">
+                      <div className="spinner"></div>
+                      <p>Đang tải danh sách lịch hẹn...</p>
                     </div>
-                  ))}
+                  ) : appointmentsError ? (
+                    <div className="error-state">
+                      <p>❌ {appointmentsError}</p>
+                      <button className="retry-btn" onClick={fetchAppointments}>
+                        Thử lại
+                      </button>
+                    </div>
+                  ) : appointments.length === 0 ? (
+                    <div className="empty-state">
+                      <FaCalendarAlt size={40} />
+                      <p>Chưa có lịch hẹn nào</p>
+                    </div>
+                  ) : (
+                    appointments.map(appointment => {
+                      const appointmentId = appointment.id || appointment.appointmentId;
+                      const appointmentDate = appointment.appointmentDate 
+                        ? new Date(appointment.appointmentDate).toLocaleString('vi-VN', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : 'N/A';
+                      
+                      // Lấy thông tin xe từ cache
+                      const vehicle = vehiclesCache[appointment.vehicleId];
+                      const vehicleDisplay = vehicle && !vehicle.error
+                        ? `${vehicle.model || vehicle.brand || ''} ${vehicle.licensePlate ? `- ${vehicle.licensePlate}` : ''}`.trim()
+                        : (appointment.carInfo || appointment.car_info || `Xe #${appointment.vehicleId || 'N/A'}`);
+                      
+                      return (
+                        <div 
+                          key={appointmentId}
+                          className={`appointment-item ${selectedAppointment?.appointmentId === appointmentId ? 'active' : ''}`}
+                          onClick={() => setSelectedAppointment(appointment)}
+                        >
+                          <div className="appointment-header">
+                            <h4>
+                              {appointment.fullName || 
+                               appointment.customerName || 
+                               appointment.customer_name || 
+                               `Khách hàng #${appointment.customerId || 'N/A'}`}
+                            </h4>
+                            <span className={`status-badge ${getStatusColor(appointment.status)}`}>
+                              {getStatusText(appointment.status)}
+                            </span>
+                          </div>
+                          <p className="car-info">
+                            {vehicleDisplay}
+                          </p>
+                          <p className="service-type">
+                            {appointment.serviceType || 
+                             appointment.service || 
+                             appointment.serviceName ||
+                             'Dịch vụ'}
+                          </p>
+                          <div className="appointment-time">
+                            <FaCalendarAlt />
+                            <span>{appointmentDate}</span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
@@ -927,7 +1190,7 @@ function StaffDashboard({ onNavigate }) {
                   <>
                     <div className="details-header">
                       <div>
-                        <h2>Chi tiết lịch hẹn #{selectedAppointment.id}</h2>
+                        <h2>Chi tiết lịch hẹn #{selectedAppointment.appointmentId || selectedAppointment.id}</h2>
                         <span className={`status-badge large ${getStatusColor(selectedAppointment.status)}`}>
                           {getStatusText(selectedAppointment.status)}
                         </span>
@@ -941,14 +1204,29 @@ function StaffDashboard({ onNavigate }) {
                           <FaUser />
                           <div>
                             <span className="label">Tên khách hàng</span>
-                            <span className="value">{selectedAppointment.customerName}</span>
+                            <span className="value">
+                              {selectedAppointment.fullName || 
+                               selectedAppointment.customerName || 
+                               `Khách hàng #${selectedAppointment.customerId || 'N/A'}`}
+                            </span>
                           </div>
                         </div>
                         <div className="info-item">
                           <FaPhone />
                           <div>
                             <span className="label">Số điện thoại</span>
-                            <span className="value">{selectedAppointment.phone}</span>
+                            <span className="value">
+                              {selectedAppointment.phone || 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="info-item">
+                          <FaEnvelope />
+                          <div>
+                            <span className="label">Email</span>
+                            <span className="value">
+                              {selectedAppointment.email || 'N/A'}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -961,28 +1239,79 @@ function StaffDashboard({ onNavigate }) {
                           <FaCar />
                           <div>
                             <span className="label">Thông tin xe</span>
-                            <span className="value">{selectedAppointment.carInfo}</span>
+                            <span className="value">
+                              {(() => {
+                                const vehicle = vehiclesCache[selectedAppointment.vehicleId];
+                                if (vehicle && !vehicle.error) {
+                                  return (
+                                    <div>
+                                      <div>{vehicle.model || `${vehicle.brand || ''}`}</div>
+                                      {vehicle.licensePlate && (
+                                        <div style={{ fontSize: '0.9em', color: '#666' }}>
+                                          Biển số: {vehicle.licensePlate}
+                                        </div>
+                                      )}
+                                      {vehicle.vin && (
+                                        <div style={{ fontSize: '0.9em', color: '#666' }}>
+                                          VIN: {vehicle.vin}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                }
+                                return selectedAppointment.carInfo || 
+                                       selectedAppointment.car_info || 
+                                       `Xe #${selectedAppointment.vehicleId || 'N/A'}`;
+                              })()}
+                            </span>
                           </div>
                         </div>
                         <div className="info-item">
                           <FaTools />
                           <div>
                             <span className="label">Loại dịch vụ</span>
-                            <span className="value">{selectedAppointment.service}</span>
+                            <span className="value">
+                              {selectedAppointment.serviceType || 
+                               selectedAppointment.service || 
+                               selectedAppointment.serviceName || 
+                               'Bảo dưỡng định kỳ'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="info-item">
+                          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                            <path d="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2Z"/>
+                          </svg>
+                          <div>
+                            <span className="label">Chi nhánh</span>
+                            <span className="value">
+                              Chi nhánh {selectedAppointment.centerId || selectedAppointment.serviceCenterId || 'N/A'}
+                            </span>
                           </div>
                         </div>
                         <div className="info-item">
                           <FaCalendarAlt />
                           <div>
                             <span className="label">Ngày hẹn</span>
-                            <span className="value">{selectedAppointment.date}</span>
+                            <span className="value">
+                              {selectedAppointment.appointmentDate 
+                                ? new Date(selectedAppointment.appointmentDate).toLocaleDateString('vi-VN')
+                                : selectedAppointment.date || 'N/A'}
+                            </span>
                           </div>
                         </div>
                         <div className="info-item">
                           <FaClock />
                           <div>
                             <span className="label">Giờ hẹn</span>
-                            <span className="value">{selectedAppointment.time}</span>
+                            <span className="value">
+                              {selectedAppointment.appointmentDate 
+                                ? new Date(selectedAppointment.appointmentDate).toLocaleTimeString('vi-VN', {
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })
+                                : selectedAppointment.time || 'N/A'}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -1001,7 +1330,7 @@ function StaffDashboard({ onNavigate }) {
                     <div className="details-section">
                       <h3>Ghi chú</h3>
                       <div className="notes-box">
-                        <p>{selectedAppointment.notes}</p>
+                        <p>{selectedAppointment.notes || 'Không có ghi chú'}</p>
                       </div>
                     </div>
 
@@ -1012,14 +1341,14 @@ function StaffDashboard({ onNavigate }) {
                           <>
                             <button 
                               className="action-btn confirm"
-                              onClick={() => handleAppointmentStatusChange(selectedAppointment.id, 'confirmed')}
+                              onClick={() => handleAppointmentStatusChange(selectedAppointment.appointmentId || selectedAppointment.id, 'confirmed')}
                             >
                               <FaCheckCircle />
                               Xác nhận
                             </button>
                             <button 
                               className="action-btn cancel"
-                              onClick={() => handleAppointmentStatusChange(selectedAppointment.id, 'cancelled')}
+                              onClick={() => handleAppointmentStatusChange(selectedAppointment.appointmentId || selectedAppointment.id, 'cancelled')}
                             >
                               <FaTimes />
                               Hủy lịch
@@ -1029,7 +1358,7 @@ function StaffDashboard({ onNavigate }) {
                         {selectedAppointment.status === 'confirmed' && (
                           <button 
                             className="action-btn start"
-                            onClick={() => handleAppointmentStatusChange(selectedAppointment.id, 'in-progress')}
+                            onClick={() => handleAppointmentStatusChange(selectedAppointment.appointmentId || selectedAppointment.id, 'in-progress')}
                           >
                             <FaTools />
                             Bắt đầu thực hiện
@@ -1038,7 +1367,7 @@ function StaffDashboard({ onNavigate }) {
                         {selectedAppointment.status === 'in-progress' && (
                           <button 
                             className="action-btn complete"
-                            onClick={() => handleAppointmentStatusChange(selectedAppointment.id, 'completed')}
+                            onClick={() => handleAppointmentStatusChange(selectedAppointment.appointmentId || selectedAppointment.id, 'completed')}
                           >
                             <FaCheckCircle />
                             Hoàn thành

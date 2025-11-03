@@ -4,7 +4,7 @@
 const ENV = "render"; // "local" | "render" | "vercel"
 
 // 🖥️ Local backend (khi chạy Node/Express trên localhost)
-const LOCAL_API = "http://localhost:10000";
+const LOCAL_API = "http://localhost:5173";
 
 // ☁️ Backend Render (deploy online)
 const RENDER_API = "https://ev-service-center-maintance-management-um2j.onrender.com";
