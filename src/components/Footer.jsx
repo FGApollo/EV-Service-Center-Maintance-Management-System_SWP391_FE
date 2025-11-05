@@ -87,13 +87,29 @@ function Footer({ onNavigate }) {
             <a href="#" className="text-gray-400 hover:text-white text-sm">Điều khoản sử dụng</a>
             <a href="#" className="text-gray-400 hover:text-white text-sm">Chính sách bảo hành</a>
             {onNavigate && (
-              <button 
-                onClick={() => onNavigate('staff')}
-                className="text-gray-600 hover:text-blue-400 text-sm transition-colors"
-                title="Dành cho nhân viên"
-              >
-                👨‍💼 Staff
-              </button>
+              <>
+                <button 
+                  onClick={() => onNavigate('staff')}
+                  className="text-gray-600 hover:text-blue-400 text-sm transition-colors"
+                  title="Dành cho nhân viên"
+                >
+                  👨‍💼 Staff
+                </button>
+                <button 
+                  onClick={() => {
+                    console.log('Admin button clicked!', onNavigate);
+                    if (onNavigate) {
+                      onNavigate('admin');
+                    } else {
+                      console.error('onNavigate is not defined!');
+                    }
+                  }}
+                  className="text-gray-600 hover:text-purple-400 text-sm transition-colors"
+                  title="Dành cho quản trị viên"
+                >
+                  👑 Admin
+                </button>
+              </>
             )}
           </div>
         </div>

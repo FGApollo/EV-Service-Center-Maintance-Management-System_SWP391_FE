@@ -6,7 +6,7 @@ import axiosClient from "./axiosClient";
 
 // Đăng ký (❌ Không cần token)
 export const register = async (data) => {
-  const res = await axiosClient.post("/Users", data);
+  const res = await axiosClient.post("/api/auth/register", data);
   return res.data;
 };
 
@@ -24,14 +24,20 @@ export const login = async (data) => {
 ---------------------------------- */
 
 // Cập nhật hồ sơ (✅ Cần token)
-export const updateProfile = async (data) => {
-  const res = await axiosClient.post("/api/auth/user/update", data);
+export const updateProfile = async (userId, data) => {
+  const res = await axiosClient.put(`/api/update/${userId}`, data);
   return res.data;
 };
 
 // Xem hồ sơ người dùng (✅ Cần token)
 export const getProfile = async () => {
   const res = await axiosClient.get("/api/profile");
+  return res.data;
+};
+
+// Đổi mật khẩu (✅ Cần token)
+export const changePassword = async (data) => {
+  const res = await axiosClient.post("/api/auth/change-password", data);
   return res.data;
 };
 
@@ -70,6 +76,16 @@ export const getAppointments = async () => {
 // Đặt lịch bảo dưỡng (✅)
 export const createAppointment = async (data) => {
   const res = await axiosClient.post("/api/appointments", data);
+  return res.data;
+};
+
+/* --------------------------------
+   👥 STAFF - CUSTOMER MANAGEMENT
+---------------------------------- */
+
+// Lấy danh sách khách hàng theo role (✅ Cần token)
+export const getCustomersByRole = async (role = "CUSTOMER") => {
+  const res = await axiosClient.get(`/api/auth/register?role=${role}`);
   return res.data;
 };
 

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './StaffDashboard.css';
 import { FaUser, FaCar, FaComments, FaSearch, FaPlus, FaHistory, FaClock, FaPhone, FaEnvelope, FaMapMarkerAlt, FaCalendarAlt, FaTools, FaCheckCircle, FaTimes, FaEdit } from 'react-icons/fa';
+import { getCustomersByRole } from '../api';
 
 function StaffDashboard({ onNavigate }) {
   const [activeTab, setActiveTab] = useState('customers'); // customers, cars, chat, appointments, maintenance, parts
@@ -15,79 +16,29 @@ function StaffDashboard({ onNavigate }) {
   const [selectedPart, setSelectedPart] = useState(null);
   const [partsSearchQuery, setPartsSearchQuery] = useState('');
 
-  // Dữ liệu mẫu khách hàng
-  const [customers] = useState([
-    {
-      id: 1,
-      name: 'Nguyễn Văn A',
-      email: 'nguyenvana@example.com',
-      phone: '0123456789',
-      address: '123 Đường ABC, Quận 1, TP.HCM',
-      joinDate: '2024-01-15',
-      totalVisits: 12,
-      cars: [
-        {
-          id: 101,
-          brand: 'Tesla',
-          model: 'Model 3',
-          year: 2023,
-          vin: 'WBA3B5C50DF123456',
-          licensePlate: '29A-12345',
-          color: 'Đỏ',
-          serviceHistory: [
-            { date: '2025-09-15', service: 'Bảo dưỡng định kỳ', cost: '1,500,000 VNĐ', status: 'Hoàn thành' },
-            { date: '2025-06-10', service: 'Thay dầu máy', cost: '500,000 VNĐ', status: 'Hoàn thành' },
-          ]
-        }
-      ]
-    },
-    {
-      id: 2,
-      name: 'Trần Thị B',
-      email: 'tranthib@example.com',
-      phone: '0987654321',
-      address: '456 Đường XYZ, Quận 3, TP.HCM',
-      joinDate: '2024-03-20',
-      totalVisits: 8,
-      cars: [
-        {
-          id: 102,
-          brand: 'VinFast',
-          model: 'VF e34',
-          year: 2024,
-          vin: 'VF8A1B2C3D4E56789',
-          licensePlate: '30B-67890',
-          color: 'Trắng',
-          serviceHistory: [
-            { date: '2025-10-01', service: 'Kiểm tra tổng quát', cost: '800,000 VNĐ', status: 'Hoàn thành' },
-          ]
-        }
-      ]
-    },
-    {
-      id: 3,
-      name: 'Lê Văn C',
-      email: 'levanc@example.com',
-      phone: '0912345678',
-      address: '789 Đường DEF, Quận 5, TP.HCM',
-      joinDate: '2024-07-10',
-      totalVisits: 5,
-      cars: [
-        {
-          id: 103,
-          brand: 'BMW',
-          model: 'i4',
-          year: 2023,
-          vin: 'BMW5C50DF789012',
-          licensePlate: '51C-11111',
-          color: 'Xanh',
-          serviceHistory: [
-            { date: '2025-09-25', service: 'Thay lốp', cost: '2,000,000 VNĐ', status: 'Hoàn thành' },
-          ]
-        }
-      ]
-    }
-  ]);
+  // Dữ liệu khách hàng từ API
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Fetch danh sách khách hàng khi component mount
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getCustomersByRole('CUSTOMER');
+        setCustomers(data);
+      } catch (err) {
+        console.error('Lỗi khi tải danh sách khách hàng:', err);
+        setError(err.response?.data?.message || 'Không thể tải danh sách khách hàng');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCustomers();
+  }, []);
 
   // Dữ liệu chat mẫu
   const [chatCustomers] = useState([
@@ -657,25 +608,47 @@ function StaffDashboard({ onNavigate }) {
               <div className="customer-list">
                 <h3>Danh sách khách hàng ({filteredCustomers.length})</h3>
                 <div className="list-items">
-                  {filteredCustomers.map(customer => (
-                    <div 
-                      key={customer.id} 
-                      className={`customer-item ${selectedCustomer?.id === customer.id ? 'active' : ''}`}
-                      onClick={() => handleCustomerClick(customer)}
-                    >
-                      <div className="customer-avatar">
-                        <FaUser />
-                      </div>
-                      <div className="customer-info">
-                        <h4>{customer.name}</h4>
-                        <p>{customer.email}</p>
-                        <div className="customer-stats">
-                          <span><FaPhone /> {customer.phone}</span>
-                          <span>{customer.cars.length} xe</span>
+                  {loading ? (
+                    <div className="loading-state">
+                      <div className="spinner"></div>
+                      <p>Đang tải danh sách khách hàng...</p>
+                    </div>
+                  ) : error ? (
+                    <div className="error-state">
+                      <p>❌ {error}</p>
+                      <button 
+                        className="retry-btn" 
+                        onClick={() => window.location.reload()}
+                      >
+                        Thử lại
+                      </button>
+                    </div>
+                  ) : filteredCustomers.length === 0 ? (
+                    <div className="empty-state">
+                      <FaUser size={40} />
+                      <p>Không tìm thấy khách hàng nào</p>
+                    </div>
+                  ) : (
+                    filteredCustomers.map(customer => (
+                      <div 
+                        key={customer.id} 
+                        className={`customer-item ${selectedCustomer?.id === customer.id ? 'active' : ''}`}
+                        onClick={() => handleCustomerClick(customer)}
+                      >
+                        <div className="customer-avatar">
+                          <FaUser />
+                        </div>
+                        <div className="customer-info">
+                          <h4>{customer.name || customer.fullName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Không có tên'}</h4>
+                          <p>{customer.email}</p>
+                          <div className="customer-stats">
+                            <span><FaPhone /> {customer.phone || 'Chưa có'}</span>
+                            <span>{customer.cars?.length || 0} xe</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -688,7 +661,7 @@ function StaffDashboard({ onNavigate }) {
                         <FaUser />
                       </div>
                       <div>
-                        <h2>{selectedCustomer.name}</h2>
+                        <h2>{selectedCustomer.name || selectedCustomer.fullName || `${selectedCustomer.firstName || ''} ${selectedCustomer.lastName || ''}`.trim() || 'Không có tên'}</h2>
                         <p className="customer-id">ID: #{selectedCustomer.id}</p>
                       </div>
                     </div>
@@ -707,45 +680,64 @@ function StaffDashboard({ onNavigate }) {
                           <FaPhone />
                           <div>
                             <span className="label">Số điện thoại</span>
-                            <span className="value">{selectedCustomer.phone}</span>
+                            <span className="value">{selectedCustomer.phone || 'Chưa cập nhật'}</span>
                           </div>
                         </div>
                         <div className="info-item">
-                          <FaMapMarkerAlt />
+                          <FaCheckCircle />
                           <div>
-                            <span className="label">Địa chỉ</span>
-                            <span className="value">{selectedCustomer.address}</span>
+                            <span className="label">Trạng thái</span>
+                            <span className="value">
+                              {selectedCustomer.status === 'ACTIVE' ? '✅ Hoạt động' : 
+                               selectedCustomer.status === 'INACTIVE' ? '❌ Không hoạt động' : 
+                               selectedCustomer.status || 'Chưa xác định'}
+                            </span>
                           </div>
                         </div>
                         <div className="info-item">
                           <FaClock />
                           <div>
                             <span className="label">Ngày tham gia</span>
-                            <span className="value">{selectedCustomer.joinDate}</span>
+                            <span className="value">
+                              {selectedCustomer.joinDate || selectedCustomer.createdAt 
+                                ? new Date(selectedCustomer.joinDate || selectedCustomer.createdAt).toLocaleDateString('vi-VN')
+                                : 'Chưa có thông tin'}
+                            </span>
                           </div>
                         </div>
                       </div>
                     </div>
 
                     <div className="details-section">
-                      <h3>Danh sách xe ({selectedCustomer.cars.length})</h3>
+                      <h3>Danh sách xe ({selectedCustomer.cars?.length || 0})</h3>
                       <div className="car-cards">
-                        {selectedCustomer.cars.map(car => (
-                          <div 
-                            key={car.id} 
-                            className="car-card-mini"
-                            onClick={() => handleCarClick(car)}
-                          >
-                            <div className="car-icon">
-                              <FaCar />
+                        {selectedCustomer.cars && selectedCustomer.cars.length > 0 ? (
+                          selectedCustomer.cars.map(car => (
+                            <div 
+                              key={car.id} 
+                              className="car-card-mini"
+                              onClick={() => handleCarClick(car)}
+                            >
+                              <div className="car-icon">
+                                <FaCar />
+                              </div>
+                              <div className="car-info-mini">
+                                <h4>{car.brand} {car.model}</h4>
+                                <p>Biển số: {car.licensePlate || 'Chưa có'}</p>
+                                <p>VIN: {car.vin || 'Chưa có'}</p>
+                                {car.maintenanceCount !== undefined && (
+                                  <p className="maintenance-count">
+                                    Số lần bảo trì: {car.maintenanceCount}
+                                  </p>
+                                )}
+                              </div>
                             </div>
-                            <div className="car-info-mini">
-                              <h4>{car.brand} {car.model}</h4>
-                              <p>Biển số: {car.licensePlate}</p>
-                              <p>VIN: {car.vin}</p>
-                            </div>
-                          </div>
-                        ))}
+                          ))
+                        ) : (
+                          <p style={{ color: '#a0aec0', textAlign: 'center', padding: '20px' }}>
+                            Khách hàng chưa có xe nào
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -753,26 +745,46 @@ function StaffDashboard({ onNavigate }) {
                       <div className="details-section">
                         <h3>Lịch sử dịch vụ - {selectedCar.brand} {selectedCar.model}</h3>
                         <div className="service-history-table">
-                          <table>
-                            <thead>
-                              <tr>
-                                <th>Ngày</th>
-                                <th>Dịch vụ</th>
-                                <th>Chi phí</th>
-                                <th>Trạng thái</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {selectedCar.serviceHistory.map((service, index) => (
-                                <tr key={index}>
-                                  <td>{service.date}</td>
-                                  <td>{service.service}</td>
-                                  <td className="cost">{service.cost}</td>
-                                  <td><span className="status-badge completed">{service.status}</span></td>
+                          {selectedCar.serviceHistory && selectedCar.serviceHistory.length > 0 ? (
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>Ngày</th>
+                                  <th>Dịch vụ</th>
+                                  <th>Chi phí</th>
+                                  <th>Trạng thái</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </thead>
+                              <tbody>
+                                {selectedCar.serviceHistory.map((service, index) => (
+                                  <tr key={index}>
+                                    <td>
+                                      {service.date 
+                                        ? new Date(service.date).toLocaleDateString('vi-VN')
+                                        : 'Chưa có thông tin'}
+                                    </td>
+                                    <td>{service.service || service.serviceName || 'N/A'}</td>
+                                    <td className="cost">
+                                      {service.cost 
+                                        ? (typeof service.cost === 'number' 
+                                          ? `${service.cost.toLocaleString('vi-VN')} VNĐ`
+                                          : service.cost)
+                                        : 'Chưa có'}
+                                    </td>
+                                    <td>
+                                      <span className="status-badge completed">
+                                        {service.status || 'Hoàn thành'}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          ) : (
+                            <p style={{ color: '#a0aec0', textAlign: 'center', padding: '20px' }}>
+                              Xe chưa có lịch sử dịch vụ
+                            </p>
+                          )}
                         </div>
                       </div>
                     )}

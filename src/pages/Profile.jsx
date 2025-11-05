@@ -1,32 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Profile.css';
+import { getProfile, updateProfile, changePassword } from '../api';
 
 function Profile({ onNavigate, user: propUser }) {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('info'); // info, password, history
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   
-  const [profileData, setProfileData] = useState(() => {
-    // ưu tiên prop user, sau đó localStorage, sau đó fallback mặc định
-    try {
-      const stored = localStorage.getItem('user');
-      const parsed = stored ? JSON.parse(stored) : null;
-      const src = propUser || parsed;
-      return {
-        fullName: src?.fullName || 'Người dùng',
-        email: src?.email || 'user@example.com',
-        phone: src?.phone || '0123456789',
-        address: src?.address || 'Chưa cập nhật',
-        avatar: src?.avatar || null
-      };
-    } catch (e) {
-      return {
-        fullName: 'Người dùng',
-        email: 'user@example.com',
-        phone: '0123456789',
-        address: 'Chưa cập nhật',
-        avatar: null
-      };
-    }
+  const [profileData, setProfileData] = useState({
+    user_id: null,
+    fullName: 'Người dùng',
+    email: 'user@example.com',
+    phone: '0123456789',
+    address: 'Chưa cập nhật',
+    avatar: null
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -59,6 +47,70 @@ function Profile({ onNavigate, user: propUser }) {
     }
   ]);
 
+  // Load profile từ API hoặc localStorage khi component mount
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        setLoading(true);
+        
+        // Thử load từ localStorage trước
+        const stored = localStorage.getItem('user');
+        console.log('📦 localStorage user:', stored);
+        
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          console.log('📋 Parsed user data:', parsed);
+          
+          const initialData = {
+            user_id: parsed.user_id || parsed.id || parsed.userId || null,
+            fullName: parsed.fullName || 'Người dùng',
+            email: parsed.email || 'user@example.com',
+            phone: parsed.phone || '0123456789',
+            address: parsed.address || 'Chưa cập nhật',
+            avatar: parsed.avatar || null
+          };
+          
+          console.log('✅ Đã set profileData với user_id:', initialData.user_id);
+          setProfileData(initialData);
+        } else {
+          console.warn('⚠️ Không tìm thấy user trong localStorage');
+        }
+
+        // Sau đó load từ API để đảm bảo dữ liệu mới nhất
+        try {
+          const data = await getProfile();
+          console.log('📡 Dữ liệu từ API getProfile:', data);
+          
+          // Preserve user_id từ localStorage nếu API không trả về
+          const currentUserId = profileData.user_id || (stored ? JSON.parse(stored).user_id || JSON.parse(stored).id : null);
+          
+          const updatedData = {
+            user_id: data.user_id || data.id || data.userId || currentUserId || null,
+            fullName: data.fullName || 'Người dùng',
+            email: data.email || 'user@example.com',
+            phone: data.phone || '0123456789',
+            address: data.address || 'Chưa cập nhật',
+            avatar: data.avatar || null
+          };
+          
+          console.log('✅ Cập nhật profileData từ API với user_id:', updatedData.user_id);
+          setProfileData(updatedData);
+          
+          // Cập nhật localStorage với dữ liệu mới (preserve user_id)
+          localStorage.setItem('user', JSON.stringify(updatedData));
+        } catch (apiError) {
+          console.warn('⚠️ Không thể load profile từ API, sử dụng dữ liệu localStorage:', apiError);
+        }
+      } catch (error) {
+        console.error('❌ Lỗi khi tải thông tin profile:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setProfileData(prev => ({
@@ -89,26 +141,90 @@ function Profile({ onNavigate, user: propUser }) {
     }
   };
 
-  const handleSaveProfile = (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    console.log('Saving profile:', profileData);
-    setIsEditing(false);
-    alert('Cập nhật thông tin thành công!');
-  };
-
-  const handleChangePassword = (e) => {
-    e.preventDefault();
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('Mật khẩu xác nhận không khớp!');
+    
+    console.log('🔍 Kiểm tra profileData:', profileData);
+    console.log('🆔 User ID:', profileData.user_id);
+    
+    if (!profileData.user_id) {
+      console.error('❌ Không tìm thấy user_id trong profileData');
+      console.log('📋 localStorage user:', localStorage.getItem('user'));
+      alert('❌ Không tìm thấy User ID. Vui lòng đăng nhập lại!');
       return;
     }
-    console.log('Changing password');
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    });
-    alert('Đổi mật khẩu thành công!');
+
+    try {
+      setSaving(true);
+      console.log('📤 Đang gửi dữ liệu profile:', profileData);
+      
+      // Gọi API PUT /api/update/{id}
+      const response = await updateProfile(profileData.user_id, {
+        fullName: profileData.fullName,
+        email: profileData.email,
+        phone: profileData.phone,
+        address: profileData.address,
+        avatar: profileData.avatar
+      });
+      
+      console.log('✅ Response từ backend:', response);
+      
+      // Cập nhật localStorage với dữ liệu mới
+      const updatedData = { ...profileData, ...response };
+      localStorage.setItem('user', JSON.stringify(updatedData));
+      setProfileData(updatedData);
+      
+      setIsEditing(false);
+      alert('✅ Cập nhật thông tin thành công!');
+    } catch (error) {
+      console.error('❌ Lỗi khi cập nhật profile:', error);
+      console.error('📋 Chi tiết lỗi:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+      
+      const errorMessage = error.response?.data?.message 
+        || error.response?.data?.error
+        || error.response?.statusText
+        || 'Có lỗi xảy ra khi cập nhật thông tin!';
+      
+      alert(`❌ Lỗi: ${errorMessage}\n\nStatus: ${error.response?.status || 'Unknown'}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      alert('❌ Mật khẩu xác nhận không khớp!');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      });
+      
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      alert('✅ Đổi mật khẩu thành công!');
+    } catch (error) {
+      console.error('❌ Lỗi khi đổi mật khẩu:', error);
+      const errorMessage = error.response?.data?.message 
+        || error.response?.data?.error
+        || 'Có lỗi xảy ra khi đổi mật khẩu!';
+      alert(`❌ Lỗi: ${errorMessage}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const getStatusClass = (status) => {
@@ -119,6 +235,32 @@ function Profile({ onNavigate, user: propUser }) {
       default: return '';
     }
   };
+
+  // Hiển thị loading khi đang tải profile
+  if (loading) {
+    return (
+      <div className="profile-container">
+        <div className="profile-header">
+          <button 
+            className="back-btn"
+            onClick={() => onNavigate('home')}
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+              <path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"/>
+            </svg>
+            Quay lại
+          </button>
+          <h1>Thông tin cá nhân</h1>
+        </div>
+        <div className="profile-content" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div className="spinner" style={{ margin: '0 auto 20px', width: '50px', height: '50px', border: '4px solid #f3f3f3', borderTop: '4px solid #3498db', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+            <p>Đang tải thông tin...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="profile-container">
@@ -289,11 +431,12 @@ function Profile({ onNavigate, user: propUser }) {
                       type="button" 
                       className="cancel-btn"
                       onClick={() => setIsEditing(false)}
+                      disabled={saving}
                     >
                       Hủy
                     </button>
-                    <button type="submit" className="save-btn">
-                      Lưu thay đổi
+                    <button type="submit" className="save-btn" disabled={saving}>
+                      {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
                     </button>
                   </div>
                 )}
@@ -347,8 +490,8 @@ function Profile({ onNavigate, user: propUser }) {
                 </div>
 
                 <div className="form-actions">
-                  <button type="submit" className="save-btn">
-                    Đổi mật khẩu
+                  <button type="submit" className="save-btn" disabled={saving}>
+                    {saving ? 'Đang xử lý...' : 'Đổi mật khẩu'}
                   </button>
                 </div>
               </form>

@@ -7,6 +7,7 @@ import Profile from "./pages/Profile.jsx";
 import MyCar from "./pages/MyCar.jsx";
 import StaffDashboard from "./pages/StaffDashboard.jsx";
 import Footer from "./components/Footer.jsx";
+import AdminDashboard from './pages/AdminDashboard.jsx';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -23,11 +24,12 @@ function App() {
   const handleLogin = (userData) => {
     setIsLoggedIn(true);
     setUser(userData);
-    try { localStorage.setItem('user', JSON.stringify(userData)); } catch (e) {}
+    try { localStorage.setItem('user', JSON.stringify(userData)); } catch (e) { }
   };
 
   const renderPage = () => {
-    switch(currentPage) {
+    console.log('Current page:', currentPage);
+    switch (currentPage) {
       case 'login':
         return <Login onNavigate={setCurrentPage} onLogin={handleLogin} />;
       case 'booking':
@@ -38,6 +40,9 @@ function App() {
         return <MyCar onNavigate={setCurrentPage} />;
       case 'staff':
         return <StaffDashboard onNavigate={setCurrentPage} />;
+      case 'admin':
+        console.log('Rendering AdminDashboard...');
+        return <AdminDashboard onNavigate={setCurrentPage} />;
       case 'home':
       default:
         return (
