@@ -12,6 +12,7 @@ function PaymentGatewayPage({ appointmentData, onNavigate, onPaymentComplete }) 
   const [isLoadingInvoice, setIsLoadingInvoice] = useState(false);
 
   // Kiểm tra appointmentData và fetch invoiceId nếu cần
+  // ✅ Lấy invoiceId từ appointmentData (backend đã tích hợp invoice vào API đặt lịch)
   useEffect(() => {
     console.log('🔍 PaymentGatewayPage mounted with appointmentData:', appointmentData);
     if (!appointmentData) {
@@ -24,26 +25,33 @@ function PaymentGatewayPage({ appointmentData, onNavigate, onPaymentComplete }) 
       return;
     }
 
-    // Nếu đã có invoiceId trong appointmentData
+    const appointmentId = appointmentData.appointmentId || appointmentData.id;
+    console.log('📋 Checking invoiceId from appointmentData:', {
+      directInvoiceId: appointmentData.invoiceId,
+      invoicesArray: appointmentData.invoices,
+      appointmentId: appointmentId
+    });
+
+    // Ưu tiên 1: Lấy từ appointmentData.invoiceId
     if (appointmentData.invoiceId) {
-      console.log('✅ Found invoiceId in appointmentData:', appointmentData.invoiceId);
+      console.log('✅ Found invoiceId from appointmentData.invoiceId:', appointmentData.invoiceId);
       setInvoiceId(appointmentData.invoiceId);
       return;
     }
 
-    // Nếu có invoices array
+    // Ưu tiên 2: Lấy từ invoices array
     if (appointmentData.invoices && appointmentData.invoices.length > 0) {
-      console.log('✅ Found invoices array:', appointmentData.invoices);
-      setInvoiceId(appointmentData.invoices[0].id);
-      return;
+      const firstInvoiceId = appointmentData.invoices[0].id;
+      if (firstInvoiceId) {
+        console.log('✅ Found invoiceId from appointmentData.invoices[0].id:', firstInvoiceId);
+        setInvoiceId(firstInvoiceId);
+        return;
+      }
     }
 
-    // Nếu không có invoiceId, thử fetch appointment detail để lấy
-    if (appointmentData.id || appointmentData.appointmentId) {
-      const appointmentId = appointmentData.id || appointmentData.appointmentId;
-      console.log('🔄 No invoiceId found, fetching appointment detail:', appointmentId);
-      fetchInvoiceFromAppointment(appointmentId);
-    }
+    // Ưu tiên 3: Fetch từ API appointment detail (fallback)
+    console.log('🔄 No invoiceId found in appointmentData, fetching appointment detail:', appointmentId);
+    fetchInvoiceFromAppointment(appointmentId);
   }, [appointmentData]);
 
   // Fetch invoiceId từ appointment detail

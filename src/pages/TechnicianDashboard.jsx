@@ -13,6 +13,12 @@ function TechnicianDashboard({ onNavigate }) {
   // Lấy thông tin technician từ localStorage
   const [technicianCenterId, setTechnicianCenterId] = useState(null);
 
+  // Helper function để normalize status (hỗ trợ cả lowercase và uppercase)
+  const normalizeStatus = (status) => {
+    if (!status) return '';
+    return String(status).toLowerCase();
+  };
+
   useEffect(() => {
     try {
       const userStr = localStorage.getItem('user');
@@ -85,9 +91,15 @@ function TechnicianDashboard({ onNavigate }) {
       
       console.log('📊 Tổng số lịch hẹn cuối cùng:', filteredData.length);
       console.log('📋 Breakdown theo status:', {
-        accepted: filteredData.filter(a => a.status === 'accepted').length,
-        inProgress: filteredData.filter(a => ['in-progress', 'in_progress', 'inProgress'].includes(a.status)).length,
-        completed: filteredData.filter(a => ['completed', 'done'].includes(a.status)).length,
+        accepted: filteredData.filter(a => normalizeStatus(a.status) === 'accepted').length,
+        inProgress: filteredData.filter(a => {
+          const normalized = normalizeStatus(a.status);
+          return ['in-progress', 'in_progress', 'inprogress'].includes(normalized);
+        }).length,
+        completed: filteredData.filter(a => {
+          const normalized = normalizeStatus(a.status);
+          return ['completed', 'done'].includes(normalized);
+        }).length,
       });
       setAppointments(filteredData);
       
@@ -157,11 +169,13 @@ function TechnicianDashboard({ onNavigate }) {
   };
 
   const getStatusColor = (status) => {
-    switch(status) {
+    const normalized = normalizeStatus(status);
+    switch(normalized) {
+      case 'pending': return 'status-pending';
       case 'accepted': return 'status-waiting';
       case 'in-progress':
       case 'in_progress':
-      case 'inProgress': return 'status-in-progress';
+      case 'inprogress': return 'status-in-progress';
       case 'completed':
       case 'done': return 'status-completed';
       default: return '';
@@ -169,11 +183,13 @@ function TechnicianDashboard({ onNavigate }) {
   };
 
   const getStatusText = (status) => {
-    switch(status) {
+    const normalized = normalizeStatus(status);
+    switch(normalized) {
+      case 'pending': return 'Chờ xác nhận';
       case 'accepted': return 'Đã xác nhận';
       case 'in-progress':
       case 'in_progress':
-      case 'inProgress': return 'Đang làm';
+      case 'inprogress': return 'Đang làm';
       case 'completed':
       case 'done': return 'Hoàn tất';
       default: return status;
@@ -181,11 +197,13 @@ function TechnicianDashboard({ onNavigate }) {
   };
 
   const getStatusIcon = (status) => {
-    switch(status) {
+    const normalized = normalizeStatus(status);
+    switch(normalized) {
+      case 'pending': return <FaClock />;
       case 'accepted': return <FaCheckCircle />;
       case 'in-progress':
       case 'in_progress':
-      case 'inProgress': return <FaTools />;
+      case 'inprogress': return <FaTools />;
       case 'completed':
       case 'done': return <FaCheckCircle />;
       default: return <FaClock />;
@@ -193,9 +211,15 @@ function TechnicianDashboard({ onNavigate }) {
   };
 
   // Đếm số lượng theo trạng thái
-  const waitingCount = appointments.filter(a => a.status === 'accepted').length;
-  const inProgressCount = appointments.filter(a => ['in-progress', 'in_progress', 'inProgress'].includes(a.status)).length;
-  const completedCount = appointments.filter(a => ['completed', 'done'].includes(a.status)).length;
+  const waitingCount = appointments.filter(a => normalizeStatus(a.status) === 'accepted').length;
+  const inProgressCount = appointments.filter(a => {
+    const normalized = normalizeStatus(a.status);
+    return ['in-progress', 'in_progress', 'inprogress'].includes(normalized);
+  }).length;
+  const completedCount = appointments.filter(a => {
+    const normalized = normalizeStatus(a.status);
+    return ['completed', 'done'].includes(normalized);
+  }).length;
 
   return (
     <div className="technician-dashboard">
@@ -481,7 +505,7 @@ function TechnicianDashboard({ onNavigate }) {
                 <div className="details-section">
                   <h3>Thao tác</h3>
                   <div className="action-buttons">
-                    {(selectedAppointment.status === 'accepted') && (
+                    {(normalizeStatus(selectedAppointment.status) === 'accepted') && (
                       <button 
                         className="action-btn start"
                         onClick={() => handleStatusChange(

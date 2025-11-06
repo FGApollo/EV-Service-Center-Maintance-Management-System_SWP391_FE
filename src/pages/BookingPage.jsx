@@ -287,14 +287,26 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
       const response = await createAppointment(appointmentData);
       
       console.log('✅ Đặt lịch thành công:', response);
+      console.log('📋 Response data:', {
+        appointmentId: response.appointmentId || response.id,
+        invoiceId: response.invoiceId,
+        invoices: response.invoices
+      });
       
-      // Navigate sang trang thanh toán với thông tin appointment
+      // ✅ Invoice đã được tạo tự động bởi backend khi đặt lịch
+      const appointmentId = response.appointmentId || response.id;
+      
+      // Navigate sang trang thanh toán với thông tin appointment và invoice từ response
       const paymentData = {
-        id: response.appointmentId || response.id,
+        id: appointmentId,
+        appointmentId: appointmentId,
         appointmentDate: appointmentData.appointmentDate,
         vehicleModel: formData.vehicleModel,
         serviceCenterId: formData.serviceCenterId,
         serviceTypes: formData.selectedServices,
+        // ✅ Invoice info từ API response (đã tích hợp trong API đặt lịch)
+        invoiceId: response.invoiceId || (response.invoices && response.invoices[0]?.id),
+        invoices: response.invoices || [],
         ...response
       };
       

@@ -112,6 +112,69 @@ export const getAppointmentById = async (appointmentId) => {
   return res.data;
 };
 
+// Lấy appointments theo status (✅)
+// OpenAPI: GET /api/appointments/appointments/status/{status}
+// Response: AppointmentResponse[] (có techIds field)
+export const getAppointmentsByStatus = async (status) => {
+  console.log('📞 Fetching appointments by status:', status);
+  const res = await axiosClient.get(`/api/appointments/appointments/status/${status}`);
+  console.log('✅ Appointments by status response:', res.data);
+  return res.data;
+};
+
+// Lấy appointments đang thực hiện (in_progress) với thông tin kỹ thuật viên (✅)
+// Hỗ trợ nhiều format status: in-progress, in_progress, inProgress
+export const getInProgressAppointments = async () => {
+  console.log('📞 Fetching in-progress appointments with technician info...');
+  
+  // Thử các format status khác nhau
+  const statusVariants = ['in-progress', 'in_progress', 'inProgress'];
+  let allAppointments = [];
+  
+  for (const status of statusVariants) {
+    try {
+      const res = await axiosClient.get(`/api/appointments/appointments/status/${status}`);
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        console.log(`✅ Found ${res.data.length} appointments with status "${status}"`);
+        allAppointments = [...allAppointments, ...res.data];
+        break; // Nếu tìm thấy, dừng lại
+      }
+    } catch (error) {
+      console.log(`⚠️ Status "${status}" not found or error:`, error.response?.status);
+      // Tiếp tục thử status khác
+    }
+  }
+  
+  // Nếu không tìm thấy với bất kỳ format nào, thử lấy tất cả và filter
+  if (allAppointments.length === 0) {
+    console.log('⚠️ No appointments found with status variants, trying to get all...');
+    try {
+      const allRes = await axiosClient.get('/api/appointments/all');
+      if (Array.isArray(allRes.data)) {
+        allAppointments = allRes.data.filter(apt => {
+          const aptStatus = apt.status?.toLowerCase();
+          return aptStatus === 'in-progress' || 
+                 aptStatus === 'in_progress' || 
+                 aptStatus === 'inprogress' ||
+                 aptStatus === 'in progress';
+        });
+        console.log(`✅ Filtered ${allAppointments.length} in-progress appointments from all`);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching all appointments:', error);
+    }
+  }
+  
+  console.log(`✅ Total in-progress appointments: ${allAppointments.length}`);
+  console.log('   📋 Appointments with techIds:', allAppointments.map(apt => ({
+    id: apt.appointmentId || apt.id,
+    techIds: apt.techIds,
+    status: apt.status
+  })));
+  
+  return allAppointments;
+};
+
 // Customer: Đặt lịch bảo dưỡng mới (✅)
 export const createAppointment = async (data) => {
   const res = await axiosClient.post("/api/appointments", data);
@@ -221,16 +284,31 @@ export const getTechnicians = async () => {
 
 // Staff: Giao việc cho technician (✅ Cần token)
 // Backend yêu cầu: PUT /assignments/{appointmentId}/staff với body = số integer (không phải object)
-export const assignTechnician = async (appointmentId, technicianId) => {
+/**
+ * Giao việc cho một hoặc nhiều technicians
+ * 
+ * API: PUT /assignments/{appointmentId}/staff
+ * Body: number[] (array of technician IDs)
+ * 
+ * @param {number|string} appointmentId - ID của appointment
+ * @param {number|number[]} technicianIdOrIds - Một technician ID hoặc array of technician IDs
+ * @returns {Promise<Array>} Array of StaffAssignmentDto
+ */
+export const assignTechnician = async (appointmentId, technicianIdOrIds) => {
+  // Convert to array nếu là single ID
+  const technicianIds = Array.isArray(technicianIdOrIds) 
+    ? technicianIdOrIds 
+    : [technicianIdOrIds];
+  
   console.log('🔧 assignTechnician được gọi:');
   console.log('  📋 appointmentId:', appointmentId);
-  console.log('  👷 technicianId:', technicianId);
+  console.log('  👷 technicianIds:', technicianIds);
   console.log('  🔗 URL:', `/assignments/${appointmentId}/staff`);
-  console.log('  📦 Body (số):', technicianId);
+  console.log('  📦 Body (array):', technicianIds);
   
   try {
-    // Backend yêu cầu body là số integer, không phải object
-    const res = await axiosClient.put(`/assignments/${appointmentId}/staff`, [technicianId]);
+    // OpenAPI spec: Body là array of integers
+    const res = await axiosClient.put(`/assignments/${appointmentId}/staff`, technicianIds);
     console.log('✅ Giao việc thành công:', res.data);
     return res.data;
   } catch (error) {
@@ -240,6 +318,26 @@ export const assignTechnician = async (appointmentId, technicianId) => {
     console.error('  📦 Response:', error.response?.data);
     console.error('  🔗 URL:', error.config?.url);
     console.error('  📤 Request data:', error.config?.data);
+    throw error;
+  }
+};
+
+/* --------------------------------
+   🧾 INVOICE API
+---------------------------------- */
+
+// Staff: Tạo hóa đơn cho appointment (✅ Cần token)
+// OpenAPI: POST /api/auth/invoices/create/{appointmentId}
+export const createInvoice = async (appointmentId) => {
+  console.log('🧾 Creating invoice for appointment:', appointmentId);
+  try {
+    const res = await axiosClient.post(`/api/auth/invoices/create/${appointmentId}`);
+    console.log('✅ Invoice created:', res.data);
+    return res.data;
+  } catch (error) {
+    console.error('❌ Error creating invoice:', error);
+    console.error('  📍 Status:', error.response?.status);
+    console.error('  📝 Message:', error.response?.data?.message || error.message);
     throw error;
   }
 };
