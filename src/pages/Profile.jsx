@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Profile.css';
-import { getProfile, updateProfile, changePassword } from '../api';
+import * as API from '../api/index.js';
 
 function Profile({ onNavigate, user: propUser }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -78,7 +78,7 @@ function Profile({ onNavigate, user: propUser }) {
 
         // Sau đó load từ API để đảm bảo dữ liệu mới nhất
         try {
-          const data = await getProfile();
+          const data = await API.getProfile();
           console.log('📡 Dữ liệu từ API getProfile:', data);
           
           // Preserve user_id từ localStorage nếu API không trả về
@@ -159,7 +159,7 @@ function Profile({ onNavigate, user: propUser }) {
       console.log('📤 Đang gửi dữ liệu profile:', profileData);
       
       // Gọi API PUT /api/update/{id}
-      const response = await updateProfile(profileData.user_id, {
+      const response = await API.updateUser(profileData.user_id, {
         fullName: profileData.fullName,
         email: profileData.email,
         phone: profileData.phone,
@@ -205,7 +205,7 @@ function Profile({ onNavigate, user: propUser }) {
 
     try {
       setSaving(true);
-      await changePassword({
+      await API.changePassword({
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword
       });

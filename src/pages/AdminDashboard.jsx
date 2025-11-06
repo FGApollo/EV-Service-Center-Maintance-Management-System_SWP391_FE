@@ -7,17 +7,19 @@ import {
   FaWarehouse, FaRobot, FaClipboardCheck, FaReceipt, FaCreditCard, 
   FaFileInvoiceDollar, FaCalendarWeek, FaUserTie, FaBriefcase
 } from 'react-icons/fa';
-import { 
-  getVehicles, 
-  getAllCustomers,
-  getAllVehiclesWithOwner,
-  addVehicleForCustomer,
-  updateVehicleAdmin,
-  deleteVehicleAdmin
-} from '../api/index';
+import * as API from '../api/index.js';
 
 function AdminDashboard({ onNavigate }) {
   console.log('AdminDashboard component loaded!', { onNavigate });
+  
+  // Kiểm tra đăng nhập
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Bạn cần đăng nhập để truy cập trang này!');
+      onNavigate && onNavigate('login');
+    }
+  }, [onNavigate]);
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [vehicles, setVehicles] = useState([]);
@@ -40,17 +42,23 @@ function AdminDashboard({ onNavigate }) {
   });
   const [savingVehicle, setSavingVehicle] = useState(false);
 
-  // Overview Stats
-  const [stats] = useState({
-    totalCustomers: 156,
-    totalCars: 203,
-    pendingAppointments: 12,
-    inProgressServices: 8,
-    completedToday: 24,
-    totalRevenue: 1250000000,
-    lowStockParts: 5,
-    activeTechnicians: 12
+  // Overview Stats - Real-time data from APIs
+  const [overviewStats, setOverviewStats] = useState({
+    totalCustomers: 0,
+    totalVehicles: 0,
+    totalAppointments: 0,
+    pendingAppointments: 0,
+    inProgressAppointments: 0,
+    completedAppointments: 0,
+    totalRevenue: 0,
+    revenueData: {},
+    profitData: {},
+    trendingServices: [],
+    trendingServicesLastMonth: [],
+    trendingParts: [],
+    activeTechnicians: 0
   });
+  const [loadingOverview, setLoadingOverview] = useState(false);
 
   // Customers & Cars Data
   const [customers] = useState([
@@ -103,13 +111,90 @@ function AdminDashboard({ onNavigate }) {
   useEffect(() => {
     fetchVehicles();
     fetchCustomers();
-  }, []);
+    if (activeTab === 'overview') {
+      fetchOverviewData();
+    }
+  }, [activeTab]);
+
+  // ========== FETCH OVERVIEW DATA ==========
+  const fetchOverviewData = async () => {
+    try {
+      setLoadingOverview(true);
+      setError(null);
+      console.log('🔄 Loading overview data...');
+
+      // Fetch tất cả data song song để tăng tốc độ
+      const [
+        customersData,
+        vehiclesData,
+        appointmentsData,
+        revenueData,
+        profitData,
+        trendingData,
+        trendingMonthData,
+        partsData,
+        techniciansData
+      ] = await Promise.all([
+        API.getAllCustomers().catch(err => { console.error('Error customers:', err); return []; }),
+        API.getVehiclesMaintained().catch(err => { console.error('Error vehicles:', err); return []; }),
+        API.getAllAppointments().catch(err => { console.error('Error appointments:', err); return []; }),
+        API.getRevenueReport().catch(err => { console.error('Error revenue:', err); return {}; }),
+        API.getProfitReport().catch(err => { console.error('Error profit:', err); return {}; }),
+        API.getTrendingServices().catch(err => { console.error('Error trending:', err); return []; }),
+        API.getTrendingServicesLastMonth().catch(err => { console.error('Error trending month:', err); return []; }),
+        API.getTop5PartsUsed().catch(err => { console.error('Error parts:', err); return []; }),
+        API.getAllTechnicians().catch(err => { console.error('Error technicians:', err); return []; })
+      ]);
+
+      console.log('📊 Overview Data:', {
+        customers: customersData.length,
+        vehicles: vehiclesData.length,
+        appointments: appointmentsData.length,
+        revenue: revenueData,
+        profit: profitData,
+        trending: trendingData,
+        parts: partsData,
+        technicians: techniciansData.length
+      });
+
+      // Count appointments by status
+      const pending = appointmentsData.filter(a => a.status === 'PENDING').length;
+      const inProgress = appointmentsData.filter(a => a.status === 'IN_PROGRESS').length;
+      const completed = appointmentsData.filter(a => a.status === 'DONE').length;
+
+      // Calculate total revenue
+      const totalRevenue = Object.values(revenueData).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+
+      setOverviewStats({
+        totalCustomers: customersData.length,
+        totalVehicles: vehiclesData.length,
+        totalAppointments: appointmentsData.length,
+        pendingAppointments: pending,
+        inProgressAppointments: inProgress,
+        completedAppointments: completed,
+        totalRevenue: totalRevenue,
+        revenueData: revenueData,
+        profitData: profitData,
+        trendingServices: Array.isArray(trendingData) ? trendingData : Object.entries(trendingData || {}),
+        trendingServicesLastMonth: Array.isArray(trendingMonthData) ? trendingMonthData : Object.entries(trendingMonthData || {}),
+        trendingParts: partsData,
+        activeTechnicians: techniciansData.length
+      });
+
+      console.log('✅ Overview data loaded successfully');
+    } catch (err) {
+      console.error('❌ Error loading overview data:', err);
+      setError('Không thể tải dữ liệu tổng quan: ' + (err.message || 'Unknown error'));
+    } finally {
+      setLoadingOverview(false);
+    }
+  };
 
   // Hàm fetch danh sách khách hàng từ API
   const fetchCustomers = async () => {
     try {
       setLoadingCustomers(true);
-      const data = await getAllCustomers();
+      const data = await API.getAllCustomers();
       setAllCustomers(data);
       console.log('✅ Loaded customers:', data);
     } catch (err) {
@@ -135,8 +220,8 @@ function AdminDashboard({ onNavigate }) {
       setLoading(true);
       setError(null);
       
-      // Gọi API lấy tất cả xe kèm owner
-      const data = await getAllVehiclesWithOwner();
+      // Gọi API lấy tất cả xe đã bảo dưỡng
+      const data = await API.getVehiclesMaintained();
       setVehicles(data);
       console.log('✅ Loaded vehicles with owners:', data);
     } catch (err) {
@@ -233,7 +318,7 @@ function AdminDashboard({ onNavigate }) {
           alert('⚠️ Vui lòng chọn khách hàng');
           return;
         }
-        await addVehicleForCustomer(vehicleFormData.customerId, {
+        await API.addVehicle({
           vin: vehicleFormData.vin,
           model: vehicleFormData.model,
           year: vehicleFormData.year,
@@ -242,15 +327,16 @@ function AdminDashboard({ onNavigate }) {
         });
         alert('✅ Thêm xe thành công!');
       } else if (modalMode === 'edit') {
-        // Cập nhật xe
-        await updateVehicleAdmin(selectedVehicle.id, {
-          vin: vehicleFormData.vin,
-          model: vehicleFormData.model,
-          year: vehicleFormData.year,
-          color: vehicleFormData.color,
-          licensePlate: vehicleFormData.licensePlate
-        });
-        alert('✅ Cập nhật xe thành công!');
+        // Cập nhật xe - API không có endpoint này, chỉ có thể xóa và thêm lại
+        alert('⚠️ Chức năng cập nhật xe chưa được hỗ trợ từ backend');
+        // await API.updateVehicle(selectedVehicle.id, {
+        //   vin: vehicleFormData.vin,
+        //   model: vehicleFormData.model,
+        //   year: vehicleFormData.year,
+        //   color: vehicleFormData.color,
+        //   licensePlate: vehicleFormData.licensePlate
+        // });
+        // alert('✅ Cập nhật xe thành công!');
       }
       
       setShowVehicleModal(false);
@@ -270,7 +356,7 @@ function AdminDashboard({ onNavigate }) {
     }
 
     try {
-      await deleteVehicleAdmin(vehicleId);
+      await API.deleteVehicle(vehicleId);
       alert('✅ Đã xóa xe thành công!');
       fetchVehicles();
     } catch (err) {
@@ -579,101 +665,300 @@ function AdminDashboard({ onNavigate }) {
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="overview-section">
-            <div className="stats-grid">
-              <div className="stat-card revenue">
-                <div className="stat-icon">
-                  <FaMoneyBillWave />
-                </div>
-                <div className="stat-info">
-                  <h3>{formatCurrency(stats.totalRevenue)}</h3>
-                  <p>Tổng doanh thu</p>
-                </div>
+            {loadingOverview ? (
+              <div className="loading-state">
+                <div className="spinner"></div>
+                <p>Đang tải dữ liệu tổng quan...</p>
               </div>
-              <div className="stat-card customers">
-                <div className="stat-icon">
-                  <FaUser />
-                </div>
-                <div className="stat-info">
-                  <h3>{stats.totalCustomers}</h3>
-                  <p>Khách hàng</p>
-                </div>
+            ) : error ? (
+              <div className="error-state">
+                <p>❌ {error}</p>
+                <button onClick={fetchOverviewData} className="btn-retry">
+                  Thử lại
+                </button>
               </div>
-              <div className="stat-card cars">
-                <div className="stat-icon">
-                  <FaCar />
-                </div>
-                <div className="stat-info">
-                  <h3>{stats.totalCars}</h3>
-                  <p>Xe đã đăng ký</p>
-                </div>
-              </div>
-              <div className="stat-card pending">
-                <div className="stat-icon">
-                  <FaClock />
-                </div>
-                <div className="stat-info">
-                  <h3>{stats.pendingAppointments}</h3>
-                  <p>Lịch hẹn chờ xử lý</p>
-                </div>
-              </div>
-              <div className="stat-card in-progress">
-                <div className="stat-icon">
-                  <FaTools />
-                </div>
-                <div className="stat-info">
-                  <h3>{stats.inProgressServices}</h3>
-                  <p>Đang bảo dưỡng</p>
-                </div>
-              </div>
-              <div className="stat-card completed">
-                <div className="stat-icon">
-                  <FaCheckCircle />
-                </div>
-                <div className="stat-info">
-                  <h3>{stats.completedToday}</h3>
-                  <p>Hoàn thành hôm nay</p>
-                </div>
-              </div>
-              <div className="stat-card low-stock">
-                <div className="stat-icon">
-                  <FaWarehouse />
-                </div>
-                <div className="stat-info">
-                  <h3>{stats.lowStockParts}</h3>
-                  <p>Phụ tùng sắp hết</p>
-                </div>
-              </div>
-              <div className="stat-card staff">
-                <div className="stat-icon">
-                  <FaUsers />
-                </div>
-                <div className="stat-info">
-                  <h3>{stats.activeTechnicians}</h3>
-                  <p>Kỹ thuật viên đang làm việc</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="charts-grid">
-              <div className="chart-card">
-                <h3>Doanh thu theo tháng</h3>
-                <div className="chart-placeholder">
-                  <FaChartBar size={60} />
-                  <p>Biểu đồ doanh thu</p>
-                </div>
-              </div>
-              <div className="chart-card">
-                <h3>Dịch vụ phổ biến</h3>
-                <div className="service-list">
-                  {financialData.serviceStats.slice(0, 5).map((service, index) => (
-                    <div key={index} className="service-item">
-                      <span>{service.service}</span>
-                      <span className="service-count">{service.count} lượt</span>
+            ) : (
+              <>
+                {/* Stats Cards */}
+                <div className="stats-grid">
+                  <div className="stat-card revenue">
+                    <div className="stat-icon">
+                      <FaMoneyBillWave />
                     </div>
-                  ))}
+                    <div className="stat-info">
+                      <h3>{formatCurrency(overviewStats.totalRevenue)}</h3>
+                      <p>Tổng doanh thu</p>
+                      <span className="stat-trend positive">↑ Real-time</span>
+                    </div>
+                  </div>
+                  
+                  <div className="stat-card customers">
+                    <div className="stat-icon">
+                      <FaUser />
+                    </div>
+                    <div className="stat-info">
+                      <h3>{overviewStats.totalCustomers}</h3>
+                      <p>Khách hàng</p>
+                      <span className="stat-detail">Tổng số đăng ký</span>
+                    </div>
+                  </div>
+                  
+                  <div className="stat-card cars">
+                    <div className="stat-icon">
+                      <FaCar />
+                    </div>
+                    <div className="stat-info">
+                      <h3>{overviewStats.totalVehicles}</h3>
+                      <p>Xe đã bảo dưỡng</p>
+                      <span className="stat-detail">Đang quản lý</span>
+                    </div>
+                  </div>
+                  
+                  <div className="stat-card appointments">
+                    <div className="stat-icon">
+                      <FaCalendarAlt />
+                    </div>
+                    <div className="stat-info">
+                      <h3>{overviewStats.totalAppointments}</h3>
+                      <p>Tổng lịch hẹn</p>
+                      <span className="stat-detail">Tất cả thời gian</span>
+                    </div>
+                  </div>
+                  
+                  <div className="stat-card pending">
+                    <div className="stat-icon">
+                      <FaClock />
+                    </div>
+                    <div className="stat-info">
+                      <h3>{overviewStats.pendingAppointments}</h3>
+                      <p>Chờ xử lý</p>
+                      <span className="stat-detail status-pending">Cần xác nhận</span>
+                    </div>
+                  </div>
+                  
+                  <div className="stat-card in-progress">
+                    <div className="stat-icon">
+                      <FaTools />
+                    </div>
+                    <div className="stat-info">
+                      <h3>{overviewStats.inProgressAppointments}</h3>
+                      <p>Đang bảo dưỡng</p>
+                      <span className="stat-detail status-progress">Đang làm việc</span>
+                    </div>
+                  </div>
+                  
+                  <div className="stat-card completed">
+                    <div className="stat-icon">
+                      <FaCheckCircle />
+                    </div>
+                    <div className="stat-info">
+                      <h3>{overviewStats.completedAppointments}</h3>
+                      <p>Đã hoàn thành</p>
+                      <span className="stat-detail status-done">Thành công</span>
+                    </div>
+                  </div>
+                  
+                  <div className="stat-card staff">
+                    <div className="stat-icon">
+                      <FaUsers />
+                    </div>
+                    <div className="stat-info">
+                      <h3>{overviewStats.activeTechnicians}</h3>
+                      <p>Kỹ thuật viên</p>
+                      <span className="stat-detail">Đang hoạt động</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+
+                {/* Charts & Reports Section */}
+                <div className="charts-section">
+                  {/* Revenue Chart */}
+                  <div className="chart-card revenue-chart">
+                    <div className="chart-header">
+                      <h3><FaChartBar /> Doanh thu theo tháng</h3>
+                      <button 
+                        onClick={fetchOverviewData} 
+                        className="btn-refresh"
+                        title="Refresh data"
+                      >
+                        🔄
+                      </button>
+                    </div>
+                    <div className="chart-body">
+                      {Object.keys(overviewStats.revenueData).length > 0 ? (
+                        <div className="bar-chart">
+                          {Object.entries(overviewStats.revenueData).map(([month, revenue]) => {
+                            const maxRevenue = Math.max(...Object.values(overviewStats.revenueData));
+                            const height = maxRevenue > 0 ? (revenue / maxRevenue) * 100 : 0;
+                            return (
+                              <div key={month} className="bar-item">
+                                <div className="bar-wrapper">
+                                  <div 
+                                    className="bar" 
+                                    style={{ height: `${height}%` }}
+                                    title={formatCurrency(revenue)}
+                                  ></div>
+                                </div>
+                                <div className="bar-label">{month}</div>
+                                <div className="bar-value">{formatCurrency(revenue)}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="chart-empty">
+                          <FaChartBar size={40} />
+                          <p>Chưa có dữ liệu doanh thu</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Profit Chart */}
+                  <div className="chart-card profit-chart">
+                    <div className="chart-header">
+                      <h3><FaChartLine /> Lợi nhuận theo tháng</h3>
+                    </div>
+                    <div className="chart-body">
+                      {Object.keys(overviewStats.profitData).length > 0 ? (
+                        <div className="bar-chart">
+                          {Object.entries(overviewStats.profitData).map(([month, profit]) => {
+                            const maxProfit = Math.max(...Object.values(overviewStats.profitData));
+                            const height = maxProfit > 0 ? (profit / maxProfit) * 100 : 0;
+                            return (
+                              <div key={month} className="bar-item">
+                                <div className="bar-wrapper">
+                                  <div 
+                                    className="bar bar-profit" 
+                                    style={{ height: `${height}%` }}
+                                    title={formatCurrency(profit)}
+                                  ></div>
+                                </div>
+                                <div className="bar-label">{month}</div>
+                                <div className="bar-value">{formatCurrency(profit)}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="chart-empty">
+                          <FaChartLine size={40} />
+                          <p>Chưa có dữ liệu lợi nhuận</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Trending Tables */}
+                <div className="trending-section">
+                  {/* Trending Services */}
+                  <div className="trending-card">
+                    <div className="card-header">
+                      <h3><FaTools /> Dịch vụ phổ biến nhất (All Time)</h3>
+                    </div>
+                    <div className="card-body">
+                      {overviewStats.trendingServices.length > 0 ? (
+                        <table className="trending-table">
+                          <thead>
+                            <tr>
+                              <th>#</th>
+                              <th>Dịch vụ</th>
+                              <th>Số lần</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {overviewStats.trendingServices.slice(0, 5).map((item, index) => {
+                              const [serviceName, count] = Array.isArray(item) ? item : [item.key, item.value];
+                              return (
+                                <tr key={index}>
+                                  <td>{index + 1}</td>
+                                  <td>{serviceName}</td>
+                                  <td className="count-badge">{count}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <div className="empty-state-small">
+                          <p>Chưa có dữ liệu</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Trending Services Last Month */}
+                  <div className="trending-card">
+                    <div className="card-header">
+                      <h3><FaCalendarWeek /> Dịch vụ phổ biến (Tháng trước)</h3>
+                    </div>
+                    <div className="card-body">
+                      {overviewStats.trendingServicesLastMonth.length > 0 ? (
+                        <table className="trending-table">
+                          <thead>
+                            <tr>
+                              <th>#</th>
+                              <th>Dịch vụ</th>
+                              <th>Số lần</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {overviewStats.trendingServicesLastMonth.slice(0, 5).map((item, index) => {
+                              const [serviceName, count] = Array.isArray(item) ? item : [item.key, item.value];
+                              return (
+                                <tr key={index}>
+                                  <td>{index + 1}</td>
+                                  <td>{serviceName}</td>
+                                  <td className="count-badge">{count}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <div className="empty-state-small">
+                          <p>Chưa có dữ liệu</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Top Parts Used */}
+                  <div className="trending-card">
+                    <div className="card-header">
+                      <h3><FaWarehouse /> Top 5 Linh kiện (Tháng trước)</h3>
+                    </div>
+                    <div className="card-body">
+                      {overviewStats.trendingParts && Object.keys(overviewStats.trendingParts).length > 0 ? (
+                        <table className="trending-table">
+                          <thead>
+                            <tr>
+                              <th>#</th>
+                              <th>Linh kiện</th>
+                              <th>Số lượng</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(overviewStats.trendingParts).slice(0, 5).map(([partName, quantity], index) => (
+                              <tr key={index}>
+                                <td>{index + 1}</td>
+                                <td>{partName}</td>
+                                <td className="count-badge">{quantity}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <div className="empty-state-small">
+                          <p>Chưa có dữ liệu</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 

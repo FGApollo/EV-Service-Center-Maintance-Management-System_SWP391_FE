@@ -45,21 +45,28 @@ function App() {
         return <AdminDashboard onNavigate={setCurrentPage} />;
       case 'home':
       default:
-        return (
-          <>
-            <Navbar onNavigate={setCurrentPage} isLoggedIn={isLoggedIn} onLogout={() => { setIsLoggedIn(false); setUser(null); localStorage.removeItem('token'); localStorage.removeItem('user'); }} user={user} />
-            <main>
-              <Home onNavigate={setCurrentPage} />
-            </main>
-            <Footer onNavigate={setCurrentPage} />
-          </>
-        );
+        return <Home onNavigate={setCurrentPage} />;
     }
   };
 
   return (
     <div className="App">
-      {renderPage()}
+      <Navbar 
+        onNavigate={setCurrentPage} 
+        isLoggedIn={isLoggedIn} 
+        onLogout={() => { 
+          setIsLoggedIn(false); 
+          setUser(null); 
+          localStorage.removeItem('token'); 
+          localStorage.removeItem('user');
+          setCurrentPage('home');
+        }} 
+        user={user} 
+      />
+      <main>
+        {renderPage()}
+      </main>
+      <Footer onNavigate={setCurrentPage} />
     </div>
   );
 }

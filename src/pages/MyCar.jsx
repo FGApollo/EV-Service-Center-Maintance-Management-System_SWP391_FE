@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './MyCar.css';
-import { getVehicles } from '../api';
+import * as API from '../api/index.js';
 
 function MyCar({ onNavigate }) {
   const [cars, setCars] = useState([]);
@@ -16,7 +16,7 @@ function MyCar({ onNavigate }) {
     try {
       setLoading(true);
       setError(null);
-      const data = await getVehicles();
+      const data = await API.getVehicles();
       setCars(data);
     } catch (err) {
       console.error('Error fetching vehicles:', err);

@@ -2,6 +2,8 @@
 .staff-dashboard {
   min-height: 100vh;
   background: #f5f7fa;
+  padding-top: 80px; /* Để tránh bị Navbar che */
+  padding-bottom: 120px; /* Để tránh bị footer che */
 }
 
 /* Header */
@@ -128,7 +130,7 @@
 
 /* Dashboard Content */
 .dashboard-content {
-  padding: 30px 40px;
+  padding: 30px 40px 100px 40px; /* Tăng padding bottom */
   max-width: 1600px;
   margin: 0 auto;
 }

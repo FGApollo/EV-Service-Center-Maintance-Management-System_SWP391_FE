@@ -1,9 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import './StaffDashboard.css';
 import { FaUser, FaCar, FaComments, FaSearch, FaPlus, FaHistory, FaClock, FaPhone, FaEnvelope, FaMapMarkerAlt, FaCalendarAlt, FaTools, FaCheckCircle, FaTimes, FaEdit } from 'react-icons/fa';
-import { getCustomersByRole } from '../api';
+import * as API from '../api/index.js';
 
 function StaffDashboard({ onNavigate }) {
+  // Kiểm tra đăng nhập
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Bạn cần đăng nhập để truy cập trang này!');
+      onNavigate && onNavigate('login');
+    }
+  }, [onNavigate]);
+
   const [activeTab, setActiveTab] = useState('customers'); // customers, cars, chat, appointments, maintenance, parts
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -27,7 +36,7 @@ function StaffDashboard({ onNavigate }) {
       try {
         setLoading(true);
         setError(null);
-        const data = await getCustomersByRole('CUSTOMER');
+        const data = await API.getAllCustomers();
         setCustomers(data);
       } catch (err) {
         console.error('Lỗi khi tải danh sách khách hàng:', err);
@@ -394,11 +403,16 @@ function StaffDashboard({ onNavigate }) {
     }
   ]);
 
-  const filteredCustomers = customers.filter(customer =>
-    customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.phone.includes(searchQuery)
-  );
+  const filteredCustomers = customers.filter(customer => {
+    const query = searchQuery.toLowerCase();
+    const name = customer.name?.toLowerCase() || customer.fullName?.toLowerCase() || '';
+    const email = customer.email?.toLowerCase() || '';
+    const phone = customer.phone || '';
+    
+    return name.includes(query) || 
+           email.includes(query) || 
+           phone.includes(searchQuery);
+  });
 
   const filteredParts = partsList.filter(part =>
     part.name.toLowerCase().includes(partsSearchQuery.toLowerCase()) ||
@@ -1569,7 +1583,7 @@ function StaffDashboard({ onNavigate }) {
                         )}
                       </div>
                       <div className="chat-preview">
-                        <h4>{customer.name}</h4>
+                        <h4>{customer.name || customer.fullName || 'Khách hàng'}</h4>
                         <p>{customer.lastMessage}</p>
                       </div>
                       <span className="chat-time">{customer.time}</span>
@@ -1587,7 +1601,7 @@ function StaffDashboard({ onNavigate }) {
                         <FaUser />
                       </div>
                       <div>
-                        <h3>{activeChatCustomer.name}</h3>
+                        <h3>{activeChatCustomer.name || activeChatCustomer.fullName || 'Khách hàng'}</h3>
                         <span className="online-status">Đang hoạt động</span>
                       </div>
                     </div>
