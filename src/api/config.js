@@ -1,10 +1,10 @@
 // 🔧 Cấu hình API URL cho từng môi trường
 
 // ⚠️ Sửa dòng này để chuyển môi trường nhanh:
-const ENV = "render"; // "local" | "render" | "vercel"
+const ENV = "local"; // "local" | "render" | "vercel"  // ← Đổi thành "local" nếu có backend local
 
 // 🖥️ Local backend (khi chạy Node/Express trên localhost)
-const LOCAL_API = "http://localhost:10000";
+const LOCAL_API = "http://localhost:8080"; // ← Sửa port này nếu backend của bạn dùng port khác (thường là 8080, 3000, 5000...)
 
 // ☁️ Backend Render (deploy online)
 const RENDER_API = "https://ev-service-center-maintance-management-um2j.onrender.com";
