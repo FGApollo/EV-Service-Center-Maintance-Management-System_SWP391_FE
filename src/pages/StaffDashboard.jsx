@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './StaffDashboard.css';
 import { FaUser, FaCar, FaComments, FaSearch, FaPlus, FaHistory, FaClock, FaPhone, FaEnvelope, FaMapMarkerAlt, FaCalendarAlt, FaTools, FaCheckCircle, FaTimes, FaEdit, FaUserCog } from 'react-icons/fa';
-import { getCustomersByRole, getAppointmentsForStaff, acceptAppointment, cancelAppointment, startAppointment, completeAppointment, getVehicleById, getTechnicians, assignTechnician } from '../api';
+import { getCustomersByRole, getAppointmentsForStaff, getAppointmentById, acceptAppointment, cancelAppointment, startAppointment, completeAppointment, getVehicleById, getTechnicians, assignTechnician, createAppointment } from '../api';
 
 function StaffDashboard({ onNavigate }) {
   const [activeTab, setActiveTab] = useState('customers'); // customers, cars, chat, appointments, maintenance, parts
@@ -26,6 +26,21 @@ function StaffDashboard({ onNavigate }) {
   const [showTechnicianModal, setShowTechnicianModal] = useState(false);
   const [selectedTechnicianIds, setSelectedTechnicianIds] = useState([]); // Array để chọn nhiều technicians
   const [assigningAppointmentId, setAssigningAppointmentId] = useState(null);
+
+  // Modal thêm lịch hẹn mới
+  const [showAddAppointmentModal, setShowAddAppointmentModal] = useState(false);
+  const [isNewCustomer, setIsNewCustomer] = useState(false);
+  const [newAppointment, setNewAppointment] = useState({
+    customerId: '',
+    vehicleId: '',
+    serviceTypes: [],
+    appointmentDate: '',
+    notes: '',
+    // Thông tin khách hàng mới
+    customerFullName: '',
+    customerEmail: '',
+    customerPhone: ''
+  });
 
   // Lấy thông tin center_id của staff từ localStorage
   const [staffCenterId, setStaffCenterId] = useState(null);
@@ -74,6 +89,13 @@ function StaffDashboard({ onNavigate }) {
         console.log('👷 Danh sách technicians từ API:', data);
         console.log('📊 Số lượng technicians:', Array.isArray(data) ? data.length : 'Không phải array');
         console.log('👤 Staff Center ID:', staffCenterId);
+        
+        if (Array.isArray(data)) {
+          // Log trạng thái working của từng technician
+          data.forEach(tech => {
+            console.log(`  👷 ${tech.fullName || tech.name || `Tech #${tech.id}`}: ${tech.working ? '🔴 Đang bận' : '🟢 Rảnh'}`);
+          });
+        }
         
         // 🚧 TẠM THỜI: Hiển thị TẤT CẢ technicians (không lọc theo center_id)
         setTechnicians(Array.isArray(data) ? data : []);
@@ -124,8 +146,27 @@ function StaffDashboard({ onNavigate }) {
   // Filter appointments theo selectedStatus
   useEffect(() => {
     if (selectedStatus) {
-      const filtered = allAppointments.filter(apt => apt.status === selectedStatus);
-      console.log(`🔍 Lọc client-side: status=${selectedStatus}, từ ${allAppointments.length} → ${filtered.length}`);
+      let filtered;
+      
+      // Handle các status variations từ backend
+      if (selectedStatus === 'in_progress' || selectedStatus === 'in-progress' || selectedStatus === 'inProgress') {
+        // Filter cho "Đang thực hiện" - accept tất cả variations
+        filtered = allAppointments.filter(apt => 
+          ['in-progress', 'in_progress', 'inProgress'].includes(apt.status)
+        );
+        console.log(`🔍 Lọc "Đang thực hiện": từ ${allAppointments.length} → ${filtered.length}`);
+      } else if (selectedStatus === 'completed' || selectedStatus === 'done') {
+        // Filter cho "Hoàn thành" - accept cả completed và done
+        filtered = allAppointments.filter(apt => 
+          ['completed', 'done'].includes(apt.status)
+        );
+        console.log(`🔍 Lọc "Hoàn thành": từ ${allAppointments.length} → ${filtered.length}`);
+      } else {
+        // Các status khác: exact match
+        filtered = allAppointments.filter(apt => apt.status === selectedStatus);
+        console.log(`🔍 Lọc theo status="${selectedStatus}": từ ${allAppointments.length} → ${filtered.length}`);
+      }
+      
       setAppointments(filtered);
     } else {
       console.log('✅ Hiển thị tất cả:', allAppointments.length);
@@ -589,39 +630,267 @@ function StaffDashboard({ onNavigate }) {
 
   const handleAppointmentStatusChange = async (appointmentId, newStatus) => {
     try {
+      console.log('🔄 Updating appointment status:', { 
+        appointmentId, 
+        newStatus,
+        currentStatus: selectedAppointment?.status 
+      });
+      
       // Gọi API tương ứng với từng action
+      let apiResponse;
       switch(newStatus) {
-        case 'confirmed':
-          await acceptAppointment(appointmentId);
+        case 'accepted':
+          apiResponse = await acceptAppointment(appointmentId);
+          console.log('✅ Accept API response:', apiResponse);
           break;
         case 'cancelled':
-          await cancelAppointment(appointmentId);
+          apiResponse = await cancelAppointment(appointmentId);
+          console.log('✅ Cancel API response:', apiResponse);
           break;
         case 'in-progress':
-          await startAppointment(appointmentId);
+        case 'in_progress':
+          console.log('📞 Calling startAppointment API...');
+          console.log('   Current appointment:', selectedAppointment);
+          console.log('   Current STATUS:', selectedAppointment?.status);
+          console.log('   TechIds:', selectedAppointment?.techIds);
+          console.log('   AssignedStaffs:', selectedAppointment?.assignedStaffs);
+          
+          // Check status trước khi gọi API
+          if (['in-progress', 'in_progress', 'inProgress'].includes(selectedAppointment?.status)) {
+            console.log('⚠️ Appointment đã ở trạng thái in-progress rồi!');
+            alert('ℹ️ Đơn hàng đã ở trạng thái "Đang thực hiện"');
+            
+            // Refresh UI
+            await fetchAppointments();
+            const currentApt = allAppointments.find(apt => 
+              apt.id === appointmentId || apt.appointmentId === appointmentId
+            );
+            if (currentApt) {
+              setSelectedAppointment(currentApt);
+            }
+            return; // Exit
+          }
+          
+          try {
+            apiResponse = await startAppointment(appointmentId);
+            console.log('✅ Start API response:', apiResponse);
+            console.log('   Status in response:', apiResponse?.status);
+            console.log('   TechIds in response:', apiResponse?.techIds);
+            
+            // Lưu techIds từ response nếu có
+            if (apiResponse?.techIds && selectedAppointment) {
+              console.log('💾 Saving techIds from response:', apiResponse.techIds);
+            }
+          } catch (startError) {
+            console.error('❌ Start API error details:', {
+              status: startError.response?.status,
+              statusText: startError.response?.statusText,
+              data: startError.response?.data,
+              message: startError.message
+            });
+            
+            // Nếu lỗi 403, có thể đã ở trạng thái in-progress rồi
+            if (startError.response?.status === 403) {
+              console.log('⚠️ 403 Error - Checking if already in-progress...');
+              // Refresh để lấy status mới nhất
+              const freshAppointments = await fetchAppointments();
+              const currentApt = freshAppointments.find(apt => 
+                apt.id === appointmentId || apt.appointmentId === appointmentId
+              );
+              
+              if (currentApt && ['in-progress', 'in_progress', 'inProgress'].includes(currentApt.status)) {
+                console.log('✅ Appointment đã ở trạng thái in-progress rồi');
+                alert('ℹ️ Đơn hàng đã ở trạng thái "Đang thực hiện"');
+                // Update selectedAppointment
+                if (selectedAppointment?.id === appointmentId || selectedAppointment?.appointmentId === appointmentId) {
+                  setSelectedAppointment(currentApt);
+                }
+                return; // Exit function, không throw error
+              }
+            }
+            
+            throw startError; // Re-throw nếu không phải case trên
+          }
           break;
         case 'completed':
-          await completeAppointment(appointmentId);
+        case 'done':
+          console.log('📞 Calling completeAppointment API...');
+          console.log('   Current appointment status:', selectedAppointment?.status);
+          console.log('   Appointment ID:', appointmentId);
+          try {
+            apiResponse = await completeAppointment(appointmentId);
+            console.log('✅ Complete API response:', apiResponse);
+          } catch (completeError) {
+            console.error('❌ Complete API error details:', {
+              status: completeError.response?.status,
+              statusText: completeError.response?.statusText,
+              data: completeError.response?.data,
+              message: completeError.message
+            });
+            throw completeError;
+          }
           break;
         default:
           throw new Error('Trạng thái không hợp lệ');
       }
       
+      console.log('✅ Status updated successfully, refreshing appointments...');
+      
       // Refresh danh sách appointments sau khi cập nhật
-      await fetchAppointments();
+      const freshAppointments = await fetchAppointments();
       
       // Cập nhật selectedAppointment nếu đang xem chi tiết
-      if (selectedAppointment?.id === appointmentId) {
-        const updatedAppointment = appointments.find(apt => apt.id === appointmentId);
+      if (selectedAppointment?.id === appointmentId || selectedAppointment?.appointmentId === appointmentId) {
+        console.log('🔄 Updating selectedAppointment...');
+        
+        try {
+          // Fetch chi tiết appointment từ API để có đầy đủ thông tin (bao gồm cả assignments)
+          const detailedAppointment = await getAppointmentById(appointmentId);
+          console.log('✅ Detailed appointment fetched:', detailedAppointment);
+          console.log('   👥 staffAssignments from API:', detailedAppointment.staffAssignments);
+          console.log('   🔍 All keys:', Object.keys(detailedAppointment));
+          
+          // Parse staffAssignments từ backend nếu có
+          let assignedStaffsFromAPI = null;
+          
+          // Nếu có techIds từ API response (startAppointment), merge vào
+          if (apiResponse?.techIds) {
+            console.log('   🔄 Merging techIds from status change API:', apiResponse.techIds);
+            detailedAppointment.techIds = apiResponse.techIds;
+          }
+          
+          // Check techIds field (backend mới)
+          if (detailedAppointment.techIds) {
+            console.log('   🆕 Found techIds in status change:', detailedAppointment.techIds);
+            
+            // Parse techIds - có thể là string "1,2,3" hoặc array [1,2,3]
+            let techIdsArray = [];
+            if (typeof detailedAppointment.techIds === 'string') {
+              techIdsArray = detailedAppointment.techIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+            } else if (Array.isArray(detailedAppointment.techIds)) {
+              techIdsArray = detailedAppointment.techIds.map(id => parseInt(id));
+            }
+            
+            console.log('   📋 Parsed techIds array:', techIdsArray);
+            
+            // Map với danh sách technicians
+            assignedStaffsFromAPI = techIdsArray.map(techId => {
+              const tech = technicians.find(t => t.id === techId || t.userId === techId);
+              if (tech) {
+                return {
+                  id: tech.id || tech.userId,
+                  fullName: tech.fullName || tech.name,
+                  email: tech.email,
+                  phone: tech.phone,
+                  working: tech.working
+                };
+              }
+              return {
+                id: techId,
+                fullName: `Kỹ thuật viên #${techId}`,
+                email: '',
+                phone: ''
+              };
+            }).filter(s => s.id);
+            
+            console.log('   ✅ Mapped staffs from techIds:', assignedStaffsFromAPI);
+          }
+          // Fallback: Check staffAssignments (cách cũ)
+          else if (detailedAppointment.staffAssignments && Array.isArray(detailedAppointment.staffAssignments)) {
+            // staffAssignments có thể là array of assignment objects
+            assignedStaffsFromAPI = detailedAppointment.staffAssignments.map(assignment => {
+              // Check xem có nested staff object không
+              if (assignment.staff) {
+                return {
+                  id: assignment.staff.id,
+                  fullName: assignment.staff.fullName,
+                  email: assignment.staff.email,
+                  phone: assignment.staff.phone,
+                  working: assignment.staff.working || false
+                };
+              }
+              // Hoặc có thể là direct staff info
+              return {
+                id: assignment.id,
+                fullName: assignment.fullName,
+                email: assignment.email,
+                phone: assignment.phone,
+                working: assignment.working || false
+              };
+            }).filter(s => s.id); // Remove invalid entries
+            
+            console.log('   ✅ Parsed assignedStaffs from staffAssignments:', assignedStaffsFromAPI);
+          }
+          
+          // Giữ lại thông tin assignedStaffs: ưu tiên API, fallback local state
+          const finalAssignedStaffs = assignedStaffsFromAPI && assignedStaffsFromAPI.length > 0
+            ? assignedStaffsFromAPI
+            : (detailedAppointment.assignedStaffs || selectedAppointment.assignedStaffs);
+          
+          const updatedAppointment = {
+            ...detailedAppointment,
+            // Assignment info
+            assignedStaffs: finalAssignedStaffs,
+            hasAssignment: !!(finalAssignedStaffs && finalAssignedStaffs.length > 0),
+            // Preserve local info as backup
+            assignedTechnicianIds: detailedAppointment.assignedTechnicianIds || selectedAppointment.assignedTechnicianIds,
+            assignedTechniciansCount: finalAssignedStaffs?.length || detailedAppointment.assignedTechniciansCount || selectedAppointment.assignedTechniciansCount
+          };
+          
+          console.log('✅ Final updatedAppointment:', {
+            id: updatedAppointment.id,
+            status: updatedAppointment.status,
+            hasAssignment: updatedAppointment.hasAssignment,
+            assignedStaffs: updatedAppointment.assignedStaffs,
+            assignedTechniciansCount: updatedAppointment.assignedTechniciansCount
+          });
+          
+          setSelectedAppointment(updatedAppointment);
+        } catch (error) {
+          console.error('❌ Error fetching appointment detail:', error);
+          // Fallback: tìm trong freshAppointments
+          const updatedAppointment = freshAppointments.find(apt => 
+            apt.id === appointmentId || apt.appointmentId === appointmentId
+          );
+          
         if (updatedAppointment) {
-          setSelectedAppointment({ ...updatedAppointment, status: newStatus });
+            // Preserve assignment info
+            setSelectedAppointment({
+              ...updatedAppointment,
+              assignedStaffs: updatedAppointment.assignedStaffs || selectedAppointment.assignedStaffs,
+              assignedTechnicianIds: updatedAppointment.assignedTechnicianIds || selectedAppointment.assignedTechnicianIds,
+              assignedTechniciansCount: updatedAppointment.assignedTechniciansCount || selectedAppointment.assignedTechniciansCount
+            });
+          }
         }
       }
       
       alert(`✅ Đã cập nhật trạng thái lịch hẹn #${appointmentId}`);
     } catch (error) {
-      console.error('Lỗi khi cập nhật trạng thái:', error);
-      alert(`❌ Không thể cập nhật trạng thái: ${error.response?.data?.message || error.message}`);
+      console.error('❌ Lỗi khi cập nhật trạng thái:', error);
+      console.error('❌ Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        config: {
+          method: error.config?.method,
+          url: error.config?.url
+        }
+      });
+      
+      let errorMessage = error.response?.data?.message || error.message;
+      
+      // Thêm gợi ý cho lỗi 403
+      if (error.response?.status === 403) {
+        errorMessage = '⚠️ Không có quyền thực hiện hành động này.\n\n' +
+                      'Có thể do:\n' +
+                      '• Chưa giao việc cho kỹ thuật viên\n' +
+                      '• Trạng thái đơn không hợp lệ\n' +
+                      '• Thiếu quyền truy cập\n\n' +
+                      'Chi tiết: ' + (error.response?.data?.message || 'Forbidden');
+      }
+      
+      alert(`❌ Không thể cập nhật trạng thái:\n\n${errorMessage}`);
     }
   };
 
@@ -695,11 +964,29 @@ function StaffDashboard({ onNavigate }) {
       let errorCount = 0;
       const errors = [];
 
+      let allAssignments = []; // Lưu tất cả assignments response từ API
+
       for (const techId of selectedTechnicianIds) {
         try {
           console.log(`  ⏳ Đang giao việc cho technician #${techId}...`);
           const result = await assignTechnician(assigningAppointmentId, techId);
           console.log(`  ✅ Giao việc cho #${techId} thành công:`, result);
+          console.log(`  📦 Response type:`, Array.isArray(result) ? 'Array' : typeof result);
+          console.log(`  📦 Response length:`, Array.isArray(result) ? result.length : 'N/A');
+          
+          // Response là array of staff assignments (trực tiếp, không có nested staff object)
+          if (Array.isArray(result)) {
+            allAssignments = [...allAssignments, ...result];
+            console.log(`  👥 Staff info:`, result.map(staff => ({
+              id: staff.id,
+              fullName: staff.fullName,
+              email: staff.email,
+              phone: staff.phone,
+              appointmentId: staff.appointmentId,
+              working: staff.working
+            })));
+          }
+          
           successCount++;
         } catch (err) {
           console.error(`  ❌ Lỗi giao việc cho #${techId}:`, err);
@@ -724,19 +1011,137 @@ function StaffDashboard({ onNavigate }) {
       
       // Cập nhật selectedAppointment nếu đang xem chi tiết
       if (selectedAppointment?.id === assigningAppointmentId || selectedAppointment?.appointmentId === assigningAppointmentId) {
-        // Tìm appointment từ data MỚI (vừa fetch về)
-        const updatedAppointment = freshAppointments.find(apt => 
-          (apt.id === assigningAppointmentId || apt.appointmentId === assigningAppointmentId)
-        );
+        // Parse staff info từ assignments response (direct structure - không có nested staff object)
+        const assignedStaffs = allAssignments.map(staff => ({
+          id: staff.id,
+          fullName: staff.fullName,
+          email: staff.email,
+          phone: staff.phone,
+          appointmentId: staff.appointmentId,
+          working: staff.working
+        }));
         
-        if (updatedAppointment) {
-          console.log('✅ Updated appointment found:', updatedAppointment);
-          console.log('   🔍 TechnicianId:', updatedAppointment.technicianId);
-          console.log('   🔍 Technician:', updatedAppointment.technician);
-          console.log('   🔍 AssignedTechnicians:', updatedAppointment.assignedTechnicians);
+        console.log('👥 Assigned staffs parsed:', assignedStaffs);
+        
+        // Cập nhật appointment với thông tin technician vừa giao
+        const updatedAppointment = { 
+          ...selectedAppointment,
+          // Thêm flag để hiển thị "đã giao việc"
+          hasAssignment: true,
+          // Thông tin từ API response
+          staffAssignments: allAssignments, // Full assignments
+          assignedStaffs: assignedStaffs, // Parsed staff list
+          // Backup info
+          assignedTechnicianIds: selectedTechnicianIds,
+          assignedTechniciansCount: successCount
+        };
+        
+        console.log('✅ Updated appointment with assignment:', updatedAppointment);
           setSelectedAppointment(updatedAppointment);
-        } else {
-          console.warn('⚠️ Updated appointment not found in fresh data');
+        
+        // Vẫn fetch lại list để đồng bộ UI
+        try {
+          console.log('🔄 Fetching appointment detail by ID:', assigningAppointmentId);
+          const detailedAppointment = await getAppointmentById(assigningAppointmentId);
+          console.log('✅ Detailed appointment fetched:', detailedAppointment);
+          console.log('   🔍 All keys:', Object.keys(detailedAppointment));
+          console.log('   👥 staffAssignments:', detailedAppointment.staffAssignments);
+          
+          // Parse staffAssignments từ detail API nếu có
+          let assignedStaffsFromDetail = null;
+          
+          // Check techIds field (backend mới)
+          if (detailedAppointment.techIds) {
+            console.log('   🆕 Found techIds field:', detailedAppointment.techIds);
+            
+            // Parse techIds - có thể là string "1,2,3" hoặc array [1,2,3]
+            let techIdsArray = [];
+            if (typeof detailedAppointment.techIds === 'string') {
+              techIdsArray = detailedAppointment.techIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+            } else if (Array.isArray(detailedAppointment.techIds)) {
+              techIdsArray = detailedAppointment.techIds.map(id => parseInt(id));
+            }
+            
+            console.log('   📋 Parsed techIds array:', techIdsArray);
+            
+            // Map với danh sách technicians để lấy thông tin đầy đủ
+            assignedStaffsFromDetail = techIdsArray.map(techId => {
+              const tech = technicians.find(t => t.id === techId || t.userId === techId);
+              if (tech) {
+                return {
+                  id: tech.id || tech.userId,
+                  fullName: tech.fullName || tech.name,
+                  email: tech.email,
+                  phone: tech.phone,
+                  working: tech.working
+                };
+              }
+              // Fallback nếu không tìm thấy trong list
+              return {
+                id: techId,
+                fullName: `Kỹ thuật viên #${techId}`,
+                email: '',
+                phone: ''
+              };
+            }).filter(s => s.id);
+            
+            console.log('   ✅ Mapped staffs from techIds:', assignedStaffsFromDetail);
+          }
+          // Fallback: Check staffAssignments (cách cũ)
+          else if (detailedAppointment.staffAssignments && Array.isArray(detailedAppointment.staffAssignments)) {
+            assignedStaffsFromDetail = detailedAppointment.staffAssignments.map(assignment => {
+              if (assignment.staff) {
+                return {
+                  id: assignment.staff.id,
+                  fullName: assignment.staff.fullName,
+                  email: assignment.staff.email,
+                  phone: assignment.staff.phone,
+                  working: assignment.staff.working
+                };
+              }
+              return {
+                id: assignment.id,
+                fullName: assignment.fullName,
+                email: assignment.email,
+                phone: assignment.phone,
+                working: assignment.working
+              };
+            }).filter(s => s.id);
+            console.log('   ✅ Parsed staffs from staffAssignments:', assignedStaffsFromDetail);
+          }
+          
+          // Ưu tiên: assignedStaffsFromDetail > assignedStaffs from response > keep current
+          const finalStaffs = assignedStaffsFromDetail && assignedStaffsFromDetail.length > 0
+            ? assignedStaffsFromDetail
+            : assignedStaffs; // từ response giao việc
+          
+          // Nếu detail API có thông tin technician, dùng nó
+          if (detailedAppointment) {
+            const finalAppointment = {
+              ...detailedAppointment,
+              // Đảm bảo giữ thông tin assignment
+              hasAssignment: true,
+              assignedStaffs: finalStaffs, // ⚠️ QUAN TRỌNG: Phải set assignedStaffs
+              assignedTechnicianIds: selectedTechnicianIds,
+              assignedTechniciansCount: finalStaffs.length || successCount
+            };
+            console.log('✅ Final appointment after assignment:', {
+              id: finalAppointment.id,
+              hasAssignment: finalAppointment.hasAssignment,
+              assignedStaffs: finalAppointment.assignedStaffs,
+              assignedTechniciansCount: finalAppointment.assignedTechniciansCount
+            });
+            setSelectedAppointment(finalAppointment);
+          }
+        } catch (error) {
+          console.error('❌ Error fetching appointment detail:', error);
+          console.log('   ⚠️ Keeping current state with assignedStaffs:', updatedAppointment.assignedStaffs);
+          
+          // Nếu lỗi 403, backend không cho phép detail API, nhưng đã có data từ local
+          if (error.response?.status === 403) {
+            console.log('   ℹ️ 403 Forbidden - Backend không hỗ trợ detail API, dùng local data');
+          }
+          // Vẫn giữ updatedAppointment với assignedStaffs đã set ở trên
         }
       }
       
@@ -771,12 +1176,102 @@ function StaffDashboard({ onNavigate }) {
     }));
   };
 
+  // Handler thêm lịch hẹn mới
+  const handleAddAppointment = async () => {
+    try {
+      console.log('📝 Creating new appointment:', newAppointment);
+      console.log('🆕 Is new customer:', isNewCustomer);
+      
+      // Validate chung
+      if (!newAppointment.vehicleId || !newAppointment.appointmentDate) {
+        alert('⚠️ Vui lòng điền đầy đủ thông tin: Xe và Ngày hẹn');
+        return;
+      }
+
+      // Validate khách hàng
+      if (isNewCustomer) {
+        // Khách hàng mới - validate thông tin
+        if (!newAppointment.customerFullName || !newAppointment.customerPhone) {
+          alert('⚠️ Vui lòng nhập đầy đủ: Tên khách hàng và Số điện thoại');
+          return;
+        }
+        
+        // Email validation (nếu có nhập)
+        if (newAppointment.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newAppointment.customerEmail)) {
+          alert('⚠️ Email không hợp lệ');
+          return;
+        }
+      } else {
+        // Khách hàng có sẵn - validate customerId
+        if (!newAppointment.customerId) {
+          alert('⚠️ Vui lòng chọn khách hàng');
+          return;
+        }
+      }
+
+      // Format data theo backend API
+      const appointmentData = {
+        vehicleId: parseInt(newAppointment.vehicleId),
+        serviceCenterId: staffCenterId, // Tự động lấy từ staff center
+        serviceTypeIds: newAppointment.serviceTypes.map(id => parseInt(id)),
+        appointmentDate: new Date(newAppointment.appointmentDate).toISOString(),
+        notes: newAppointment.notes || ''
+      };
+
+      // Thêm thông tin khách hàng
+      if (isNewCustomer) {
+        // Gửi thông tin khách hàng mới (backend sẽ tạo customer mới hoặc tìm existing)
+        appointmentData.customerInfo = {
+          fullName: newAppointment.customerFullName.trim(),
+          phone: newAppointment.customerPhone.trim(),
+          email: newAppointment.customerEmail?.trim() || `guest_${Date.now()}@temp.com` // Temp email nếu không nhập
+        };
+        console.log('👤 New customer info:', appointmentData.customerInfo);
+      } else {
+        // Khách hàng có sẵn
+        appointmentData.customerId = parseInt(newAppointment.customerId);
+        console.log('👤 Existing customer ID:', appointmentData.customerId);
+      }
+
+      console.log('📤 Sending to API:', appointmentData);
+      
+      const result = await createAppointment(appointmentData);
+      console.log('✅ Appointment created:', result);
+      
+      // Reset form và đóng modal
+      setNewAppointment({
+        customerId: '',
+        vehicleId: '',
+        serviceTypes: [],
+        appointmentDate: '',
+        notes: '',
+        customerFullName: '',
+        customerEmail: '',
+        customerPhone: ''
+      });
+      setIsNewCustomer(false);
+      setShowAddAppointmentModal(false);
+      
+      // Refresh danh sách appointments
+      await fetchAppointments();
+      
+      alert('✅ Đã tạo lịch hẹn thành công!');
+    } catch (error) {
+      console.error('❌ Lỗi khi tạo lịch hẹn:', error);
+      console.error('❌ Error details:', error.response?.data);
+      alert(`❌ Không thể tạo lịch hẹn:\n${error.response?.data?.message || error.message}`);
+    }
+  };
+
   const getStatusColor = (status) => {
     switch(status) {
       case 'pending': return 'status-pending';
-      case 'confirmed': return 'status-confirmed';
-      case 'in-progress': return 'status-in-progress';
-      case 'completed': return 'status-completed';
+      case 'accepted': return 'status-confirmed';
+      case 'in-progress':
+      case 'in_progress':
+      case 'inProgress': return 'status-in-progress';
+      case 'completed':
+      case 'done': return 'status-completed';
       case 'cancelled': return 'status-cancelled';
       case 'waiting': return 'status-waiting';
       default: return '';
@@ -786,9 +1281,12 @@ function StaffDashboard({ onNavigate }) {
   const getStatusText = (status) => {
     switch(status) {
       case 'pending': return 'Chờ xác nhận';
-      case 'confirmed': return 'Đã xác nhận';
-      case 'in-progress': return 'Đang thực hiện';
-      case 'completed': return 'Hoàn thành';
+      case 'accepted': return 'Đã xác nhận';
+      case 'in-progress':
+      case 'in_progress':
+      case 'inProgress': return 'Đang thực hiện';
+      case 'completed':
+      case 'done': return 'Hoàn thành';
       case 'cancelled': return 'Đã hủy';
       case 'waiting': return 'Đang chờ';
       default: return status;
@@ -1200,7 +1698,10 @@ function StaffDashboard({ onNavigate }) {
                     Xóa bộ lọc
                   </button>
                 )}
-                <button className="add-btn">
+                <button 
+                  className="add-btn"
+                  onClick={() => setShowAddAppointmentModal(true)}
+                >
                   <FaPlus />
                   Thêm lịch hẹn
                 </button>
@@ -1220,36 +1721,47 @@ function StaffDashboard({ onNavigate }) {
                 </div>
               </div>
               <div 
-                className={`stat-card confirmed ${selectedStatus === 'confirmed' ? 'active-filter' : ''}`}
-                onClick={() => handleStatusFilter('confirmed')}
+                className={`stat-card confirmed ${selectedStatus === 'accepted' ? 'active-filter' : ''}`}
+                onClick={() => handleStatusFilter('accepted')}
                 style={{ cursor: 'pointer' }}
               >
                 <FaCheckCircle />
                 <div>
-                  <h4>{allAppointments.filter(a => a.status === 'confirmed').length}</h4>
+                  <h4>{allAppointments.filter(a => a.status === 'accepted').length}</h4>
                   <p>Đã xác nhận</p>
                 </div>
               </div>
               <div 
-                className={`stat-card in-progress ${selectedStatus === 'in-progress' ? 'active-filter' : ''}`}
-                onClick={() => handleStatusFilter('in-progress')}
+                className={`stat-card in-progress ${['in-progress', 'in_progress', 'inProgress'].includes(selectedStatus) ? 'active-filter' : ''}`}
+                onClick={() => handleStatusFilter('in_progress')}
                 style={{ cursor: 'pointer' }}
               >
                 <FaTools />
                 <div>
-                  <h4>{allAppointments.filter(a => a.status === 'in-progress').length}</h4>
+                  <h4>{allAppointments.filter(a => ['in-progress', 'in_progress', 'inProgress'].includes(a.status)).length}</h4>
                   <p>Đang thực hiện</p>
                 </div>
               </div>
               <div 
-                className={`stat-card completed ${selectedStatus === 'completed' ? 'active-filter' : ''}`}
+                className={`stat-card completed ${['completed', 'done'].includes(selectedStatus) ? 'active-filter' : ''}`}
                 onClick={() => handleStatusFilter('completed')}
                 style={{ cursor: 'pointer' }}
               >
                 <FaCheckCircle />
                 <div>
-                  <h4>{allAppointments.filter(a => a.status === 'completed').length}</h4>
+                  <h4>{allAppointments.filter(a => ['completed', 'done'].includes(a.status)).length}</h4>
                   <p>Hoàn thành</p>
+                </div>
+              </div>
+              <div 
+                className={`stat-card cancelled ${selectedStatus === 'cancelled' ? 'active-filter' : ''}`}
+                onClick={() => handleStatusFilter('cancelled')}
+                style={{ cursor: 'pointer' }}
+              >
+                <FaTimes />
+                <div>
+                  <h4>{allAppointments.filter(a => a.status === 'cancelled').length}</h4>
+                  <p>Đã hủy</p>
                 </div>
               </div>
             </div>
@@ -1487,28 +1999,57 @@ function StaffDashboard({ onNavigate }) {
                       </div>
                     </div>
 
+                    {/* Section Kỹ thuật viên - Chỉ hiển thị khi đã xác nhận (không phải pending) */}
+                    {selectedAppointment.status !== 'pending' && (
                     <div className="details-section">
                       <h3>Kỹ thuật viên phụ trách</h3>
                       {(() => {
-                        // Check nhiều field names có thể từ backend
+                          // Check techIds field (backend mới)
+                          let techIdsArray = [];
+                          if (selectedAppointment.techIds) {
+                            if (typeof selectedAppointment.techIds === 'string') {
+                              techIdsArray = selectedAppointment.techIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+                            } else if (Array.isArray(selectedAppointment.techIds)) {
+                              techIdsArray = selectedAppointment.techIds.map(id => parseInt(id));
+                            }
+                          }
+                          
+                          // Check nhiều field names có thể từ backend (bao gồm cả snake_case và camelCase)
                         const techId = selectedAppointment.technicianId || 
                                       selectedAppointment.technician_id ||
-                                      selectedAppointment.assignedTechnicianId;
+                                        selectedAppointment.assignedTechnicianId ||
+                                        selectedAppointment.assigned_technician_id ||
+                                        selectedAppointment.techId;
                         
                         const techData = selectedAppointment.technician || 
-                                        selectedAppointment.assignedTechnician;
+                                          selectedAppointment.assignedTechnician ||
+                                          selectedAppointment.assigned_technician;
                         
-                        const assignedTechs = selectedAppointment.assignedTechnicians || 
+                          const assignedTechs = selectedAppointment.assignedStaffs || // Từ local state
+                                               selectedAppointment.assignedTechnicians || 
+                                               selectedAppointment.assigned_technicians ||
                                              selectedAppointment.technicians;
                         
-                        const hasAssignment = techId || techData || (assignedTechs && assignedTechs.length > 0);
+                          // Check assignment status từ backend hoặc từ local state sau khi assign
+                          const hasAssignment = techIdsArray.length > 0 || // Backend mới: có techIds
+                                              selectedAppointment.hasAssignment || 
+                                              selectedAppointment.has_assignment ||
+                                              selectedAppointment.assignedTechnicianIds?.length > 0 || // Local flag
+                                              selectedAppointment.assignedTechniciansCount > 0 || // Local flag
+                                              techId || 
+                                              techData || 
+                                              (assignedTechs && assignedTechs.length > 0);
                         
-                        // Debug log
+                        // Debug log chi tiết
                         console.log('🔍 Appointment technician data:', {
+                          appointmentId: selectedAppointment.id || selectedAppointment.appointmentId,
+                          techIds: selectedAppointment.techIds,
+                          techIdsArray,
                           techId,
                           techData,
                           assignedTechs,
                           hasAssignment,
+                          allKeys: Object.keys(selectedAppointment),
                           fullAppointment: selectedAppointment
                         });
                         
@@ -1518,8 +2059,48 @@ function StaffDashboard({ onNavigate }) {
                               <FaUserCog />
                               <span>
                                 {(() => {
-                                  // Nếu có array của nhiều technicians
+                                  // Ưu tiên 1: Hiển thị từ techIds (backend mới)
+                                  if (techIdsArray.length > 0) {
+                                    const techNames = techIdsArray.map(techId => {
+                                      const tech = technicians.find(t => t.id === techId || t.userId === techId);
+                                      return tech ? (tech.fullName || tech.name || `KTV #${techId}`) : `KTV #${techId}`;
+                                    });
+                                    return `${techNames.join(', ')} (${techNames.length} KTV)`;
+                                  }
+                                  
+                                  // Ưu tiên 2: Hiển thị từ assignedStaffs (có đầy đủ thông tin từ API)
+                                  if (selectedAppointment.assignedStaffs && selectedAppointment.assignedStaffs.length > 0) {
+                                    const staffs = selectedAppointment.assignedStaffs;
+                                    const names = staffs.map(s => s.fullName || `KTV #${s.id}`).filter(Boolean);
+                                    if (names.length > 0) {
+                                      return `${names.join(', ')} (${names.length} KTV)`;
+                                    }
+                                    return `${staffs.length} kỹ thuật viên đã được giao`;
+                                  }
+                                  
+                                  // Fallback: từ local IDs (vừa assign, chưa có response)
+                                  if (selectedAppointment.assignedTechniciansCount > 0) {
+                                    const count = selectedAppointment.assignedTechniciansCount;
+                                    const ids = selectedAppointment.assignedTechnicianIds || [];
+                                    
+                                    // Lấy tên technicians từ list
+                                    const techNames = ids.map(id => {
+                                      const tech = technicians.find(t => t.id === id || t.userId === id);
+                                      return tech ? (tech.fullName || tech.name || `KTV #${id}`) : `KTV #${id}`;
+                                    });
+                                    
+                                    if (techNames.length > 0) {
+                                      return `${techNames.join(', ')} (${count} KTV)`;
+                                    }
+                                    return `${count} kỹ thuật viên đã được giao`;
+                                  }
+                                  
+                                  // Nếu có array của nhiều technicians từ backend
                                   if (assignedTechs && assignedTechs.length > 0) {
+                                    const names = assignedTechs.map(t => t.fullName || t.name).filter(Boolean);
+                                    if (names.length > 0) {
+                                      return `${names.join(', ')} (${names.length} KTV)`;
+                                    }
                                     return `${assignedTechs.length} kỹ thuật viên đã được giao`;
                                   }
                                   
@@ -1539,7 +2120,7 @@ function StaffDashboard({ onNavigate }) {
                                     return techData.fullName || techData.name || 'Đã giao việc';
                                   }
                                   
-                                  // String
+                                  // String hoặc fallback
                                   return techData || 'Đã giao việc';
                                 })()}
                               </span>
@@ -1588,6 +2169,7 @@ function StaffDashboard({ onNavigate }) {
                         );
                       })()}
                     </div>
+                    )}
 
                     <div className="details-section">
                       <h3>Ghi chú</h3>
@@ -1603,7 +2185,7 @@ function StaffDashboard({ onNavigate }) {
                           <>
                             <button 
                               className="action-btn confirm"
-                              onClick={() => handleAppointmentStatusChange(selectedAppointment.appointmentId || selectedAppointment.id, 'confirmed')}
+                              onClick={() => handleAppointmentStatusChange(selectedAppointment.appointmentId || selectedAppointment.id, 'accepted')}
                             >
                               <FaCheckCircle />
                               Xác nhận
@@ -1617,23 +2199,154 @@ function StaffDashboard({ onNavigate }) {
                             </button>
                           </>
                         )}
-                        {selectedAppointment.status === 'confirmed' && (
+                        {selectedAppointment.status === 'accepted' && (
+                          <>
+                            {(() => {
+                              // Check xem đã có techIds hoặc assignedStaffs chưa
+                              let hasTechIds = false;
+                              if (selectedAppointment.techIds) {
+                                if (typeof selectedAppointment.techIds === 'string') {
+                                  hasTechIds = selectedAppointment.techIds.trim().length > 0;
+                                } else if (Array.isArray(selectedAppointment.techIds)) {
+                                  hasTechIds = selectedAppointment.techIds.length > 0;
+                                }
+                              }
+                              
+                              // Check assignedStaffs (ưu tiên cao hơn vì local state)
+                              const hasAssignedStaffs = selectedAppointment.assignedStaffs?.length > 0;
+                              const hasAssignmentFlag = selectedAppointment.hasAssignment === true;
+                              
+                              console.log('🔍 Button visibility check:', {
+                                hasTechIds,
+                                hasAssignedStaffs,
+                                hasAssignmentFlag,
+                                assignedStaffsCount: selectedAppointment.assignedStaffs?.length
+                              });
+                              
+                              // Nếu đã có technician được giao việc, hiển thị nút "Bắt đầu thực hiện"
+                              if (hasTechIds || hasAssignedStaffs || hasAssignmentFlag) {
+                                return (
+                                  <>
                           <button 
                             className="action-btn start"
-                            onClick={() => handleAppointmentStatusChange(selectedAppointment.appointmentId || selectedAppointment.id, 'in-progress')}
+                                      onClick={() => handleAppointmentStatusChange(selectedAppointment.appointmentId || selectedAppointment.id, 'in_progress')}
                           >
                             <FaTools />
                             Bắt đầu thực hiện
                           </button>
+                                    <button 
+                                      className="action-btn cancel"
+                                      onClick={() => handleAppointmentStatusChange(selectedAppointment.appointmentId || selectedAppointment.id, 'cancelled')}
+                                    >
+                                      <FaTimes />
+                                      Hủy lịch
+                                    </button>
+                                  </>
+                                );
+                              }
+                              
+                              // Nếu chưa giao việc, hiển thị hint
+                              return (
+                                <>
+                                  <button 
+                                    className="action-btn cancel"
+                                    onClick={() => handleAppointmentStatusChange(selectedAppointment.appointmentId || selectedAppointment.id, 'cancelled')}
+                                  >
+                                    <FaTimes />
+                                    Hủy lịch
+                                  </button>
+                                  <div style={{
+                                    padding: '12px 20px',
+                                    background: '#fff3cd',
+                                    border: '2px solid #ffc107',
+                                    borderRadius: '10px',
+                                    color: '#856404',
+                                    fontSize: '14px',
+                                    fontWeight: 500,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                  }}>
+                                    <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                                      <path d="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/>
+                                    </svg>
+                                    ⚠️ Vui lòng giao việc cho kỹ thuật viên trước
+                                  </div>
+                                </>
+                              );
+                            })()}
+                          </>
                         )}
-                        {selectedAppointment.status === 'in-progress' && (
+                        {['in-progress', 'in_progress', 'inProgress'].includes(selectedAppointment.status) && (
+                          <>
+                            {(() => {
+                              // Check xem đã giao việc cho technician chưa
+                              const hasAssignment = selectedAppointment.hasAssignment || 
+                                                   selectedAppointment.has_assignment ||
+                                                   selectedAppointment.assignedStaffs?.length > 0 ||
+                                                   selectedAppointment.assignedTechnicianIds?.length > 0 ||
+                                                   selectedAppointment.assignedTechniciansCount > 0;
+                              
+                              const canComplete = hasAssignment;
+                              
+                              return (
+                                <>
                           <button 
-                            className="action-btn complete"
-                            onClick={() => handleAppointmentStatusChange(selectedAppointment.appointmentId || selectedAppointment.id, 'completed')}
+                                    className={`action-btn complete ${!canComplete ? 'disabled' : ''}`}
+                                    onClick={() => {
+                                      if (!canComplete) {
+                                        alert('⚠️ Vui lòng giao việc cho kỹ thuật viên trước khi hoàn thành!');
+                                        return;
+                                      }
+                                      handleAppointmentStatusChange(selectedAppointment.appointmentId || selectedAppointment.id, 'completed');
+                                    }}
+                                    disabled={!canComplete}
+                                    title={!canComplete ? 'Cần giao việc cho kỹ thuật viên trước' : 'Hoàn thành đơn'}
                           >
                             <FaCheckCircle />
                             Hoàn thành
+                                    {!canComplete && ' ⚠️'}
                           </button>
+                                  <button 
+                                    className="action-btn cancel"
+                                    onClick={() => handleAppointmentStatusChange(selectedAppointment.appointmentId || selectedAppointment.id, 'cancelled')}
+                                    style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' }}
+                                  >
+                                    <FaTimes />
+                                    Hủy lịch
+                                  </button>
+                                </>
+                              );
+                            })()}
+                          </>
+                        )}
+                        {['completed', 'done'].includes(selectedAppointment.status) && (
+                          <div style={{ 
+                            padding: '15px', 
+                            background: '#d1fae5', 
+                            border: '1px solid #10b981',
+                            borderRadius: '8px',
+                            textAlign: 'center'
+                          }}>
+                            <FaCheckCircle style={{ color: '#10b981', fontSize: '24px' }} />
+                            <p style={{ margin: '10px 0 0 0', color: '#065f46', fontWeight: '500' }}>
+                              ✅ Lịch hẹn đã hoàn thành
+                            </p>
+                          </div>
+                        )}
+                        {selectedAppointment.status === 'cancelled' && (
+                          <div style={{ 
+                            padding: '15px', 
+                            background: '#fee2e2', 
+                            border: '1px solid #ef4444',
+                            borderRadius: '8px',
+                            textAlign: 'center'
+                          }}>
+                            <FaTimes style={{ color: '#ef4444', fontSize: '24px' }} />
+                            <p style={{ margin: '10px 0 0 0', color: '#991b1b', fontWeight: '500' }}>
+                              ❌ Lịch hẹn đã bị hủy
+                            </p>
+                          </div>
                         )}
                         <button className="action-btn edit">
                           <FaEdit />
@@ -2247,26 +2960,60 @@ function StaffDashboard({ onNavigate }) {
                     ✅ Đã chọn: <strong>{selectedTechnicianIds.length}</strong> kỹ thuật viên
                   </div>
                   <div className="technicians-grid">
-                    {technicians.map(tech => {
+                    {technicians
+                      .sort((a, b) => {
+                        // Sắp xếp: Rảnh (working=false) lên trước, bận (working=true) xuống sau
+                        if (a.working === b.working) return 0;
+                        return a.working ? 1 : -1;
+                      })
+                      .map(tech => {
                       const techId = tech.id || tech.userId;
                       const isSelected = selectedTechnicianIds.includes(techId);
+                        const isBusy = tech.working === true;
                       
                       return (
                         <div 
                           key={techId}
-                          className={`technician-card ${isSelected ? 'selected' : ''}`}
+                            className={`technician-card ${isSelected ? 'selected' : ''} ${isBusy ? 'busy' : ''}`}
                           onClick={() => handleToggleTechnician(techId)}
+                            style={{
+                              opacity: isBusy ? 0.7 : 1,
+                              border: isBusy ? '2px solid #fbbf24' : '2px solid #e2e8f0'
+                            }}
                         >
                           <div className="technician-card-header">
                             <div className="technician-avatar-small">
                               <FaUserCog />
                             </div>
+                              <div style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '8px',
+                                marginLeft: 'auto'
+                              }}>
+                                {/* Status Badge */}
+                                <span style={{
+                                  fontSize: '11px',
+                                  padding: '3px 8px',
+                                  borderRadius: '12px',
+                                  background: isBusy ? '#fef3c7' : '#d1fae5',
+                                  color: isBusy ? '#92400e' : '#065f46',
+                                  fontWeight: '600',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}>
+                                  <span style={{ fontSize: '8px' }}>{isBusy ? '🔴' : '🟢'}</span>
+                                  {isBusy ? 'Đang bận' : 'Rảnh'}
+                                </span>
+                                {/* Checkbox */}
                             <input
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => {}}
-                              style={{ marginLeft: 'auto', width: '18px', height: '18px', cursor: 'pointer' }}
+                                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                             />
+                              </div>
                           </div>
                           <h4>{tech.fullName || tech.name || `Kỹ thuật viên #${tech.id}`}</h4>
                           {tech.email && (
@@ -2279,6 +3026,19 @@ function StaffDashboard({ onNavigate }) {
                               📞 {tech.phone}
                             </p>
                           )}
+                            {isBusy && tech.appointmentId && (
+                              <p style={{ 
+                                fontSize: '12px', 
+                                color: '#92400e', 
+                                margin: '8px 0 0 0',
+                                padding: '4px 8px',
+                                background: '#fef3c7',
+                                borderRadius: '4px',
+                                fontWeight: '500'
+                              }}>
+                                ⚠️ Đang xử lý đơn #{tech.appointmentId}
+                              </p>
+                            )}
                         </div>
                       );
                     })}
@@ -2305,6 +3065,234 @@ function StaffDashboard({ onNavigate }) {
               >
                 <FaCheckCircle />
                 Xác nhận giao việc ({selectedTechnicianIds.length} KTV)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Thêm Lịch Hẹn */}
+      {showAddAppointmentModal && (
+        <div className="modal-overlay" onClick={() => {
+          setShowAddAppointmentModal(false);
+          setIsNewCustomer(false);
+        }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>📅 Thêm Lịch Hẹn Mới</h2>
+              <button 
+                className="modal-close"
+                onClick={() => {
+                  setShowAddAppointmentModal(false);
+                  setIsNewCustomer(false);
+                }}
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {/* Toggle Khách hàng mới / Có sẵn */}
+              <div className="form-group" style={{ 
+                background: '#f7fafc', 
+                padding: '15px', 
+                borderRadius: '10px',
+                border: '2px dashed #e2e8f0'
+              }}>
+                <label style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '10px',
+                  cursor: 'pointer',
+                  marginBottom: 0
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={isNewCustomer}
+                    onChange={(e) => {
+                      setIsNewCustomer(e.target.checked);
+                      // Reset customer fields khi toggle
+                      if (e.target.checked) {
+                        setNewAppointment({...newAppointment, customerId: ''});
+                      } else {
+                        setNewAppointment({
+                          ...newAppointment, 
+                          customerFullName: '',
+                          customerEmail: '',
+                          customerPhone: ''
+                        });
+                      }
+                    }}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                  <span style={{ fontWeight: 600, color: '#667eea' }}>
+                    🆕 Khách hàng mới (không có tài khoản)
+                  </span>
+                </label>
+              </div>
+
+              {/* Form cho khách hàng có sẵn */}
+              {!isNewCustomer && (
+                <div className="form-group">
+                  <label>
+                    <FaUser /> Khách hàng <span style={{color: 'red'}}>*</span>
+                  </label>
+                  <select
+                    value={newAppointment.customerId}
+                    onChange={(e) => setNewAppointment({...newAppointment, customerId: e.target.value})}
+                    className="form-control"
+                  >
+                    <option value="">-- Chọn khách hàng --</option>
+                    {customers.map(customer => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.fullName} - {customer.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Form cho khách hàng mới */}
+              {isNewCustomer && (
+                <>
+                  <div className="form-group">
+                    <label>
+                      <FaUser /> Tên khách hàng <span style={{color: 'red'}}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Nhập họ tên đầy đủ"
+                      value={newAppointment.customerFullName}
+                      onChange={(e) => setNewAppointment({...newAppointment, customerFullName: e.target.value})}
+                      className="form-control"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>
+                      <FaPhone /> Số điện thoại <span style={{color: 'red'}}>*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder="Nhập số điện thoại (VD: 0912345678)"
+                      value={newAppointment.customerPhone}
+                      onChange={(e) => setNewAppointment({...newAppointment, customerPhone: e.target.value})}
+                      className="form-control"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>
+                      <FaEnvelope /> Email
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="Nhập email (không bắt buộc)"
+                      value={newAppointment.customerEmail}
+                      onChange={(e) => setNewAppointment({...newAppointment, customerEmail: e.target.value})}
+                      className="form-control"
+                    />
+                    <small style={{color: '#666', fontSize: '12px'}}>
+                      💡 Email không bắt buộc cho khách hàng mới
+                    </small>
+                  </div>
+                </>
+              )}
+
+              <div className="form-group">
+                <label>
+                  <FaCar /> Xe <span style={{color: 'red'}}>*</span>
+                </label>
+                <input
+                  type="number"
+                  placeholder="Nhập ID xe (Vehicle ID)"
+                  value={newAppointment.vehicleId}
+                  onChange={(e) => setNewAppointment({...newAppointment, vehicleId: e.target.value})}
+                  className="form-control"
+                />
+                <small style={{color: '#666', fontSize: '12px'}}>
+                  💡 Tip: Bạn có thể xem Vehicle ID trong tab "Quản lý xe"
+                </small>
+              </div>
+
+              <div className="form-group">
+                <label>
+                  <FaCalendarAlt /> Ngày & Giờ hẹn <span style={{color: 'red'}}>*</span>
+                </label>
+                <input
+                  type="datetime-local"
+                  value={newAppointment.appointmentDate}
+                  onChange={(e) => setNewAppointment({...newAppointment, appointmentDate: e.target.value})}
+                  className="form-control"
+                  min={new Date().toISOString().slice(0, 16)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>
+                  <FaTools /> Loại dịch vụ
+                </label>
+                <select
+                  multiple
+                  value={newAppointment.serviceTypes}
+                  onChange={(e) => {
+                    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+                    setNewAppointment({...newAppointment, serviceTypes: selectedOptions});
+                  }}
+                  className="form-control"
+                  style={{minHeight: '100px'}}
+                >
+                  <option value="1">Bảo dưỡng định kỳ</option>
+                  <option value="2">Sửa chữa phanh</option>
+                  <option value="3">Thay lốp xe</option>
+                  <option value="4">Kiểm tra pin</option>
+                  <option value="5">Vệ sinh nội thất</option>
+                </select>
+                <small style={{color: '#666', fontSize: '12px'}}>
+                  💡 Giữ Ctrl/Cmd để chọn nhiều dịch vụ
+                </small>
+              </div>
+
+              <div className="form-group">
+                <label>
+                  <FaEdit /> Ghi chú
+                </label>
+                <textarea
+                  placeholder="Nhập ghi chú cho lịch hẹn..."
+                  value={newAppointment.notes}
+                  onChange={(e) => setNewAppointment({...newAppointment, notes: e.target.value})}
+                  className="form-control"
+                  rows="3"
+                />
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button 
+                className="modal-btn modal-btn-cancel"
+                onClick={() => {
+                  setShowAddAppointmentModal(false);
+                  setIsNewCustomer(false);
+                  setNewAppointment({
+                    customerId: '',
+                    vehicleId: '',
+                    serviceTypes: [],
+                    appointmentDate: '',
+                    notes: '',
+                    customerFullName: '',
+                    customerEmail: '',
+                    customerPhone: ''
+                  });
+                }}
+              >
+                Hủy
+              </button>
+              <button 
+                className="modal-btn modal-btn-confirm"
+                onClick={handleAddAppointment}
+              >
+                <FaCheckCircle />
+                Tạo Lịch Hẹn
               </button>
             </div>
           </div>

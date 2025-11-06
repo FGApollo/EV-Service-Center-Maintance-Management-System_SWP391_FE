@@ -48,23 +48,47 @@ function TechnicianDashboard({ onNavigate }) {
         return;
       }
       
-      // Lọc lịch hẹn theo center_id và chỉ lấy confirmed + in-progress + completed
+      // Log tất cả status để debug
+      console.log('📊 Các status trong data:', [...new Set(data.map(apt => apt.status))]);
+      console.log('📋 Chi tiết appointments:', data.map(apt => ({
+        id: apt.id || apt.appointmentId,
+        status: apt.status,
+        centerId: apt.serviceCenterId || apt.service_center_id || apt.centerId || apt.center_id
+      })));
+      
+      // Lọc lịch hẹn theo center_id và chỉ lấy accepted + in_progress + completed
       let filteredData = data.filter(apt => {
         const status = apt.status;
-        // Chỉ lấy appointments đã được staff duyệt
-        return ['confirmed', 'in-progress', 'completed'].includes(status);
+        // Chỉ lấy appointments đã được staff duyệt (accepted)
+        const isValidStatus = ['accepted', 'in-progress', 'in_progress', 'inProgress', 'completed', 'done'].includes(status);
+        if (!isValidStatus) {
+          console.log(`⚠️ Loại bỏ appointment #${apt.id || apt.appointmentId} với status: ${status}`);
+        }
+        return isValidStatus;
       });
 
+      console.log('✅ Sau khi lọc status, còn:', filteredData.length, 'appointments');
+      
       // Lọc theo center nếu có
       if (technicianCenterId !== null && technicianCenterId !== undefined) {
+        const beforeCenterFilter = filteredData.length;
         filteredData = filteredData.filter(appointment => {
           const aptCenterId = appointment.serviceCenterId || appointment.service_center_id || appointment.centerId || appointment.center_id;
-          return aptCenterId === technicianCenterId;
+          const matched = aptCenterId === technicianCenterId;
+          if (!matched) {
+            console.log(`⚠️ Loại bỏ appointment #${appointment.id || appointment.appointmentId} - center ${aptCenterId} không khớp với ${technicianCenterId}`);
+          }
+          return matched;
         });
-        console.log('✅ Đã lọc theo center_id:', technicianCenterId);
+        console.log(`✅ Đã lọc theo center_id ${technicianCenterId}: ${beforeCenterFilter} → ${filteredData.length}`);
       }
       
-      console.log('📊 Tổng số lịch hẹn đã duyệt:', filteredData.length);
+      console.log('📊 Tổng số lịch hẹn cuối cùng:', filteredData.length);
+      console.log('📋 Breakdown theo status:', {
+        accepted: filteredData.filter(a => a.status === 'accepted').length,
+        inProgress: filteredData.filter(a => ['in-progress', 'in_progress', 'inProgress'].includes(a.status)).length,
+        completed: filteredData.filter(a => ['completed', 'done'].includes(a.status)).length,
+      });
       setAppointments(filteredData);
       
       // Fetch thông tin xe
@@ -134,35 +158,44 @@ function TechnicianDashboard({ onNavigate }) {
 
   const getStatusColor = (status) => {
     switch(status) {
-      case 'confirmed': return 'status-waiting';
-      case 'in-progress': return 'status-in-progress';
-      case 'completed': return 'status-completed';
+      case 'accepted': return 'status-waiting';
+      case 'in-progress':
+      case 'in_progress':
+      case 'inProgress': return 'status-in-progress';
+      case 'completed':
+      case 'done': return 'status-completed';
       default: return '';
     }
   };
 
   const getStatusText = (status) => {
     switch(status) {
-      case 'confirmed': return 'Đang chờ';
-      case 'in-progress': return 'Đang làm';
-      case 'completed': return 'Hoàn tất';
+      case 'accepted': return 'Đã xác nhận';
+      case 'in-progress':
+      case 'in_progress':
+      case 'inProgress': return 'Đang làm';
+      case 'completed':
+      case 'done': return 'Hoàn tất';
       default: return status;
     }
   };
 
   const getStatusIcon = (status) => {
     switch(status) {
-      case 'confirmed': return <FaClock />;
-      case 'in-progress': return <FaTools />;
-      case 'completed': return <FaCheckCircle />;
+      case 'accepted': return <FaCheckCircle />;
+      case 'in-progress':
+      case 'in_progress':
+      case 'inProgress': return <FaTools />;
+      case 'completed':
+      case 'done': return <FaCheckCircle />;
       default: return <FaClock />;
     }
   };
 
   // Đếm số lượng theo trạng thái
-  const waitingCount = appointments.filter(a => a.status === 'confirmed').length;
-  const inProgressCount = appointments.filter(a => a.status === 'in-progress').length;
-  const completedCount = appointments.filter(a => a.status === 'completed').length;
+  const waitingCount = appointments.filter(a => a.status === 'accepted').length;
+  const inProgressCount = appointments.filter(a => ['in-progress', 'in_progress', 'inProgress'].includes(a.status)).length;
+  const completedCount = appointments.filter(a => ['completed', 'done'].includes(a.status)).length;
 
   return (
     <div className="technician-dashboard">
@@ -203,11 +236,11 @@ function TechnicianDashboard({ onNavigate }) {
         <div className="status-cards">
           <div className="status-card waiting">
             <div className="status-card-icon">
-              <FaClock />
+              <FaCheckCircle />
             </div>
             <div className="status-card-info">
               <h2>{waitingCount}</h2>
-              <p>Đang chờ</p>
+              <p>Đã xác nhận</p>
             </div>
           </div>
 
@@ -448,7 +481,7 @@ function TechnicianDashboard({ onNavigate }) {
                 <div className="details-section">
                   <h3>Thao tác</h3>
                   <div className="action-buttons">
-                    {selectedAppointment.status === 'confirmed' && (
+                    {(selectedAppointment.status === 'accepted') && (
                       <button 
                         className="action-btn start"
                         onClick={() => handleStatusChange(
@@ -460,7 +493,7 @@ function TechnicianDashboard({ onNavigate }) {
                         Bắt đầu làm việc
                       </button>
                     )}
-                    {selectedAppointment.status === 'in-progress' && (
+                    {['in-progress', 'in_progress', 'inProgress'].includes(selectedAppointment.status) && (
                       <button 
                         className="action-btn complete"
                         onClick={() => handleStatusChange(
@@ -472,7 +505,7 @@ function TechnicianDashboard({ onNavigate }) {
                         Hoàn thành
                       </button>
                     )}
-                    {selectedAppointment.status === 'completed' && (
+                    {['completed', 'done'].includes(selectedAppointment.status) && (
                       <div className="completed-message">
                         <FaCheckCircle style={{ color: '#48bb78', fontSize: '24px' }} />
                         <p>Công việc đã hoàn thành!</p>

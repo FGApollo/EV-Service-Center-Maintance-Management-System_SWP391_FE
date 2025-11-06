@@ -106,6 +106,12 @@ export const getAppointmentsForStaff = async (status = null) => {
   return res.data;
 };
 
+// Staff: Lấy chi tiết một appointment (✅)
+export const getAppointmentById = async (appointmentId) => {
+  const res = await axiosClient.get(`/api/appointments/${appointmentId}`);
+  return res.data;
+};
+
 // Customer: Đặt lịch bảo dưỡng mới (✅)
 export const createAppointment = async (data) => {
   const res = await axiosClient.post("/api/appointments", data);
@@ -132,8 +138,21 @@ export const startAppointment = async (appointmentId) => {
 
 // Staff: Hoàn thành (in-progress → done) (✅)
 export const completeAppointment = async (appointmentId) => {
-  const res = await axiosClient.put(`/api/appointments/${appointmentId}/done`);
-  return res.data;
+  // Thử nhiều endpoint có thể có
+  try {
+    const res = await axiosClient.put(`/api/appointments/${appointmentId}/done`);
+    return res.data;
+  } catch (error) {
+    console.log('⚠️ /done failed, trying /complete...');
+    try {
+      const res = await axiosClient.put(`/api/appointments/${appointmentId}/complete`);
+      return res.data;
+    } catch (error2) {
+      console.log('⚠️ /complete failed, trying /completed...');
+      const res = await axiosClient.put(`/api/appointments/${appointmentId}/completed`);
+      return res.data;
+    }
+  }
 };
 
 /* --------------------------------
