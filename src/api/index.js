@@ -57,6 +57,12 @@ export const getServicedVehicles = async () => {
   return res.data;
 };
 
+// Lấy lịch sử bảo dưỡng của xe (✅ Cần token - Staff)
+export const getMaintainedVehicles = async () => {
+  const res = await axiosClient.get("/api/vehicles/maintained");
+  return res.data;
+};
+
 // Tìm xe theo VIN (✅)
 export const getVehicleByVin = async (vin) => {
   const res = await axiosClient.get(`/api/vehicles/vin/${vin}`);
@@ -138,6 +144,37 @@ export const completeAppointment = async (appointmentId) => {
 export const getCustomersByRole = async () => {
   const res = await axiosClient.get('/api/users/all_customer');
   return res.data;
+};
+
+// Lấy danh sách technicians (✅ Cần token)
+export const getTechnicians = async () => {
+  const res = await axiosClient.get('/api/users/allTechnicians');
+  return res.data;
+};
+
+// Staff: Giao việc cho technician (✅ Cần token)
+// Backend yêu cầu: PUT /assignments/{appointmentId}/staff với body = số integer (không phải object)
+export const assignTechnician = async (appointmentId, technicianId) => {
+  console.log('🔧 assignTechnician được gọi:');
+  console.log('  📋 appointmentId:', appointmentId);
+  console.log('  👷 technicianId:', technicianId);
+  console.log('  🔗 URL:', `/assignments/${appointmentId}/staff`);
+  console.log('  📦 Body (số):', technicianId);
+  
+  try {
+    // Backend yêu cầu body là số integer, không phải object
+    const res = await axiosClient.put(`/assignments/${appointmentId}/staff`, [technicianId]);
+    console.log('✅ Giao việc thành công:', res.data);
+    return res.data;
+  } catch (error) {
+    console.error('❌ Lỗi giao việc:');
+    console.error('  📍 Status:', error.response?.status);
+    console.error('  📝 Message:', error.response?.data?.message || error.message);
+    console.error('  📦 Response:', error.response?.data);
+    console.error('  🔗 URL:', error.config?.url);
+    console.error('  📤 Request data:', error.config?.data);
+    throw error;
+  }
 };
 
 /* --------------------------------

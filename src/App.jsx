@@ -6,6 +6,7 @@ import BookingPage from "./pages/BookingPage.jsx";
 import Profile from "./pages/Profile.jsx";
 import MyCar from "./pages/MyCar.jsx";
 import StaffDashboard from "./pages/StaffDashboard.jsx";
+import TechnicianDashboard from "./pages/TechnicianDashboard.jsx";
 import Footer from "./components/Footer.jsx";
 
 function App() {
@@ -51,6 +52,8 @@ function App() {
         return <MyCar onNavigate={handleNavigate} onNavigateWithVehicle={handleNavigateWithVehicle} />;
       case 'staff':
         return <StaffDashboard onNavigate={handleNavigate} />;
+      case 'technician':
+        return <TechnicianDashboard onNavigate={handleNavigate} />;
       case 'home':
       default:
         return (

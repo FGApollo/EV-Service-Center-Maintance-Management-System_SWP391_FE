@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './StaffDashboard.css';
-import { FaUser, FaCar, FaComments, FaSearch, FaPlus, FaHistory, FaClock, FaPhone, FaEnvelope, FaMapMarkerAlt, FaCalendarAlt, FaTools, FaCheckCircle, FaTimes, FaEdit } from 'react-icons/fa';
-import { getCustomersByRole, getAppointmentsForStaff, acceptAppointment, cancelAppointment, startAppointment, completeAppointment, getVehicleById } from '../api';
+import { FaUser, FaCar, FaComments, FaSearch, FaPlus, FaHistory, FaClock, FaPhone, FaEnvelope, FaMapMarkerAlt, FaCalendarAlt, FaTools, FaCheckCircle, FaTimes, FaEdit, FaUserCog } from 'react-icons/fa';
+import { getCustomersByRole, getAppointmentsForStaff, acceptAppointment, cancelAppointment, startAppointment, completeAppointment, getVehicleById, getTechnicians, assignTechnician } from '../api';
 
 function StaffDashboard({ onNavigate }) {
   const [activeTab, setActiveTab] = useState('customers'); // customers, cars, chat, appointments, maintenance, parts
@@ -20,6 +20,15 @@ function StaffDashboard({ onNavigate }) {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Dữ liệu technicians
+  const [technicians, setTechnicians] = useState([]);
+  const [showTechnicianModal, setShowTechnicianModal] = useState(false);
+  const [selectedTechnicianIds, setSelectedTechnicianIds] = useState([]); // Array để chọn nhiều technicians
+  const [assigningAppointmentId, setAssigningAppointmentId] = useState(null);
+
+  // Lấy thông tin center_id của staff từ localStorage
+  const [staffCenterId, setStaffCenterId] = useState(null);
 
   // Fetch danh sách khách hàng khi component mount
   useEffect(() => {
@@ -41,6 +50,55 @@ function StaffDashboard({ onNavigate }) {
     fetchCustomers();
   }, []);
 
+  // Lấy thông tin user và set staffCenterId
+  useEffect(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const userData = JSON.parse(userStr);
+        const centerId = userData.center_id || userData.centerId;
+        setStaffCenterId(centerId);
+        console.log('🏢 Staff Center ID:', centerId);
+        console.log('📋 Full user data:', userData);
+      }
+    } catch (error) {
+      console.error('Lỗi khi đọc thông tin user:', error);
+    }
+  }, []);
+
+  // Fetch danh sách technicians
+  useEffect(() => {
+    const fetchTechnicians = async () => {
+      try {
+        const data = await getTechnicians();
+        console.log('👷 Danh sách technicians từ API:', data);
+        console.log('📊 Số lượng technicians:', Array.isArray(data) ? data.length : 'Không phải array');
+        console.log('👤 Staff Center ID:', staffCenterId);
+        
+        // 🚧 TẠM THỜI: Hiển thị TẤT CẢ technicians (không lọc theo center_id)
+        setTechnicians(Array.isArray(data) ? data : []);
+        
+        // // Lọc theo center_id nếu cần (TẠM THỜI COMMENT OUT)
+        // let filteredTechnicians = data;
+        // if (staffCenterId !== null && staffCenterId !== undefined) {
+        //   filteredTechnicians = data.filter(tech => {
+        //     const techCenterId = tech.center_id || tech.centerId;
+        //     console.log(`  🔍 Tech #${tech.id}: centerId=${techCenterId}, Match=${techCenterId === staffCenterId}`);
+        //     return techCenterId === staffCenterId;
+        //   });
+        //   console.log(`  ✅ Sau khi lọc: ${filteredTechnicians.length} technicians`);
+        // }
+        // setTechnicians(filteredTechnicians);
+      } catch (err) {
+        console.error('❌ Lỗi khi tải danh sách technicians:', err);
+        console.error('📝 Chi tiết lỗi:', err.response?.data || err.message);
+      }
+    };
+
+    // 🚧 TẠM THỜI: Luôn fetch (không cần check staffCenterId)
+    fetchTechnicians();
+  }, [staffCenterId]);
+
   // Dữ liệu chat mẫu
   const [chatCustomers] = useState([
     { id: 1, name: 'Nguyễn Văn A', lastMessage: 'Cảm ơn bạn!', time: '10:30', unread: 2 },
@@ -55,25 +113,6 @@ function StaffDashboard({ onNavigate }) {
   const [appointmentsError, setAppointmentsError] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState(null); // Filter theo status
   const [vehiclesCache, setVehiclesCache] = useState({}); // Cache thông tin xe
-
-  // Lấy thông tin center_id của staff từ localStorage
-  const [staffCenterId, setStaffCenterId] = useState(null);
-
-  useEffect(() => {
-    // Lấy thông tin user từ localStorage
-    try {
-      const userStr = localStorage.getItem('user');
-      if (userStr) {
-        const userData = JSON.parse(userStr);
-        const centerId = userData.center_id || userData.centerId;
-        setStaffCenterId(centerId);
-        console.log('🏢 Staff Center ID:', centerId);
-        console.log('📋 Full user data:', userData);
-      }
-    } catch (error) {
-      console.error('Lỗi khi đọc thông tin user:', error);
-    }
-  }, []);
 
   // Fetch appointments khi component mount hoặc khi tab appointments được chọn
   useEffect(() => {
@@ -110,7 +149,7 @@ function StaffDashboard({ onNavigate }) {
         console.error('❌ Data không phải array:', data);
         setAllAppointments([]);
         setAppointments([]);
-        return;
+        return [];
       }
       
       // Log sample appointment để kiểm tra cấu trúc
@@ -144,11 +183,14 @@ function StaffDashboard({ onNavigate }) {
       fetchVehicleInfo(vehicleIds);
       
       // appointments sẽ được set bởi useEffect filter theo selectedStatus
+      // Return filtered data để có thể sử dụng ngay sau khi gọi
+      return filteredData;
     } catch (err) {
       console.error('❌ Lỗi khi tải danh sách lịch hẹn:', err);
       setAppointmentsError(err.response?.data?.message || 'Không thể tải danh sách lịch hẹn');
       setAllAppointments([]);
       setAppointments([]);
+      return [];
     } finally {
       setAppointmentsLoading(false);
     }
@@ -580,6 +622,134 @@ function StaffDashboard({ onNavigate }) {
     } catch (error) {
       console.error('Lỗi khi cập nhật trạng thái:', error);
       alert(`❌ Không thể cập nhật trạng thái: ${error.response?.data?.message || error.message}`);
+    }
+  };
+
+  // Handler để mở modal chọn technician
+  const handleOpenTechnicianModal = (appointmentId) => {
+    setAssigningAppointmentId(appointmentId);
+    // Tìm technicians hiện tại nếu có (có thể có nhiều technicians đã được assign)
+    const appointment = appointments.find(apt => 
+      (apt.id === appointmentId || apt.appointmentId === appointmentId)
+    );
+    // Khởi tạo với technician hiện tại (nếu có)
+    if (appointment?.technicianId) {
+      setSelectedTechnicianIds([appointment.technicianId]);
+    } else {
+      setSelectedTechnicianIds([]);
+    }
+    setShowTechnicianModal(true);
+  };
+
+  // Toggle technician selection (checkbox behavior)
+  const handleToggleTechnician = (techId) => {
+    setSelectedTechnicianIds(prev => {
+      if (prev.includes(techId)) {
+        // Nếu đã chọn → bỏ chọn
+        return prev.filter(id => id !== techId);
+      } else {
+        // Nếu chưa chọn → thêm vào
+        return [...prev, techId];
+      }
+    });
+  };
+
+  // Handler để assign nhiều technicians
+  const handleAssignTechnician = async () => {
+    if (selectedTechnicianIds.length === 0) {
+      alert('⚠️ Vui lòng chọn ít nhất 1 kỹ thuật viên');
+      return;
+    }
+
+    // 🔍 Debug: Kiểm tra token và user info
+    const token = localStorage.getItem('token');
+    const userStr = localStorage.getItem('user');
+    console.log('🔐 Debug Giao Việc (Multi):');
+    console.log('  ✅ Token tồn tại:', !!token);
+    console.log('  📋 AppointmentId:', assigningAppointmentId);
+    console.log('  👷 TechnicianIds:', selectedTechnicianIds);
+    console.log('  📊 Số lượng:', selectedTechnicianIds.length);
+    
+    // Debug: Thông tin appointment
+    const appointment = appointments.find(apt => 
+      (apt.id === assigningAppointmentId || apt.appointmentId === assigningAppointmentId)
+    );
+    if (appointment) {
+      console.log('  📌 Appointment Center ID:', appointment.serviceCenterId || appointment.service_center_id || appointment.centerId || appointment.center_id);
+    }
+    
+    if (userStr) {
+      try {
+        const userData = JSON.parse(userStr);
+        console.log('  👤 User Role:', userData.role);
+        console.log('  👤 User ID:', userData.id || userData.userId);
+        console.log('  🏢 Center ID:', userData.center_id || userData.centerId);
+      } catch (e) {
+        console.error('  ❌ Không parse được user data');
+      }
+    }
+
+    try {
+      // Giao việc cho từng technician (gọi API nhiều lần)
+      let successCount = 0;
+      let errorCount = 0;
+      const errors = [];
+
+      for (const techId of selectedTechnicianIds) {
+        try {
+          console.log(`  ⏳ Đang giao việc cho technician #${techId}...`);
+          const result = await assignTechnician(assigningAppointmentId, techId);
+          console.log(`  ✅ Giao việc cho #${techId} thành công:`, result);
+          successCount++;
+        } catch (err) {
+          console.error(`  ❌ Lỗi giao việc cho #${techId}:`, err);
+          errorCount++;
+          errors.push({ techId, error: err.response?.data?.message || err.message });
+        }
+      }
+
+      // Hiển thị kết quả
+      if (errorCount === 0) {
+        alert(`✅ Đã giao việc thành công cho ${successCount} kỹ thuật viên!`);
+      } else if (successCount > 0) {
+        alert(`⚠️ Giao việc một phần:\n✅ Thành công: ${successCount}\n❌ Thất bại: ${errorCount}\n\n${errors.map(e => `• Technician #${e.techId}: ${e.error}`).join('\n')}`);
+      } else {
+        alert(`❌ Không thể giao việc cho bất kỳ kỹ thuật viên nào:\n\n${errors.map(e => `• Technician #${e.techId}: ${e.error}`).join('\n')}`);
+      }
+      
+      // Refresh danh sách appointments và lấy data mới
+      console.log('🔄 Refreshing appointments after assignment...');
+      const freshAppointments = await fetchAppointments();
+      console.log('✅ Fresh appointments loaded:', freshAppointments.length);
+      
+      // Cập nhật selectedAppointment nếu đang xem chi tiết
+      if (selectedAppointment?.id === assigningAppointmentId || selectedAppointment?.appointmentId === assigningAppointmentId) {
+        // Tìm appointment từ data MỚI (vừa fetch về)
+        const updatedAppointment = freshAppointments.find(apt => 
+          (apt.id === assigningAppointmentId || apt.appointmentId === assigningAppointmentId)
+        );
+        
+        if (updatedAppointment) {
+          console.log('✅ Updated appointment found:', updatedAppointment);
+          console.log('   🔍 TechnicianId:', updatedAppointment.technicianId);
+          console.log('   🔍 Technician:', updatedAppointment.technician);
+          console.log('   🔍 AssignedTechnicians:', updatedAppointment.assignedTechnicians);
+          setSelectedAppointment(updatedAppointment);
+        } else {
+          console.warn('⚠️ Updated appointment not found in fresh data');
+        }
+      }
+      
+      // Đóng modal nếu có ít nhất 1 thành công
+      if (successCount > 0) {
+        setShowTechnicianModal(false);
+        setSelectedTechnicianIds([]);
+        setAssigningAppointmentId(null);
+      }
+    } catch (error) {
+      console.error('❌❌❌ CHI TIẾT LỖI GIAO VIỆC ❌❌❌');
+      console.error('Full error object:', error);
+      alert(`❌ Lỗi không mong đợi: ${error.message}`);
     }
   };
 
@@ -1317,15 +1487,107 @@ function StaffDashboard({ onNavigate }) {
                       </div>
                     </div>
 
-                    {selectedAppointment.technician && (
-                      <div className="details-section">
-                        <h3>Kỹ thuật viên phụ trách</h3>
-                        <div className="technician-info">
-                          <FaUser />
-                          <span>{selectedAppointment.technician}</span>
-                        </div>
-                      </div>
-                    )}
+                    <div className="details-section">
+                      <h3>Kỹ thuật viên phụ trách</h3>
+                      {(() => {
+                        // Check nhiều field names có thể từ backend
+                        const techId = selectedAppointment.technicianId || 
+                                      selectedAppointment.technician_id ||
+                                      selectedAppointment.assignedTechnicianId;
+                        
+                        const techData = selectedAppointment.technician || 
+                                        selectedAppointment.assignedTechnician;
+                        
+                        const assignedTechs = selectedAppointment.assignedTechnicians || 
+                                             selectedAppointment.technicians;
+                        
+                        const hasAssignment = techId || techData || (assignedTechs && assignedTechs.length > 0);
+                        
+                        // Debug log
+                        console.log('🔍 Appointment technician data:', {
+                          techId,
+                          techData,
+                          assignedTechs,
+                          hasAssignment,
+                          fullAppointment: selectedAppointment
+                        });
+                        
+                        if (hasAssignment) {
+                          return (
+                            <div className="technician-info">
+                              <FaUserCog />
+                              <span>
+                                {(() => {
+                                  // Nếu có array của nhiều technicians
+                                  if (assignedTechs && assignedTechs.length > 0) {
+                                    return `${assignedTechs.length} kỹ thuật viên đã được giao`;
+                                  }
+                                  
+                                  // Nếu có techId, tìm từ danh sách
+                                  if (techId) {
+                                    const tech = technicians.find(t => 
+                                      t.id === techId || t.userId === techId
+                                    );
+                                    if (tech) {
+                                      return tech.fullName || tech.name || `Kỹ thuật viên #${tech.id}`;
+                                    }
+                                    return `Kỹ thuật viên #${techId}`;
+                                  }
+                                  
+                                  // Nếu có techData object
+                                  if (typeof techData === 'object') {
+                                    return techData.fullName || techData.name || 'Đã giao việc';
+                                  }
+                                  
+                                  // String
+                                  return techData || 'Đã giao việc';
+                                })()}
+                              </span>
+                              <button 
+                                className="sidebar-edit-btn"
+                                onClick={() => handleOpenTechnicianModal(selectedAppointment.appointmentId || selectedAppointment.id)}
+                                title="Thay đổi kỹ thuật viên"
+                                style={{ marginLeft: 'auto' }}
+                              >
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                  <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" />
+                                </svg>
+                              </button>
+                            </div>
+                          );
+                        }
+                        
+                        // Chưa giao việc
+                        return (
+                          <div style={{ 
+                            padding: '15px', 
+                            background: '#fff3cd', 
+                            border: '1px solid #ffc107',
+                            borderRadius: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '10px'
+                          }}>
+                            <span style={{ color: '#856404', fontSize: '14px' }}>
+                              ⚠️ Chưa giao việc cho kỹ thuật viên
+                            </span>
+                            <button 
+                              className="action-btn"
+                              onClick={() => handleOpenTechnicianModal(selectedAppointment.appointmentId || selectedAppointment.id)}
+                              style={{ 
+                                padding: '8px 16px',
+                                fontSize: '14px',
+                                background: 'linear-gradient(135deg, #4299e1 0%, #3182ce 100%)'
+                              }}
+                            >
+                              <FaUserCog />
+                              Giao việc
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </div>
 
                     <div className="details-section">
                       <h3>Ghi chú</h3>
@@ -1948,6 +2210,106 @@ function StaffDashboard({ onNavigate }) {
           </div>
         )}
       </div>
+
+      {/* Modal chọn Technician */}
+      {showTechnicianModal && (
+        <div className="modal-overlay" onClick={() => setShowTechnicianModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>
+                <FaUserCog style={{ marginRight: '10px' }} />
+                Chọn Kỹ Thuật Viên (Có thể chọn nhiều)
+              </h2>
+              <button 
+                className="modal-close-btn"
+                onClick={() => setShowTechnicianModal(false)}
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {technicians.length === 0 ? (
+                <div className="empty-state" style={{ padding: '40px' }}>
+                  <FaUserCog size={40} />
+                  <p>Không có kỹ thuật viên nào</p>
+                </div>
+              ) : (
+                <>
+                  <div style={{ 
+                    padding: '12px 16px', 
+                    background: '#e3f2fd', 
+                    borderRadius: '8px', 
+                    marginBottom: '16px',
+                    fontSize: '14px',
+                    color: '#1565C0'
+                  }}>
+                    ✅ Đã chọn: <strong>{selectedTechnicianIds.length}</strong> kỹ thuật viên
+                  </div>
+                  <div className="technicians-grid">
+                    {technicians.map(tech => {
+                      const techId = tech.id || tech.userId;
+                      const isSelected = selectedTechnicianIds.includes(techId);
+                      
+                      return (
+                        <div 
+                          key={techId}
+                          className={`technician-card ${isSelected ? 'selected' : ''}`}
+                          onClick={() => handleToggleTechnician(techId)}
+                        >
+                          <div className="technician-card-header">
+                            <div className="technician-avatar-small">
+                              <FaUserCog />
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              style={{ marginLeft: 'auto', width: '18px', height: '18px', cursor: 'pointer' }}
+                            />
+                          </div>
+                          <h4>{tech.fullName || tech.name || `Kỹ thuật viên #${tech.id}`}</h4>
+                          {tech.email && (
+                            <p style={{ fontSize: '13px', color: '#718096', margin: '5px 0 0 0' }}>
+                              📧 {tech.email}
+                            </p>
+                          )}
+                          {tech.phone && (
+                            <p style={{ fontSize: '13px', color: '#718096', margin: '5px 0 0 0' }}>
+                              📞 {tech.phone}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button 
+                className="modal-btn modal-btn-cancel"
+                onClick={() => {
+                  setShowTechnicianModal(false);
+                  setSelectedTechnicianIds([]);
+                  setAssigningAppointmentId(null);
+                }}
+              >
+                Hủy
+              </button>
+              <button 
+                className="modal-btn modal-btn-confirm"
+                onClick={handleAssignTechnician}
+                disabled={selectedTechnicianIds.length === 0}
+              >
+                <FaCheckCircle />
+                Xác nhận giao việc ({selectedTechnicianIds.length} KTV)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
