@@ -178,12 +178,40 @@ function StaffDashboard({ onNavigate }) {
     try {
       setAppointmentsLoading(true);
       setAppointmentsError(null);
-      console.log('🔄 Đang fetch TẤT CẢ lịch hẹn... Staff Center ID:', staffCenterId);
       
-      // Luôn fetch TẤT CẢ lịch hẹn (không filter theo status ở API)
+      // 🔐 VALIDATION: Kiểm tra staffCenterId trước khi fetch
+      console.log('🔄 Đang fetch lịch hẹn...');
+      console.log('🏢 Staff Center ID:', staffCenterId);
+      
+      // ⚠️ WARNING: Nếu không có center_id, có thể là vấn đề permissions
+      if (staffCenterId === null || staffCenterId === undefined) {
+        console.warn('⚠️ ⚠️ ⚠️ KHÔNG TÌM THẤY CENTER_ID!');
+        console.warn('   → Staff có thể thấy TẤT CẢ appointments từ mọi center!');
+        console.warn('   → Kiểm tra user data trong localStorage có center_id không?');
+        
+        // Thử lấy lại từ localStorage
+        try {
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            const userData = JSON.parse(userStr);
+            console.log('   📋 User data keys:', Object.keys(userData));
+            console.log('   📋 User data:', userData);
+            
+            const retryCenterId = userData.center_id || userData.centerId || userData.serviceCenterId || userData.service_center_id;
+            if (retryCenterId) {
+              console.log('   ✅ Tìm thấy center_id trong user data:', retryCenterId);
+              setStaffCenterId(retryCenterId);
+            }
+          }
+        } catch (e) {
+          console.error('   ❌ Lỗi khi parse user data:', e);
+        }
+      }
+      
+      // Luôn fetch TẤT CẢ lịch hẹn (backend có thể đã filter theo token)
       const data = await getAppointmentsForStaff(null);
       console.log('📦 Dữ liệu từ API:', data);
-      console.log('📦 Số lượng:', Array.isArray(data) ? data.length : 'Không phải array');
+      console.log('📦 Số lượng appointments từ API:', Array.isArray(data) ? data.length : 'Không phải array');
       
       // Đảm bảo data là array
       if (!Array.isArray(data)) {
@@ -196,24 +224,87 @@ function StaffDashboard({ onNavigate }) {
       // Log sample appointment để kiểm tra cấu trúc
       if (data.length > 0) {
         console.log('🔬 Sample appointment structure:', data[0]);
-        console.log('🔬 Keys:', Object.keys(data[0]));
+        console.log('🔬 Sample keys:', Object.keys(data[0]));
+        console.log('🔬 Sample center fields:', {
+          serviceCenterId: data[0].serviceCenterId,
+          service_center_id: data[0].service_center_id,
+          centerId: data[0].centerId,
+          center_id: data[0].center_id
+        });
       }
       
-      // Lọc lịch hẹn theo center_id của staff (nếu có)
+      // 🔐 Lọc lịch hẹn theo center_id của staff (QUAN TRỌNG: Bảo mật)
       let filteredData = data;
-      if (staffCenterId !== null && staffCenterId !== undefined) {
+      const currentCenterId = staffCenterId;
+      
+      if (currentCenterId !== null && currentCenterId !== undefined) {
+        // ✅ CÓ center_id → Filter theo center
+        const beforeCount = data.length;
         filteredData = data.filter(appointment => {
           // Kiểm tra cả camelCase và snake_case
-          const aptCenterId = appointment.serviceCenterId || appointment.service_center_id || appointment.centerId || appointment.center_id;
+          const aptCenterId = appointment.serviceCenterId || 
+                             appointment.service_center_id || 
+                             appointment.centerId || 
+                             appointment.center_id ||
+                             appointment.serviceCenter?.id ||
+                             appointment.service_center?.id;
+          
           const appointmentId = appointment.id || appointment.appointmentId;
-          console.log(`🔍 Lịch hẹn #${appointmentId}: centerId=${aptCenterId}, Staff centerId=${staffCenterId}, Match=${aptCenterId === staffCenterId}`);
-          return aptCenterId === staffCenterId;
+          
+          // Convert về cùng type để so sánh (string vs number)
+          const aptCenterIdNormalized = aptCenterId != null ? String(aptCenterId) : null;
+          const staffCenterIdNormalized = String(currentCenterId);
+          
+          const isMatch = aptCenterIdNormalized === staffCenterIdNormalized;
+          
+          // Log chi tiết cho debugging (chỉ log nếu ít appointments)
+          if (data.length <= 10) {
+            console.log(`🔍 Appointment #${appointmentId}:`, {
+              aptCenterId,
+              staffCenterId: currentCenterId,
+              match: isMatch ? '✅' : '❌',
+              normalized: {
+                apt: aptCenterIdNormalized,
+                staff: staffCenterIdNormalized
+              }
+            });
+          }
+          
+          return isMatch;
         });
-        console.log('✅ Đã lọc lịch hẹn theo center_id:', staffCenterId);
-        console.log('📊 Tổng số lịch hẹn:', data.length, '→ Lịch hẹn của chi nhánh:', filteredData.length);
+        
+        const afterCount = filteredData.length;
+        console.log('✅ Đã lọc lịch hẹn theo center_id:', currentCenterId);
+        console.log('📊 Kết quả:', {
+          'Tổng từ API': beforeCount,
+          'Sau khi filter': afterCount,
+          'Đã loại bỏ': beforeCount - afterCount
+        });
+        
+        // ⚠️ WARNING: Nếu filter ra 0 appointments nhưng API trả về nhiều
+        if (beforeCount > 0 && afterCount === 0) {
+          console.warn('⚠️ ⚠️ ⚠️ FILTER RA 0 APPOINTMENTS!');
+          console.warn('   → Có thể field name không đúng');
+          console.warn('   → Hoặc appointments không có center_id');
+          console.warn('   → Sample appointment:', data[0]);
+        }
       } else {
-        // Nếu không có center_id, hiển thị tất cả (trường hợp admin hoặc role khác)
-        console.log('⚠️ Không tìm thấy center_id, hiển thị tất cả lịch hẹn:', data.length);
+        // ⚠️ KHÔNG CÓ center_id → Hiển thị tất cả (CẢNH BÁO BẢO MẬT)
+        console.warn('⚠️ ⚠️ ⚠️ KHÔNG CÓ CENTER_ID - HIỂN THỊ TẤT CẢ APPOINTMENTS!');
+        console.warn('   → Đây có thể là vấn đề bảo mật!');
+        console.warn('   → Staff có thể thấy appointments từ mọi center!');
+        console.warn('   → Tổng số appointments:', data.length);
+        
+        // Log để kiểm tra xem có appointments từ nhiều center không
+        if (data.length > 0) {
+          const centerIds = new Set();
+          data.forEach(apt => {
+            const centerId = apt.serviceCenterId || apt.service_center_id || apt.centerId || apt.center_id;
+            if (centerId) centerIds.add(centerId);
+          });
+          console.warn('   → Số lượng center khác nhau:', centerIds.size);
+          console.warn('   → Center IDs:', Array.from(centerIds));
+        }
       }
       
       // Lưu tất cả appointments vào state
@@ -228,6 +319,12 @@ function StaffDashboard({ onNavigate }) {
       return filteredData;
     } catch (err) {
       console.error('❌ Lỗi khi tải danh sách lịch hẹn:', err);
+      console.error('❌ Error details:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data,
+        message: err.message
+      });
       setAppointmentsError(err.response?.data?.message || 'Không thể tải danh sách lịch hẹn');
       setAllAppointments([]);
       setAppointments([]);
@@ -648,7 +745,7 @@ function StaffDashboard({ onNavigate }) {
           console.log('✅ Cancel API response:', apiResponse);
           break;
         case 'in-progress':
-        case 'in_progress':
+        case 'in_progress': {
           console.log('📞 Calling startAppointment API...');
           console.log('   Current appointment:', selectedAppointment);
           console.log('   Current STATUS:', selectedAppointment?.status);
@@ -671,15 +768,128 @@ function StaffDashboard({ onNavigate }) {
             return; // Exit
           }
           
+          // ✅ Step 3: Extract staffIds từ appointment data
+          let staffIds = [];
+          
+          // Priority 1: assignedTechnicianIds (từ local state khi giao việc)
+          if (selectedAppointment?.assignedTechnicianIds && Array.isArray(selectedAppointment.assignedTechnicianIds)) {
+            staffIds = selectedAppointment.assignedTechnicianIds;
+            console.log('✅ Using assignedTechnicianIds:', staffIds);
+          }
+          // Priority 2: assignedStaffs (từ local state sau giao việc)
+          else if (selectedAppointment?.assignedStaffs && Array.isArray(selectedAppointment.assignedStaffs)) {
+            staffIds = selectedAppointment.assignedStaffs.map(s => s.id || s.staffId).filter(Boolean);
+            console.log('✅ Using assignedStaffs IDs:', staffIds);
+          }
+          // Priority 3: techIds (từ API response)
+          else if (selectedAppointment?.techIds) {
+            if (typeof selectedAppointment.techIds === 'string') {
+              // Nếu là string (được ngăn cách bằng dấu phẩy hoặc khoảng cách)
+              staffIds = selectedAppointment.techIds
+                .split(/[,\s]+/)
+                .filter(id => id.trim())
+                .map(id => parseInt(id.trim()))
+                .filter(id => !isNaN(id));
+            } else if (Array.isArray(selectedAppointment.techIds)) {
+              staffIds = selectedAppointment.techIds;
+            }
+            console.log('✅ Using techIds:', staffIds);
+          }
+          // Priority 4: assignedTechs (từ API response có thể có)
+          else if (selectedAppointment?.assignedTechs && Array.isArray(selectedAppointment.assignedTechs)) {
+            staffIds = selectedAppointment.assignedTechs.map(t => t.id).filter(Boolean);
+            console.log('✅ Using assignedTechs IDs:', staffIds);
+          }
+          
+          console.log('👷 Final staffIds to send:', staffIds);
+          
+          // ⚠️ VALIDATE: Check xem đã giao việc cho technician chưa
+          const hasTechIds = staffIds.length > 0;
+          const hasAssignmentFlag = selectedAppointment?.hasAssignment === true;
+          
+          console.log('🔍 Pre-start validation:', {
+            staffIdsLength: staffIds.length,
+            hasTechIds,
+            hasAssignmentFlag,
+            canStart: hasTechIds || hasAssignmentFlag
+          });
+          
+          // Nếu chưa giao việc, block action
+          if (!hasTechIds && !hasAssignmentFlag) {
+            console.log('❌ Validation failed: No technician assigned');
+            alert('⚠️ Vui lòng giao việc cho kỹ thuật viên trước khi bắt đầu thực hiện!\n\nHãy bấm nút "Giao việc" để chọn kỹ thuật viên.');
+            return; // Block action
+          }
+          
           try {
-            apiResponse = await startAppointment(appointmentId);
+            // 👈 GỬI staffIds vào API
+            apiResponse = await startAppointment(appointmentId, staffIds);
             console.log('✅ Start API response:', apiResponse);
             console.log('   Status in response:', apiResponse?.status);
             console.log('   TechIds in response:', apiResponse?.techIds);
             
-            // Lưu techIds từ response nếu có
-            if (apiResponse?.techIds && selectedAppointment) {
-              console.log('💾 Saving techIds from response:', apiResponse.techIds);
+            // ✅ LƯU TÊN TECHNICIAN NGAY SAU KHI START THÀNH CÔNG
+            if (apiResponse?.techIds) {
+              console.log('💾 Parsing techIds from startAppointment response:', apiResponse.techIds);
+              
+              // Parse techIds - có thể là string "1,2,3" hoặc array [1,2,3]
+              let techIdsArray = [];
+              if (typeof apiResponse.techIds === 'string') {
+                techIdsArray = apiResponse.techIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+              } else if (Array.isArray(apiResponse.techIds)) {
+                techIdsArray = apiResponse.techIds.map(id => parseInt(id));
+              }
+              
+              console.log('   📋 Parsed techIds array:', techIdsArray);
+              
+              // Map với danh sách technicians để lấy TÊN
+              const assignedStaffsFromResponse = techIdsArray.map(techId => {
+                const tech = technicians.find(t => t.id === techId || t.userId === techId);
+                if (tech) {
+                  return {
+                    id: tech.id || tech.userId,
+                    fullName: tech.fullName || tech.name || `Kỹ thuật viên #${techId}`,
+                    email: tech.email || '',
+                    phone: tech.phone || '',
+                    working: tech.working || false
+                  };
+                }
+                // Fallback nếu không tìm thấy trong technicians list
+                return {
+                  id: techId,
+                  fullName: `Kỹ thuật viên #${techId}`,
+                  email: '',
+                  phone: '',
+                  working: false
+                };
+              }).filter(s => s.id);
+              
+              console.log('   ✅ Mapped technician names:', assignedStaffsFromResponse.map(s => ({
+                id: s.id,
+                fullName: s.fullName
+              })));
+              
+              // ✅ CẬP NHẬT selectedAppointment NGAY LẬP TỨC với tên technician
+              if (selectedAppointment && (selectedAppointment.id === appointmentId || selectedAppointment.appointmentId === appointmentId)) {
+                const updatedAppointment = {
+                  ...selectedAppointment,
+                  status: apiResponse.status || 'in_progress',
+                  techIds: apiResponse.techIds,
+                  assignedStaffs: assignedStaffsFromResponse,
+                  assignedTechnicianIds: techIdsArray,
+                  assignedTechniciansCount: assignedStaffsFromResponse.length,
+                  hasAssignment: assignedStaffsFromResponse.length > 0
+                };
+                
+                console.log('   💾 Updated selectedAppointment with technician names:', {
+                  id: updatedAppointment.id,
+                  status: updatedAppointment.status,
+                  assignedStaffs: updatedAppointment.assignedStaffs.map(s => s.fullName),
+                  assignedTechniciansCount: updatedAppointment.assignedTechniciansCount
+                });
+                
+                setSelectedAppointment(updatedAppointment);
+              }
             }
           } catch (startError) {
             console.error('❌ Start API error details:', {
@@ -712,6 +922,7 @@ function StaffDashboard({ onNavigate }) {
             throw startError; // Re-throw nếu không phải case trên
           }
           break;
+        } // 👈 End of 'in-progress' block
         case 'completed':
         case 'done':
           console.log('📞 Calling completeAppointment API...');
@@ -797,29 +1008,84 @@ function StaffDashboard({ onNavigate }) {
           }
           // Fallback: Check staffAssignments (cách cũ)
           else if (detailedAppointment.staffAssignments && Array.isArray(detailedAppointment.staffAssignments)) {
-            // staffAssignments có thể là array of assignment objects
+            // staffAssignments có thể là array of assignment objects từ database
+            // Database structure: { assignment_id, staff_id, appointment_id, role, start_time, end_time, notes }
             assignedStaffsFromAPI = detailedAppointment.staffAssignments.map(assignment => {
-              // Check xem có nested staff object không
+              // Case 1: Nested staff object (backend đã join)
               if (assignment.staff) {
                 return {
-                  id: assignment.staff.id,
-                  fullName: assignment.staff.fullName,
+                  id: assignment.staff.id || assignment.staff_id,
+                  fullName: assignment.staff.fullName || assignment.staff.full_name,
                   email: assignment.staff.email,
                   phone: assignment.staff.phone,
-                  working: assignment.staff.working || false
+                  working: assignment.staff.working || false,
+                  // Thêm thông tin assignment nếu có
+                  assignmentId: assignment.assignment_id || assignment.id,
+                  role: assignment.role,
+                  startTime: assignment.start_time || assignment.startTime,
+                  endTime: assignment.end_time || assignment.endTime,
+                  notes: assignment.notes
                 };
               }
-              // Hoặc có thể là direct staff info
-              return {
-                id: assignment.id,
-                fullName: assignment.fullName,
-                email: assignment.email,
-                phone: assignment.phone,
-                working: assignment.working || false
-              };
-            }).filter(s => s.id); // Remove invalid entries
+              // Case 2: Direct staff info (backend đã flatten)
+              if (assignment.id || assignment.staff_id) {
+                return {
+                  id: assignment.id || assignment.staff_id,
+                  fullName: assignment.fullName || assignment.full_name,
+                  email: assignment.email,
+                  phone: assignment.phone,
+                  working: assignment.working || false,
+                  // Thêm thông tin assignment nếu có
+                  assignmentId: assignment.assignment_id || assignment.id,
+                  role: assignment.role,
+                  startTime: assignment.start_time || assignment.startTime,
+                  endTime: assignment.end_time || assignment.endTime,
+                  notes: assignment.notes
+                };
+              }
+              // Case 3: Chỉ có staff_id (cần map với technicians list)
+              if (assignment.staff_id) {
+                const tech = technicians.find(t => t.id === assignment.staff_id || t.userId === assignment.staff_id);
+                if (tech) {
+                  return {
+                    id: tech.id || tech.userId,
+                    fullName: tech.fullName || tech.name,
+                    email: tech.email,
+                    phone: tech.phone,
+                    working: tech.working || false,
+                    // Thêm thông tin assignment
+                    assignmentId: assignment.assignment_id,
+                    role: assignment.role || 'technician',
+                    startTime: assignment.start_time || assignment.startTime,
+                    endTime: assignment.end_time || assignment.endTime,
+                    notes: assignment.notes
+                  };
+                }
+                // Fallback nếu không tìm thấy trong technicians list
+                return {
+                  id: assignment.staff_id,
+                  fullName: `Kỹ thuật viên #${assignment.staff_id}`,
+                  email: '',
+                  phone: '',
+                  working: false,
+                  assignmentId: assignment.assignment_id,
+                  role: assignment.role || 'technician',
+                  startTime: assignment.start_time || assignment.startTime,
+                  endTime: assignment.end_time || assignment.endTime,
+                  notes: assignment.notes
+                };
+              }
+              return null;
+            }).filter(s => s && s.id); // Remove invalid entries
             
             console.log('   ✅ Parsed assignedStaffs from staffAssignments:', assignedStaffsFromAPI);
+            console.log('   📋 Assignment details:', assignedStaffsFromAPI.map(s => ({
+              id: s.id,
+              fullName: s.fullName,
+              assignmentId: s.assignmentId,
+              role: s.role,
+              startTime: s.startTime
+            })));
           }
           
           // Giữ lại thông tin assignedStaffs: ưu tiên API, fallback local state
@@ -827,14 +1093,25 @@ function StaffDashboard({ onNavigate }) {
             ? assignedStaffsFromAPI
             : (detailedAppointment.assignedStaffs || selectedAppointment.assignedStaffs);
           
+          // ✅ PRESERVE: Nếu đã có assignedStaffs từ startAppointment response (có tên), giữ lại
+          const isInProgress = ['in-progress', 'in_progress', 'inProgress'].includes(selectedAppointment?.status) &&
+                               ['in-progress', 'in_progress', 'inProgress'].includes(detailedAppointment.status);
+          
+          const preservedAssignedStaffs = (selectedAppointment?.assignedStaffs && 
+                                           selectedAppointment.assignedStaffs.length > 0 &&
+                                           isInProgress &&
+                                           selectedAppointment.assignedStaffs.some(s => s.fullName && s.fullName !== `Kỹ thuật viên #${s.id}`))
+            ? selectedAppointment.assignedStaffs // Giữ tên đã map từ startAppointment (có fullName thật)
+            : finalAssignedStaffs; // Hoặc dùng từ API
+          
           const updatedAppointment = {
             ...detailedAppointment,
-            // Assignment info
-            assignedStaffs: finalAssignedStaffs,
-            hasAssignment: !!(finalAssignedStaffs && finalAssignedStaffs.length > 0),
+            // Assignment info - Ưu tiên preserve tên đã có
+            assignedStaffs: preservedAssignedStaffs,
+            hasAssignment: !!(preservedAssignedStaffs && preservedAssignedStaffs.length > 0),
             // Preserve local info as backup
             assignedTechnicianIds: detailedAppointment.assignedTechnicianIds || selectedAppointment.assignedTechnicianIds,
-            assignedTechniciansCount: finalAssignedStaffs?.length || detailedAppointment.assignedTechniciansCount || selectedAppointment.assignedTechniciansCount
+            assignedTechniciansCount: preservedAssignedStaffs?.length || detailedAppointment.assignedTechniciansCount || selectedAppointment.assignedTechniciansCount
           };
           
           console.log('✅ Final updatedAppointment:', {
@@ -880,14 +1157,56 @@ function StaffDashboard({ onNavigate }) {
       
       let errorMessage = error.response?.data?.message || error.message;
       
-      // Thêm gợi ý cho lỗi 403
+      // Cải thiện error messages cho các HTTP codes khác nhau
       if (error.response?.status === 403) {
-        errorMessage = '⚠️ Không có quyền thực hiện hành động này.\n\n' +
-                      'Có thể do:\n' +
-                      '• Chưa giao việc cho kỹ thuật viên\n' +
-                      '• Trạng thái đơn không hợp lệ\n' +
-                      '• Thiếu quyền truy cập\n\n' +
-                      'Chi tiết: ' + (error.response?.data?.message || 'Forbidden');
+        // 403 Forbidden - Phân loại chi tiết hơn
+        const originalError = error.response?.data?.message || '';
+        
+        if (newStatus === 'in-progress' || newStatus === 'in_progress') {
+          // Lỗi khi start appointment
+          errorMessage = '🚫 Không thể bắt đầu thực hiện\n\n' +
+                        '❌ Nguyên nhân: ' + (originalError || 'Chưa đủ điều kiện') + '\n\n' +
+                        '✅ Hãy kiểm tra:\n' +
+                        '  1. Đã giao việc cho kỹ thuật viên chưa?\n' +
+                        '  2. Đơn hàng đã được xác nhận chưa?\n' +
+                        '  3. Token đăng nhập còn hiệu lực không?\n\n' +
+                        '💡 Giải pháp: Bấm "Giao việc" để chọn kỹ thuật viên trước';
+        } else if (newStatus === 'completed' || newStatus === 'done') {
+          // Lỗi khi complete appointment
+          errorMessage = '🚫 Không thể hoàn thành đơn hàng\n\n' +
+                        '❌ Nguyên nhân: ' + (originalError || 'Chưa đủ điều kiện') + '\n\n' +
+                        '✅ Hãy kiểm tra:\n' +
+                        '  1. Đơn hàng đã bắt đầu thực hiện chưa?\n' +
+                        '  2. Đã có kỹ thuật viên được giao chưa?\n' +
+                        '  3. Các bước trước đã hoàn tất chưa?';
+        } else {
+          // Lỗi chung
+          errorMessage = '🚫 Không có quyền thực hiện hành động này\n\n' +
+                        '❌ Lỗi: ' + (originalError || 'Forbidden (403)') + '\n\n' +
+                        '✅ Có thể do:\n' +
+                        '  • Thiếu quyền truy cập\n' +
+                        '  • Trạng thái đơn không hợp lệ\n' +
+                        '  • Token đăng nhập hết hạn\n' +
+                        '  • Đơn hàng không thuộc center của bạn';
+        }
+      } else if (error.response?.status === 401) {
+        // 401 Unauthorized
+        errorMessage = '🔐 Phiên đăng nhập đã hết hạn\n\n' +
+                      'Vui lòng đăng nhập lại để tiếp tục.';
+      } else if (error.response?.status === 400) {
+        // 400 Bad Request
+        errorMessage = '⚠️ Dữ liệu không hợp lệ\n\n' +
+                      '❌ Lỗi: ' + (error.response?.data?.message || 'Bad Request') + '\n\n' +
+                      'Vui lòng kiểm tra lại thông tin.';
+      } else if (error.response?.status === 404) {
+        // 404 Not Found
+        errorMessage = '🔍 Không tìm thấy đơn hàng\n\n' +
+                      'Đơn hàng có thể đã bị xóa hoặc không tồn tại.';
+      } else if (error.response?.status >= 500) {
+        // 5xx Server Error
+        errorMessage = '💥 Lỗi server\n\n' +
+                      'Server đang gặp sự cố. Vui lòng thử lại sau.\n\n' +
+                      'Lỗi: ' + (error.response?.data?.message || error.message);
       }
       
       alert(`❌ Không thể cập nhật trạng thái:\n\n${errorMessage}`);
@@ -924,6 +1243,25 @@ function StaffDashboard({ onNavigate }) {
   };
 
   // Handler để assign nhiều technicians
+  // Handler để chọn appointment và fetch detail
+  const handleSelectAppointment = async (appointment) => {
+    try {
+      console.log('🔍 Loading appointment detail:', appointment.id || appointment.appointmentId);
+      
+      // Fetch detailed data từ backend để có đầy đủ techIds, staffAssignments
+      const detailedData = await getAppointmentById(appointment.id || appointment.appointmentId);
+      console.log('✅ Detailed appointment loaded:', detailedData);
+      
+      setSelectedAppointment(detailedData);
+    } catch (error) {
+      console.error('❌ Error loading appointment detail:', error);
+      
+      // Nếu 403 hoặc lỗi khác, vẫn hiển thị data từ list
+      console.log('⚠️ Fallback to appointment from list');
+      setSelectedAppointment(appointment);
+    }
+  };
+
   const handleAssignTechnician = async () => {
     if (selectedTechnicianIds.length === 0) {
       alert('⚠️ Vui lòng chọn ít nhất 1 kỹ thuật viên');
@@ -974,17 +1312,29 @@ function StaffDashboard({ onNavigate }) {
           console.log(`  📦 Response type:`, Array.isArray(result) ? 'Array' : typeof result);
           console.log(`  📦 Response length:`, Array.isArray(result) ? result.length : 'N/A');
           
-          // Response là array of staff assignments (trực tiếp, không có nested staff object)
+          // Response có thể là array of assignment objects từ database
+          // Database structure: { assignment_id, staff_id, appointment_id, role, start_time, end_time, notes }
           if (Array.isArray(result)) {
             allAssignments = [...allAssignments, ...result];
-            console.log(`  👥 Staff info:`, result.map(staff => ({
-              id: staff.id,
-              fullName: staff.fullName,
-              email: staff.email,
-              phone: staff.phone,
-              appointmentId: staff.appointmentId,
-              working: staff.working
+            console.log(`  👥 Assignment objects:`, result.map(assignment => ({
+              assignment_id: assignment.assignment_id || assignment.id,
+              staff_id: assignment.staff_id || assignment.staffId,
+              appointment_id: assignment.appointment_id || assignment.appointmentId,
+              role: assignment.role,
+              start_time: assignment.start_time || assignment.startTime,
+              end_time: assignment.end_time || assignment.endTime,
+              notes: assignment.notes,
+              // Nếu có nested staff object
+              staff: assignment.staff ? {
+                id: assignment.staff.id,
+                fullName: assignment.staff.fullName || assignment.staff.full_name,
+                email: assignment.staff.email,
+                phone: assignment.staff.phone
+              } : null
             })));
+          } else if (result && typeof result === 'object') {
+            // Single assignment object
+            allAssignments.push(result);
           }
           
           successCount++;
@@ -1011,15 +1361,79 @@ function StaffDashboard({ onNavigate }) {
       
       // Cập nhật selectedAppointment nếu đang xem chi tiết
       if (selectedAppointment?.id === assigningAppointmentId || selectedAppointment?.appointmentId === assigningAppointmentId) {
-        // Parse staff info từ assignments response (direct structure - không có nested staff object)
-        const assignedStaffs = allAssignments.map(staff => ({
-          id: staff.id,
-          fullName: staff.fullName,
-          email: staff.email,
-          phone: staff.phone,
-          appointmentId: staff.appointmentId,
-          working: staff.working
-        }));
+        // Parse staff info từ assignments response
+        // Database structure: { assignment_id, staff_id, appointment_id, role, start_time, end_time, notes }
+        const assignedStaffs = allAssignments.map(assignment => {
+          // Case 1: Có nested staff object (backend đã join)
+          if (assignment.staff) {
+            return {
+              id: assignment.staff.id || assignment.staff_id,
+              fullName: assignment.staff.fullName || assignment.staff.full_name,
+              email: assignment.staff.email,
+              phone: assignment.staff.phone,
+              working: assignment.staff.working || false,
+              // Thêm thông tin assignment
+              assignmentId: assignment.assignment_id || assignment.id,
+              role: assignment.role || 'technician',
+              startTime: assignment.start_time || assignment.startTime,
+              endTime: assignment.end_time || assignment.endTime,
+              notes: assignment.notes,
+              appointmentId: assignment.appointment_id || assignment.appointmentId
+            };
+          }
+          // Case 2: Direct staff fields (backend đã flatten)
+          if (assignment.id || assignment.staff_id) {
+            return {
+              id: assignment.id || assignment.staff_id,
+              fullName: assignment.fullName || assignment.full_name,
+              email: assignment.email,
+              phone: assignment.phone,
+              working: assignment.working || false,
+              // Thêm thông tin assignment
+              assignmentId: assignment.assignment_id || assignment.id,
+              role: assignment.role || 'technician',
+              startTime: assignment.start_time || assignment.startTime,
+              endTime: assignment.end_time || assignment.endTime,
+              notes: assignment.notes,
+              appointmentId: assignment.appointment_id || assignment.appointmentId
+            };
+          }
+          // Case 3: Chỉ có staff_id (cần map với technicians list)
+          if (assignment.staff_id) {
+            const tech = technicians.find(t => t.id === assignment.staff_id || t.userId === assignment.staff_id);
+            if (tech) {
+              return {
+                id: tech.id || tech.userId,
+                fullName: tech.fullName || tech.name,
+                email: tech.email,
+                phone: tech.phone,
+                working: tech.working || false,
+                // Thêm thông tin assignment
+                assignmentId: assignment.assignment_id,
+                role: assignment.role || 'technician',
+                startTime: assignment.start_time || assignment.startTime,
+                endTime: assignment.end_time || assignment.endTime,
+                notes: assignment.notes,
+                appointmentId: assignment.appointment_id || assignment.appointmentId
+              };
+            }
+            // Fallback nếu không tìm thấy
+            return {
+              id: assignment.staff_id,
+              fullName: `Kỹ thuật viên #${assignment.staff_id}`,
+              email: '',
+              phone: '',
+              working: false,
+              assignmentId: assignment.assignment_id,
+              role: assignment.role || 'technician',
+              startTime: assignment.start_time || assignment.startTime,
+              endTime: assignment.end_time || assignment.endTime,
+              notes: assignment.notes,
+              appointmentId: assignment.appointment_id || assignment.appointmentId
+            };
+          }
+          return null;
+        }).filter(s => s && s.id); // Remove invalid entries
         
         console.log('👥 Assigned staffs parsed:', assignedStaffs);
         
@@ -1833,7 +2247,7 @@ function StaffDashboard({ onNavigate }) {
                         <div 
                           key={appointmentId}
                           className={`appointment-item ${selectedAppointment?.appointmentId === appointmentId ? 'active' : ''}`}
-                          onClick={() => setSelectedAppointment(appointment)}
+                          onClick={() => handleSelectAppointment(appointment)}
                         >
                           <div className="appointment-header">
                             <h4>
@@ -2048,12 +2462,17 @@ function StaffDashboard({ onNavigate }) {
                           techId,
                           techData,
                           assignedTechs,
+                          assignedTechsLength: assignedTechs?.length,
                           hasAssignment,
+                          'WILL SHOW ASSIGNED?': hasAssignment ? 'YES ✅' : 'NO ❌',
                           allKeys: Object.keys(selectedAppointment),
                           fullAppointment: selectedAppointment
                         });
                         
+                        console.log('🎯 Decision:', hasAssignment ? 'HIỂN THỊ ĐÃ GIAO' : 'HIỂN THỊ CHƯA GIAO');
+                        
                         if (hasAssignment) {
+                          console.log('✅ Rendering: ĐÃ GIAO VIỆC section');
                           return (
                             <div className="technician-info">
                               <FaUserCog />
@@ -2139,6 +2558,7 @@ function StaffDashboard({ onNavigate }) {
                         }
                         
                         // Chưa giao việc
+                        console.log('⚠️ Rendering: CHƯA GIAO VIỆC section');
                         return (
                           <div style={{ 
                             padding: '15px', 
@@ -3037,8 +3457,8 @@ function StaffDashboard({ onNavigate }) {
                                 fontWeight: '500'
                               }}>
                                 ⚠️ Đang xử lý đơn #{tech.appointmentId}
-                              </p>
-                            )}
+                            </p>
+                          )}
                         </div>
                       );
                     })}

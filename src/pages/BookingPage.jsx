@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './BookingPage.css';
 import { createAppointment, getVehicles, getVehicleByVin } from '../api';
 
-function BookingPage({ onNavigate, prefilledVehicle }) {
+function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     // Step 1: Vehicle Info
@@ -240,6 +240,18 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
 
   const handleSubmit = async () => {
     try {
+      // Kiểm tra đăng nhập trước khi đặt lịch
+      const token = localStorage.getItem('token');
+      if (!token) {
+        const confirmLogin = window.confirm(
+          '⚠️ Bạn cần đăng nhập để đặt lịch hẹn.\n\nBạn có muốn đăng nhập ngay bây giờ không?'
+        );
+        if (confirmLogin) {
+          onNavigate('login');
+        }
+        return;
+      }
+
       // Chuẩn bị dữ liệu theo format API backend
       // Kết hợp date và time thành ISO string
       const appointmentDateTime = new Date(
@@ -274,13 +286,81 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
       // Gọi API tạo lịch hẹn
       const response = await createAppointment(appointmentData);
       
-      console.log('Đặt lịch thành công:', response);
-      alert('✅ Đặt lịch thành công! Chúng tôi sẽ xác nhận lịch hẹn của bạn trong thời gian sớm nhất.');
-      onNavigate('home');
+      console.log('✅ Đặt lịch thành công:', response);
+      
+      // Navigate sang trang thanh toán với thông tin appointment
+      const paymentData = {
+        id: response.appointmentId || response.id,
+        appointmentDate: appointmentData.appointmentDate,
+        vehicleModel: formData.vehicleModel,
+        serviceCenterId: formData.serviceCenterId,
+        serviceTypes: formData.selectedServices,
+        ...response
+      };
+      
+      console.log('📤 Chuyển sang thanh toán:', paymentData);
+      
+      if (onNavigateToPayment) {
+        onNavigateToPayment(paymentData);
+      } else {
+        // Fallback nếu không có payment handler
+        alert('✅ Đặt lịch thành công! Chúng tôi sẽ xác nhận lịch hẹn của bạn trong thời gian sớm nhất.');
+        onNavigate('home');
+      }
       
     } catch (error) {
       console.error('Lỗi khi đặt lịch:', error);
-      alert(`❌ Không thể đặt lịch: ${error.response?.data?.message || error.message || 'Vui lòng thử lại sau'}`);
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+      
+      // Xử lý lỗi chi tiết hơn
+      let errorMessage = 'Vui lòng thử lại sau';
+      
+      if (error.response?.status === 403) {
+        // 403 Forbidden - Có thể do token hết hạn hoặc không có quyền
+        const token = localStorage.getItem('token');
+        if (!token) {
+          errorMessage = 'Bạn cần đăng nhập để đặt lịch hẹn';
+          const confirmLogin = window.confirm(
+            '⚠️ Bạn chưa đăng nhập.\n\nBạn có muốn đăng nhập ngay bây giờ không?'
+          );
+          if (confirmLogin) {
+            onNavigate('login');
+          }
+        } else {
+          errorMessage = 'Phiên đăng nhập đã hết hạn hoặc bạn không có quyền thực hiện thao tác này.\n\nVui lòng đăng nhập lại.';
+          const confirmLogin = window.confirm(
+            '⚠️ Phiên đăng nhập đã hết hạn.\n\nBạn có muốn đăng nhập lại không?'
+          );
+          if (confirmLogin) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            onNavigate('login');
+          }
+        }
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+        const confirmLogin = window.confirm(
+          '⚠️ Phiên đăng nhập đã hết hạn.\n\nBạn có muốn đăng nhập lại không?'
+        );
+        if (confirmLogin) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          onNavigate('login');
+        }
+      } else if (error.response?.status === 400) {
+        errorMessage = error.response?.data?.message || 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      alert(`❌ Không thể đặt lịch: ${errorMessage}`);
     }
   };
 

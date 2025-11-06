@@ -130,26 +130,74 @@ export const cancelAppointment = async (appointmentId) => {
   return res.data;
 };
 
-// Staff: Bắt đầu thực hiện (confirmed → in-progress) (✅)
-export const startAppointment = async (appointmentId) => {
-  const res = await axiosClient.put(`/api/appointments/${appointmentId}/inProgress`);
+/**
+ * Staff: Bắt đầu thực hiện (confirmed → in-progress)
+ * 
+ * API: PUT /api/appointments/{appointmentId}/inProgress
+ * Body: number[] (mảng ID của các kỹ thuật viên)
+ * 
+ * @param {number|string} appointmentId - ID của appointment
+ * @param {number[]} [staffIds=[]] - Mảng ID của kỹ thuật viên
+ * @returns {Promise<Object>} Response từ backend
+ */
+export const startAppointment = async (appointmentId, staffIds = []) => {
+  console.log('🚀 startAppointment:', {
+    appointmentId,
+    staffIds,
+    body: staffIds // Array trực tiếp, không phải object
+  });
+  
+  // OpenAPI spec: Body phải là array of integers
+  const res = await axiosClient.put(
+    `/api/appointments/${appointmentId}/inProgress`,
+    staffIds // 👈 Gửi array trực tiếp (không phải { staffIds })
+  );
   return res.data;
 };
 
-// Staff: Hoàn thành (in-progress → done) (✅)
-export const completeAppointment = async (appointmentId) => {
-  // Thử nhiều endpoint có thể có
+/**
+ * Staff: Hoàn thành (in-progress → done)
+ * 
+ * API: PUT /api/appointments/{appointmentId}/done
+ * Body: MaintainanceRecordDto {
+ *   vehicleCondition?: string,
+ *   checklist?: string,
+ *   remarks?: string,
+ *   partsUsed?: PartUsageDto[],
+ *   staffIds?: number[]
+ * }
+ * 
+ * @param {number|string} appointmentId - ID của appointment
+ * @param {Object} [maintenanceData] - Optional maintenance record data
+ * @returns {Promise<Object>} Response từ backend
+ */
+export const completeAppointment = async (appointmentId, maintenanceData = {}) => {
+  // OpenAPI spec: Body là MaintainanceRecordDto
+  // Có thể gửi empty object hoặc minimal data
+  const body = {
+    vehicleCondition: maintenanceData.vehicleCondition || '',
+    checklist: maintenanceData.checklist || '',
+    remarks: maintenanceData.remarks || '',
+    partsUsed: maintenanceData.partsUsed || [],
+    staffIds: maintenanceData.staffIds || []
+  };
+  
+  console.log('✅ completeAppointment:', {
+    appointmentId,
+    body
+  });
+  
   try {
-    const res = await axiosClient.put(`/api/appointments/${appointmentId}/done`);
+    const res = await axiosClient.put(`/api/appointments/${appointmentId}/done`, body);
     return res.data;
   } catch (error) {
     console.log('⚠️ /done failed, trying /complete...');
     try {
-      const res = await axiosClient.put(`/api/appointments/${appointmentId}/complete`);
+      const res = await axiosClient.put(`/api/appointments/${appointmentId}/complete`, body);
       return res.data;
     } catch (error2) {
       console.log('⚠️ /complete failed, trying /completed...');
-      const res = await axiosClient.put(`/api/appointments/${appointmentId}/completed`);
+      const res = await axiosClient.put(`/api/appointments/${appointmentId}/completed`, body);
       return res.data;
     }
   }
@@ -194,6 +242,92 @@ export const assignTechnician = async (appointmentId, technicianId) => {
     console.error('  📤 Request data:', error.config?.data);
     throw error;
   }
+};
+
+/* --------------------------------
+   💳 PAYMENT API
+---------------------------------- */
+
+// Create payment transaction
+/**
+ * Tạo payment transaction
+ * 
+ * API: GET /api/customer/payments/create
+ * Headers: {
+ *   "Authorization": "Bearer <token>",
+ *   "Content-Type": "application/json"
+ * }
+ * Query Params: {
+ *   invoiceId: number,
+ *   method: string (default: "online"),
+ *   clientIp: string
+ * }
+ * 
+ * @param {Object} paymentData - Payment data
+ * @param {number} paymentData.invoiceId - ID của invoice (bắt buộc)
+ * @param {string} [paymentData.method="online"] - Phương thức thanh toán
+ * @param {string} [paymentData.clientIp] - IP của client (fallback: "127.0.0.1")
+ * @returns {Promise<Object>} Payment response (có thể chứa paymentUrl, qrCode, status, ...)
+ */
+export const createPayment = async (paymentData) => {
+  const { invoiceId, method = "online", clientIp } = paymentData;
+  
+  // Validation
+  if (!invoiceId || invoiceId === 0) {
+    throw new Error('invoiceId is required and must be greater than 0');
+  }
+  
+  // Build query string
+  const params = new URLSearchParams({
+    invoiceId: invoiceId.toString(),
+    method: method.toString(),
+    clientIp: (clientIp || "127.0.0.1").toString()
+  });
+  
+  console.log('💳 Creating payment:', {
+    endpoint: '/api/customer/payments/create',
+    queryParams: Object.fromEntries(params)
+  });
+  
+  const res = await axiosClient.get(`/api/customer/payments/create?${params.toString()}`);
+  return res.data;
+};
+
+// Payment return/callback - Xử lý khi thanh toán xong và trả về từ gateway
+export const handlePaymentReturn = async (returnData) => {
+  // returnData: Query params từ payment gateway (VNPay/MoMo callback)
+  // Ví dụ VNPay: { vnp_TransactionStatus, vnp_TxnRef, vnp_Amount, vnp_ResponseCode, ... }
+  // Ví dụ MoMo: { partnerCode, orderId, requestId, amount, orderInfo, ... }
+  // Note: Backend sử dụng GET request với query params
+  const params = new URLSearchParams();
+  
+  // Convert returnData object thành query params
+  Object.keys(returnData).forEach(key => {
+    if (returnData[key] !== null && returnData[key] !== undefined) {
+      params.append(key, returnData[key].toString());
+    }
+  });
+  
+  const res = await axiosClient.get(`/api/customer/payments/return?${params.toString()}`);
+  return res.data;
+};
+
+// Get payment by appointment ID
+export const getPaymentByAppointment = async (appointmentId) => {
+  const res = await axiosClient.get(`/api/payments/appointment/${appointmentId}`);
+  return res.data;
+};
+
+// VNPay callback handler
+export const verifyVNPayPayment = async (callbackData) => {
+  const res = await axiosClient.post("/api/payments/vnpay/callback", callbackData);
+  return res.data;
+};
+
+// MoMo callback handler
+export const verifyMoMoPayment = async (callbackData) => {
+  const res = await axiosClient.post("/api/payments/momo/callback", callbackData);
+  return res.data;
 };
 
 /* --------------------------------
