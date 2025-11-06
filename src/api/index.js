@@ -42,24 +42,43 @@ export const changePassword = async (data) => {
 };
 
 /* --------------------------------
-   🚗 VEHICLES
+   🚗 VEHICLES (Quản lý xe)
 ---------------------------------- */
 
-// Lấy danh sách xe (✅)
+// Lấy danh sách tất cả xe (✅ Cần token)
 export const getVehicles = async () => {
   const res = await axiosClient.get("/api/vehicles");
+  return res.data; // Trả về: [{ id, vin, model, year, color, licensePlate }]
+};
+
+// Lấy thông tin chi tiết 1 xe theo ID
+export const getVehicleById = async (id) => {
+  const res = await axiosClient.get(`/api/vehicles/${id}`);
   return res.data;
 };
 
-// Thêm xe mới (✅)
+// Thêm xe mới (✅ Cần token)
 export const addVehicle = async (data) => {
+  // data = { vin, model, year, color, licensePlate, userId }
   const res = await axiosClient.post("/api/vehicles", data);
   return res.data;
 };
 
-// Xóa xe (✅)
+// Cập nhật thông tin xe
+export const updateVehicle = async (id, data) => {
+  const res = await axiosClient.put(`/api/vehicles/${id}`, data);
+  return res.data;
+};
+
+// Xóa xe (✅ Cần token)
 export const deleteVehicle = async (id) => {
   const res = await axiosClient.delete(`/api/vehicles/${id}`);
+  return res.data;
+};
+
+// Lấy danh sách xe của user hiện tại
+export const getMyVehicles = async () => {
+  const res = await axiosClient.get("/api/vehicles/my");
   return res.data;
 };
 
@@ -80,12 +99,52 @@ export const createAppointment = async (data) => {
 };
 
 /* --------------------------------
-   👥 STAFF - CUSTOMER MANAGEMENT
+   👥 ADMIN - CUSTOMER MANAGEMENT
 ---------------------------------- */
+
+// Lấy tất cả khách hàng (Admin)
+export const getAllCustomers = async () => {
+  const res = await axiosClient.get("/api/admin/customers");
+  return res.data;
+};
+
+// Lấy chi tiết khách hàng kèm danh sách xe
+export const getCustomerWithVehicles = async (customerId) => {
+  const res = await axiosClient.get(`/api/admin/customers/${customerId}/vehicles`);
+  return res.data;
+};
 
 // Lấy danh sách khách hàng theo role (✅ Cần token)
 export const getCustomersByRole = async (role = "CUSTOMER") => {
   const res = await axiosClient.get(`/api/auth/register?role=${role}`);
+  return res.data;
+};
+
+/* --------------------------------
+   🚗 ADMIN - VEHICLE MANAGEMENT
+---------------------------------- */
+
+// Lấy tất cả xe kèm thông tin khách hàng (Admin)
+export const getAllVehiclesWithOwner = async () => {
+  const res = await axiosClient.get("/api/admin/vehicles");
+  return res.data; // [{vehicle, owner}, ...]
+};
+
+// Thêm xe cho khách hàng (Admin)
+export const addVehicleForCustomer = async (customerId, vehicleData) => {
+  const res = await axiosClient.post(`/api/admin/customers/${customerId}/vehicles`, vehicleData);
+  return res.data;
+};
+
+// Cập nhật thông tin xe (Admin)
+export const updateVehicleAdmin = async (vehicleId, vehicleData) => {
+  const res = await axiosClient.put(`/api/admin/vehicles/${vehicleId}`, vehicleData);
+  return res.data;
+};
+
+// Xóa xe (Admin)
+export const deleteVehicleAdmin = async (vehicleId) => {
+  const res = await axiosClient.delete(`/api/admin/vehicles/${vehicleId}`);
   return res.data;
 };
 

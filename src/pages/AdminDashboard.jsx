@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './AdminDashboard.css';
 import { 
   FaUser, FaCar, FaComments, FaSearch, FaPlus, FaHistory, FaClock, 
@@ -7,11 +7,38 @@ import {
   FaWarehouse, FaRobot, FaClipboardCheck, FaReceipt, FaCreditCard, 
   FaFileInvoiceDollar, FaCalendarWeek, FaUserTie, FaBriefcase
 } from 'react-icons/fa';
+import { 
+  getVehicles, 
+  getAllCustomers,
+  getAllVehiclesWithOwner,
+  addVehicleForCustomer,
+  updateVehicleAdmin,
+  deleteVehicleAdmin
+} from '../api/index';
 
 function AdminDashboard({ onNavigate }) {
   console.log('AdminDashboard component loaded!', { onNavigate });
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
+  const [vehicles, setVehicles] = useState([]);
+  const [allCustomers, setAllCustomers] = useState([]); // Danh sách khách hàng từ API
+  const [loading, setLoading] = useState(false);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [error, setError] = useState(null);
+  
+  // Modal quản lý xe
+  const [showVehicleModal, setShowVehicleModal] = useState(false);
+  const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit' | 'view'
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [vehicleFormData, setVehicleFormData] = useState({
+    vin: '',
+    model: '',
+    year: new Date().getFullYear(),
+    color: '',
+    licensePlate: '',
+    customerId: ''
+  });
+  const [savingVehicle, setSavingVehicle] = useState(false);
 
   // Overview Stats
   const [stats] = useState({
@@ -71,6 +98,186 @@ function AdminDashboard({ onNavigate }) {
       ]
     }
   ]);
+
+  // useEffect: Load danh sách xe và khách hàng khi component mount
+  useEffect(() => {
+    fetchVehicles();
+    fetchCustomers();
+  }, []);
+
+  // Hàm fetch danh sách khách hàng từ API
+  const fetchCustomers = async () => {
+    try {
+      setLoadingCustomers(true);
+      const data = await getAllCustomers();
+      setAllCustomers(data);
+      console.log('✅ Loaded customers:', data);
+    } catch (err) {
+      console.error('❌ Error loading customers:', err);
+      // Fallback: dùng data mẫu nếu API lỗi (không bao gồm cars)
+      const customersWithoutCars = customers.map(c => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        joinDate: c.joinDate
+      }));
+      setAllCustomers(customersWithoutCars);
+      console.log('⚠️ Using mock customer data:', customersWithoutCars);
+    } finally {
+      setLoadingCustomers(false);
+    }
+  };
+
+  // Hàm fetch danh sách xe từ API (kèm thông tin chủ xe)
+  const fetchVehicles = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Gọi API lấy tất cả xe kèm owner
+      const data = await getAllVehiclesWithOwner();
+      setVehicles(data);
+      console.log('✅ Loaded vehicles with owners:', data);
+    } catch (err) {
+      console.error('❌ Error loading vehicles:', err);
+      
+      // Fallback: Lấy xe từ mock data customers
+      const mockVehicles = customers.flatMap(customer => 
+        customer.cars.map(car => ({
+          id: car.id,
+          vin: car.vin,
+          model: `${car.brand} ${car.model}`,
+          year: car.year,
+          color: car.color,
+          licensePlate: car.licensePlate,
+          owner: {
+            id: customer.id,
+            name: customer.name,
+            email: customer.email,
+            phone: customer.phone
+          },
+          serviceHistory: car.serviceHistory
+        }))
+      );
+      
+      setVehicles(mockVehicles);
+      console.log('⚠️ Using mock vehicle data:', mockVehicles);
+      setError(null); // Không hiển thị lỗi vì đã có fallback data
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Mở modal thêm xe
+  const handleAddVehicleClick = () => {
+    setModalMode('add');
+    setSelectedVehicle(null);
+    setVehicleFormData({
+      vin: '',
+      model: '',
+      year: new Date().getFullYear(),
+      color: '',
+      licensePlate: '',
+      customerId: ''
+    });
+    setShowVehicleModal(true);
+  };
+
+  // Mở modal sửa xe
+  const handleEditVehicle = (vehicle) => {
+    setModalMode('edit');
+    setSelectedVehicle(vehicle);
+    setVehicleFormData({
+      vin: vehicle.vin || '',
+      model: vehicle.model || '',
+      year: vehicle.year || new Date().getFullYear(),
+      color: vehicle.color || '',
+      licensePlate: vehicle.licensePlate || '',
+      customerId: vehicle.owner?.id || ''
+    });
+    setShowVehicleModal(true);
+  };
+
+  // Mở modal xem chi tiết
+  const handleViewVehicle = (vehicle) => {
+    setModalMode('view');
+    setSelectedVehicle(vehicle);
+    setVehicleFormData({
+      vin: vehicle.vin || '',
+      model: vehicle.model || '',
+      year: vehicle.year || '',
+      color: vehicle.color || '',
+      licensePlate: vehicle.licensePlate || '',
+      customerId: vehicle.owner?.id || ''
+    });
+    setShowVehicleModal(true);
+  };
+
+  // Lưu xe (thêm hoặc sửa)
+  const handleSaveVehicle = async (e) => {
+    e.preventDefault();
+    
+    // Validation
+    if (!vehicleFormData.vin || !vehicleFormData.model || !vehicleFormData.licensePlate) {
+      alert('⚠️ Vui lòng điền đầy đủ: VIN, Model, Biển số');
+      return;
+    }
+
+    try {
+      setSavingVehicle(true);
+      
+      if (modalMode === 'add') {
+        // Thêm xe mới cho khách hàng
+        if (!vehicleFormData.customerId) {
+          alert('⚠️ Vui lòng chọn khách hàng');
+          return;
+        }
+        await addVehicleForCustomer(vehicleFormData.customerId, {
+          vin: vehicleFormData.vin,
+          model: vehicleFormData.model,
+          year: vehicleFormData.year,
+          color: vehicleFormData.color,
+          licensePlate: vehicleFormData.licensePlate
+        });
+        alert('✅ Thêm xe thành công!');
+      } else if (modalMode === 'edit') {
+        // Cập nhật xe
+        await updateVehicleAdmin(selectedVehicle.id, {
+          vin: vehicleFormData.vin,
+          model: vehicleFormData.model,
+          year: vehicleFormData.year,
+          color: vehicleFormData.color,
+          licensePlate: vehicleFormData.licensePlate
+        });
+        alert('✅ Cập nhật xe thành công!');
+      }
+      
+      setShowVehicleModal(false);
+      fetchVehicles(); // Reload danh sách
+    } catch (err) {
+      console.error('❌ Error saving vehicle:', err);
+      alert(`❌ Lỗi: ${err.message || 'Không thể lưu xe'}`);
+    } finally {
+      setSavingVehicle(false);
+    }
+  };
+
+  // Xóa xe
+  const handleDeleteVehicle = async (vehicleId) => {
+    if (!confirm('⚠️ Bạn có chắc muốn xóa xe này?')) {
+      return;
+    }
+
+    try {
+      await deleteVehicleAdmin(vehicleId);
+      alert('✅ Đã xóa xe thành công!');
+      fetchVehicles();
+    } catch (err) {
+      console.error('❌ Error deleting vehicle:', err);
+      alert(`❌ Lỗi: ${err.message || 'Không thể xóa xe'}`);
+    }
+  };
 
   // Appointments Data
   const [appointments, setAppointments] = useState([
@@ -314,7 +521,14 @@ function AdminDashboard({ onNavigate }) {
           onClick={() => setActiveTab('customers')}
         >
           <FaUser />
-          Khách hàng & Xe
+          Khách hàng
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'vehicles' ? 'active' : ''}`}
+          onClick={() => setActiveTab('vehicles')}
+        >
+          <FaCar />
+          Quản lý xe
         </button>
         <button 
           className={`tab-btn ${activeTab === 'appointments' ? 'active' : ''}`}
@@ -509,25 +723,175 @@ function AdminDashboard({ onNavigate }) {
                       <span>Tham gia: {new Date(customer.joinDate).toLocaleDateString('vi-VN')}</span>
                     </div>
                   </div>
-
-                  <div className="customer-cars">
-                    <h4>Xe đã đăng ký ({customer.cars.length})</h4>
-                    {customer.cars.map(car => (
-                      <div key={car.id} className="car-item">
-                        <div className="car-icon">
-                          <FaCar />
-                        </div>
-                        <div className="car-details">
-                          <strong>{car.brand} {car.model} ({car.year})</strong>
-                          <p>Biển số: {car.licensePlate}</p>
-                          <p>VIN: {car.vin}</p>
-                          <p>Lịch sử: {car.serviceHistory.length} dịch vụ</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Vehicles Management Tab - Quản lý xe */}
+        {activeTab === 'vehicles' && (
+          <div className="vehicles-section">
+            <div className="section-toolbar">
+              <div className="search-box">
+                <FaSearch />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm xe (Model, VIN, Biển số)..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div className="toolbar-actions">
+                <button className="add-btn" onClick={handleAddVehicleClick}>
+                  <FaPlus />
+                  Thêm xe
+                </button>
+                <button className="refresh-btn" onClick={fetchVehicles}>
+                  <FaEdit />
+                  Làm mới
+                </button>
+              </div>
+            </div>
+
+            {/* Danh sách xe đã đến bảo trì */}
+            <div className="all-vehicles-section">
+              <div className="section-header-with-stats">
+                <h3>🚗 Danh sách xe đã đến bảo trì</h3>
+                <div className="quick-stats">
+                  <span className="stat-item">
+                    👥 {allCustomers.length} khách hàng
+                  </span>
+                  <span className="stat-item">
+                    🚗 {vehicles.length} xe
+                  </span>
+                </div>
+              </div>
+              
+              {loading && (
+                <div className="loading-message">
+                  <p>⏳ Đang tải dữ liệu xe...</p>
+                </div>
+              )}
+
+              {error && (
+                <div className="error-message">
+                  <p>❌ Lỗi: {error}</p>
+                  <button onClick={fetchVehicles} className="btn-retry">🔄 Thử lại</button>
+                </div>
+              )}
+
+              {!loading && !error && vehicles.length === 0 && (
+                <div className="empty-message">
+                  <p>📭 Chưa có xe nào trong hệ thống</p>
+                </div>
+              )}
+
+              {!loading && !error && vehicles.length > 0 && (
+                <div className="vehicles-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>STT</th>
+                        <th>Thông tin xe</th>
+                        <th>VIN</th>
+                        <th>Biển số</th>
+                        <th>Năm SX</th>
+                        <th>Màu sắc</th>
+                        <th>Lịch sử bảo trì</th>
+                        <th>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {vehicles
+                        .filter(vehicle => 
+                          searchQuery === '' || 
+                          vehicle.model?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          vehicle.vin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          vehicle.licensePlate?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          vehicle.owner?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+                        )
+                        .map((vehicleData, index) => {
+                          // API trả về: {vehicle, owner} hoặc chỉ vehicle với owner nested
+                          const vehicle = vehicleData.vehicle || vehicleData;
+                          const owner = vehicleData.owner || vehicle.owner;
+                          
+                          // Tìm lịch sử từ data mẫu (tạm thời)
+                          const carDetail = customers.find(c => 
+                            c.cars.some(car => car.vin === vehicle.vin || car.id === vehicle.id)
+                          )?.cars.find(car => car.vin === vehicle.vin || car.id === vehicle.id);
+                          
+                          return (
+                            <tr key={vehicle.id}>
+                              <td>{index + 1}</td>
+                              <td>
+                                <div className="vehicle-info">
+                                  <strong>{vehicle.model}</strong>
+                                  {owner && <p className="owner-name">👤 {owner.name || owner.username}</p>}
+                                </div>
+                              </td>
+                              <td><code>{vehicle.vin}</code></td>
+                              <td><span className="badge">{vehicle.licensePlate}</span></td>
+                              <td>{vehicle.year}</td>
+                              <td>{vehicle.color}</td>
+                              <td>
+                                {carDetail?.serviceHistory ? (
+                                  <div className="service-history">
+                                    <span className="history-count">
+                                      {carDetail.serviceHistory.length} lần bảo trì
+                                    </span>
+                                    {carDetail.serviceHistory.length > 0 && (
+                                      <button 
+                                        className="btn-sm btn-history" 
+                                        title="Xem lịch sử"
+                                        onClick={() => alert(`Lịch sử:\n${carDetail.serviceHistory.map(h => `- ${h.date}: ${h.service} (${formatCurrency(h.cost)})`).join('\n')}`)}
+                                      >
+                                        <FaHistory /> Chi tiết
+                                      </button>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="no-history">Chưa có lịch sử</span>
+                                )}
+                              </td>
+                              <td>
+                                <button 
+                                  className="btn-sm btn-view" 
+                                  title="Xem chi tiết"
+                                  onClick={() => handleViewVehicle(vehicleData)}
+                                >
+                                  <FaCar /> Xem
+                                </button>
+                                <button 
+                                  className="btn-sm btn-edit" 
+                                  title="Chỉnh sửa"
+                                  onClick={() => handleEditVehicle(vehicle)}
+                                >
+                                  <FaEdit /> Sửa
+                                </button>
+                                <button 
+                                  className="btn-sm btn-delete" 
+                                  title="Xóa"
+                                  onClick={() => handleDeleteVehicle(vehicle.id)}
+                                >
+                                  <FaTimes /> Xóa
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                  <div className="total-count">
+                    <strong>Tổng số xe: {vehicles.filter(v => 
+                      searchQuery === '' || 
+                      v.model?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      v.vin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      v.licensePlate?.toLowerCase().includes(searchQuery.toLowerCase())
+                    ).length}</strong>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1020,6 +1384,140 @@ function AdminDashboard({ onNavigate }) {
           </div>
         )}
       </div>
+
+      {/* Modal Quản lý xe (Thêm/Sửa/Xem) */}
+      {showVehicleModal && (
+        <div className="modal-overlay" onClick={() => setShowVehicleModal(false)}>
+          <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>
+                {modalMode === 'add' && '➕ Thêm xe mới'}
+                {modalMode === 'edit' && '✏️ Chỉnh sửa xe'}
+                {modalMode === 'view' && '👁️ Thông tin xe'}
+              </h2>
+              <button className="modal-close" onClick={() => setShowVehicleModal(false)}>
+                <FaTimes />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSaveVehicle} className="vehicle-form">
+              {modalMode === 'add' && (
+                <div className="form-group">
+                  <label>Chọn khách hàng <span className="required">*</span></label>
+                  <select
+                    value={vehicleFormData.customerId}
+                    onChange={(e) => setVehicleFormData({...vehicleFormData, customerId: e.target.value})}
+                    required
+                    disabled={modalMode === 'view' || loadingCustomers}
+                  >
+                    <option value="">
+                      {loadingCustomers ? '⏳ Đang tải...' : '-- Chọn khách hàng --'}
+                    </option>
+                    {allCustomers.map(customer => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name || customer.username} ({customer.email})
+                      </option>
+                    ))}
+                  </select>
+                  {allCustomers.length === 0 && !loadingCustomers && (
+                    <small style={{color: '#f44336', marginTop: '5px', display: 'block'}}>
+                      ⚠️ Chưa có khách hàng nào trong hệ thống
+                    </small>
+                  )}
+                </div>
+              )}
+
+              {modalMode === 'view' && selectedVehicle?.owner && (
+                <div className="info-display">
+                  <strong>👤 Chủ xe:</strong> {selectedVehicle.owner.name || selectedVehicle.owner.username}
+                  <br />
+                  <strong>📧 Email:</strong> {selectedVehicle.owner.email}
+                </div>
+              )}
+
+              <div className="form-group">
+                <label>VIN <span className="required">*</span></label>
+                <input
+                  type="text"
+                  placeholder="VD: WBA3B5C50DF123456"
+                  value={vehicleFormData.vin}
+                  onChange={(e) => setVehicleFormData({...vehicleFormData, vin: e.target.value})}
+                  required
+                  disabled={modalMode === 'view'}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Model xe <span className="required">*</span></label>
+                <input
+                  type="text"
+                  placeholder="VD: Tesla Model 3"
+                  value={vehicleFormData.model}
+                  onChange={(e) => setVehicleFormData({...vehicleFormData, model: e.target.value})}
+                  required
+                  disabled={modalMode === 'view'}
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Năm sản xuất</label>
+                  <input
+                    type="number"
+                    min="2000"
+                    max={new Date().getFullYear() + 1}
+                    value={vehicleFormData.year}
+                    onChange={(e) => setVehicleFormData({...vehicleFormData, year: parseInt(e.target.value)})}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Màu sắc</label>
+                  <input
+                    type="text"
+                    placeholder="VD: Đỏ, Trắng..."
+                    value={vehicleFormData.color}
+                    onChange={(e) => setVehicleFormData({...vehicleFormData, color: e.target.value})}
+                    disabled={modalMode === 'view'}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Biển số <span className="required">*</span></label>
+                <input
+                  type="text"
+                  placeholder="VD: 29A-12345"
+                  value={vehicleFormData.licensePlate}
+                  onChange={(e) => setVehicleFormData({...vehicleFormData, licensePlate: e.target.value})}
+                  required
+                  disabled={modalMode === 'view'}
+                />
+              </div>
+
+              <div className="form-actions">
+                <button 
+                  type="button" 
+                  className="btn-cancel"
+                  onClick={() => setShowVehicleModal(false)}
+                >
+                  {modalMode === 'view' ? 'Đóng' : 'Hủy'}
+                </button>
+                {modalMode !== 'view' && (
+                  <button 
+                    type="submit" 
+                    className="btn-submit"
+                    disabled={savingVehicle}
+                  >
+                    {savingVehicle ? '⏳ Đang lưu...' : (modalMode === 'add' ? '✅ Thêm xe' : '💾 Lưu thay đổi')}
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
