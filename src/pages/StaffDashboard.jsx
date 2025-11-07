@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './StaffDashboard.css';
-import { FaUser, FaCar, FaComments, FaSearch, FaPlus, FaHistory, FaClock, FaPhone, FaEnvelope, FaMapMarkerAlt, FaCalendarAlt, FaTools, FaCheckCircle, FaTimes, FaEdit, FaUserCog } from 'react-icons/fa';
+import { FaUser, FaCar, FaComments, FaSearch, FaPlus, FaHistory, FaClock, FaPhone, FaEnvelope, FaMapMarkerAlt, FaCalendarAlt, FaTools, FaCheckCircle, FaTimes, FaEdit, FaUserCog, FaMoneyBillWave } from 'react-icons/fa';
 import { getCustomersByRole, getAppointmentsForStaff, getAppointmentById, acceptAppointment, cancelAppointment, startAppointment, completeAppointment, getVehicleById, getTechnicians, assignTechnician, createAppointment, getInProgressAppointments, getAppointmentsByStatus } from '../api';
 
 function StaffDashboard({ onNavigate }) {
@@ -2456,6 +2456,60 @@ function StaffDashboard({ onNavigate }) {
                             <span className="label">Email</span>
                             <span className="value">
                               {selectedAppointment.email || 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="info-item">
+                          <FaMoneyBillWave style={{ color: '#059669' }} />
+                          <div>
+                            <span className="label">Số tiền đơn hàng</span>
+                            <span className="value" style={{ color: '#059669', fontWeight: '600' }}>
+                              {(() => {
+                                // Ưu tiên 1: Lấy từ invoice
+                                if (selectedAppointment.invoices && selectedAppointment.invoices.length > 0) {
+                                  const totalAmount = selectedAppointment.invoices[0].totalAmount || selectedAppointment.invoices[0].total_amount;
+                                  if (totalAmount) {
+                                    return new Intl.NumberFormat('vi-VN', {
+                                      style: 'currency',
+                                      currency: 'VND'
+                                    }).format(totalAmount);
+                                  }
+                                }
+                                
+                                // Ưu tiên 2: Lấy từ totalAmount trực tiếp
+                                if (selectedAppointment.totalAmount || selectedAppointment.total_amount) {
+                                  const totalAmount = selectedAppointment.totalAmount || selectedAppointment.total_amount;
+                                  return new Intl.NumberFormat('vi-VN', {
+                                    style: 'currency',
+                                    currency: 'VND'
+                                  }).format(totalAmount);
+                                }
+                                
+                                // Ưu tiên 3: Tính từ serviceTypes nếu có
+                                if (selectedAppointment.serviceTypes && selectedAppointment.serviceTypes.length > 0) {
+                                  const servicePrices = {
+                                    1: 500000,  // Bảo dưỡng định kỳ
+                                    2: 800000,  // Sửa chữa phanh
+                                    3: 600000,  // Thay lốp xe
+                                    4: 1200000, // Kiểm tra pin
+                                    5: 300000   // Vệ sinh nội thất
+                                  };
+                                  
+                                  const total = selectedAppointment.serviceTypes.reduce((sum, service) => {
+                                    const serviceId = typeof service === 'object' ? service.id : service;
+                                    return sum + (servicePrices[serviceId] || 0);
+                                  }, 0);
+                                  
+                                  if (total > 0) {
+                                    return new Intl.NumberFormat('vi-VN', {
+                                      style: 'currency',
+                                      currency: 'VND'
+                                    }).format(total);
+                                  }
+                                }
+                                
+                                return 'Chưa có thông tin';
+                              })()}
                             </span>
                           </div>
                         </div>
