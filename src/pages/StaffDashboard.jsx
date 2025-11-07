@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './StaffDashboard.css';
 import { FaUser, FaCar, FaComments, FaSearch, FaPlus, FaHistory, FaClock, FaPhone, FaEnvelope, FaMapMarkerAlt, FaCalendarAlt, FaTools, FaCheckCircle, FaTimes, FaEdit, FaUserCog, FaMoneyBillWave } from 'react-icons/fa';
-import { getCustomersByRole, getAppointmentsForStaff, getAppointmentById, acceptAppointment, cancelAppointment, startAppointment, completeAppointment, getVehicleById, getTechnicians, assignTechnician, createAppointment, getInProgressAppointments, getAppointmentsByStatus } from '../api';
+import { getCustomersByRole, getAppointmentsForStaff, getAppointmentById, getAppointmentDetailWithTechs, getCompletedAppointmentById, acceptAppointment, cancelAppointment, startAppointment, completeAppointment, getVehicleById, getTechnicians, assignTechnician, createAppointment, getInProgressAppointments, getAppointmentsByStatus } from '../api';
 
 function StaffDashboard({ onNavigate }) {
   const [activeTab, setActiveTab] = useState('customers'); // customers, cars, chat, appointments, maintenance, parts
@@ -267,6 +267,13 @@ function StaffDashboard({ onNavigate }) {
           centerId: data[0].centerId,
           center_id: data[0].center_id
         });
+        // ✅ QUAN TRỌNG: Log techIds và users từ backend
+        console.log('👥 Tech assignment fields:', {
+          techIds: data[0].techIds,
+          users: data[0].users,
+          usersLength: data[0].users?.length,
+          hasAssignment: !!(data[0].techIds || (data[0].users && data[0].users.length > 0))
+        });
       }
       
       // 🔐 Lọc lịch hẹn theo center_id của staff (QUAN TRỌNG: Bảo mật)
@@ -410,33 +417,45 @@ function StaffDashboard({ onNavigate }) {
       // Gọi API để lấy appointments in_progress
       const data = await getInProgressAppointments();
       
-      // Parse technician names từ techIds
+      // Parse technician names từ techIds hoặc users array
       const appointmentsWithTechs = data.map(apt => {
         let techIdsArray = [];
         let techNames = [];
         
-        // Parse techIds
-        if (apt.techIds) {
+        // ✅ Priority 1: Parse từ users array (database)
+        if (apt.users && Array.isArray(apt.users)) {
+          const technicianUsers = apt.users.filter(user => 
+            user.role?.toLowerCase() === 'technician' || 
+            user.role?.toLowerCase() === 'staff'
+          );
+          if (technicianUsers.length > 0) {
+            techIdsArray = technicianUsers.map(u => u.id);
+            techNames = technicianUsers.map(u => u.fullName || u.name || `KTV #${u.id}`);
+          }
+        }
+        
+        // ✅ Priority 2: Parse từ techIds nếu users không có
+        if (techIdsArray.length === 0 && apt.techIds) {
           if (typeof apt.techIds === 'string') {
             techIdsArray = apt.techIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
           } else if (Array.isArray(apt.techIds)) {
             techIdsArray = apt.techIds.map(id => parseInt(id));
           }
-        }
-        
-        // Map với technicians list để lấy tên
-        if (techIdsArray.length > 0) {
-          techNames = techIdsArray.map(techId => {
-            const tech = technicians.find(t => t.id === techId || t.userId === techId);
-            return tech ? (tech.fullName || tech.name || `KTV #${techId}`) : `KTV #${techId}`;
-          });
+          
+          // Map với technicians list để lấy tên
+          if (techIdsArray.length > 0) {
+            techNames = techIdsArray.map(techId => {
+              const tech = technicians.find(t => t.id === techId || t.userId === techId);
+              return tech ? (tech.fullName || tech.name || `KTV #${techId}`) : `KTV #${techId}`;
+            });
+          }
         }
         
         return {
           ...apt,
           techIdsArray,
           techNames,
-          techNamesString: techNames.length > 0 ? techNames.join(', ') : 'Chưa giao việc'
+          techNamesString: techNames.length > 0 ? `${techNames.join(', ')} (${techNames.length} KTV)` : 'Chưa giao việc'
         };
       });
       
@@ -1026,8 +1045,67 @@ function StaffDashboard({ onNavigate }) {
           console.log('📞 Calling completeAppointment API...');
           console.log('   Current appointment status:', selectedAppointment?.status);
           console.log('   Appointment ID:', appointmentId);
+          console.log('   TechIds:', selectedAppointment?.techIds);
+          console.log('   AssignedStaffs:', selectedAppointment?.assignedStaffs);
+          
+          // ✅ QUAN TRỌNG: Extract staffIds từ appointment để gửi cho backend
+          let completionStaffIds = [];
+          
+          // Priority 1: assignedTechnicianIds (từ local state khi giao việc)
+          if (selectedAppointment?.assignedTechnicianIds && Array.isArray(selectedAppointment.assignedTechnicianIds)) {
+            completionStaffIds = selectedAppointment.assignedTechnicianIds;
+            console.log('✅ Using assignedTechnicianIds for completion:', completionStaffIds);
+          }
+          // Priority 2: assignedStaffs (từ local state sau giao việc)
+          else if (selectedAppointment?.assignedStaffs && Array.isArray(selectedAppointment.assignedStaffs)) {
+            completionStaffIds = selectedAppointment.assignedStaffs.map(s => s.id || s.staffId).filter(Boolean);
+            console.log('✅ Using assignedStaffs IDs for completion:', completionStaffIds);
+          }
+          // Priority 3: techIds (từ API response/database)
+          else if (selectedAppointment?.techIds) {
+            if (typeof selectedAppointment.techIds === 'string') {
+              completionStaffIds = selectedAppointment.techIds
+                .split(/[,\s]+/)
+                .filter(id => id.trim())
+                .map(id => parseInt(id.trim()))
+                .filter(id => !isNaN(id));
+            } else if (Array.isArray(selectedAppointment.techIds)) {
+              completionStaffIds = selectedAppointment.techIds.map(id => parseInt(id)).filter(id => !isNaN(id));
+            }
+            console.log('✅ Using techIds for completion:', completionStaffIds);
+          }
+          // Priority 4: users array (từ database)
+          else if (selectedAppointment?.users && Array.isArray(selectedAppointment.users)) {
+            const technicianUsers = selectedAppointment.users.filter(user => 
+              user.role?.toLowerCase() === 'technician' || 
+              user.role?.toLowerCase() === 'staff'
+            );
+            completionStaffIds = technicianUsers.map(u => u.id).filter(Boolean);
+            console.log('✅ Using users array for completion:', completionStaffIds);
+          }
+          
+          console.log('👷 Final staffIds for completion:', completionStaffIds);
+          
+          // Validate: Phải có staffIds
+          if (completionStaffIds.length === 0) {
+            console.error('❌ No staffIds found for completion!');
+            alert('⚠️ Không tìm thấy thông tin kỹ thuật viên!\n\nVui lòng thử lại hoặc liên hệ admin.');
+            return; // Exit without throwing error
+          }
+          
           try {
-            apiResponse = await completeAppointment(appointmentId);
+            // Truyền staffIds vào maintenanceData
+            const maintenanceData = {
+              vehicleCondition: 'Tốt',
+              checklist: 'Đã kiểm tra đầy đủ',
+              remarks: 'Hoàn thành',
+              partsUsed: [],
+              staffIds: completionStaffIds // ✅ QUAN TRỌNG: Phải có staffIds
+            };
+            
+            console.log('📦 Completion request body:', maintenanceData);
+            
+            apiResponse = await completeAppointment(appointmentId, maintenanceData);
             console.log('✅ Complete API response:', apiResponse);
           } catch (completeError) {
             console.error('❌ Complete API error details:', {
@@ -1052,11 +1130,56 @@ function StaffDashboard({ onNavigate }) {
       if (selectedAppointment?.id === appointmentId || selectedAppointment?.appointmentId === appointmentId) {
         console.log('🔄 Updating selectedAppointment...');
         
+        // ✅ QUAN TRỌNG: Lưu lại techIds và assignedStaffs TRƯỚC KHI fetch mới
+        const preservedTechIds = selectedAppointment?.techIds;
+        const preservedAssignedStaffs = selectedAppointment?.assignedStaffs;
+        const preservedAssignedTechnicianIds = selectedAppointment?.assignedTechnicianIds;
+        const preservedHasAssignment = selectedAppointment?.hasAssignment;
+        const preservedAssignedTechniciansCount = selectedAppointment?.assignedTechniciansCount;
+        
+        console.log('💾 Preserving tech assignment data before status change:', {
+          techIds: preservedTechIds,
+          assignedStaffs: preservedAssignedStaffs,
+          assignedTechnicianIds: preservedAssignedTechnicianIds,
+          hasAssignment: preservedHasAssignment
+        });
+        
         try {
           // Fetch chi tiết appointment từ API để có đầy đủ thông tin (bao gồm cả assignments)
-          const detailedAppointment = await getAppointmentById(appointmentId);
+          // ✅ SỬ DỤNG API MỚI: /api/appointments/status/{id}
+          console.log('✅ Using NEW API to fetch appointment with techIds & users');
+          let detailedAppointment;
+          
+          try {
+            detailedAppointment = await getAppointmentDetailWithTechs(appointmentId);
+            console.log('✅ Appointment detail (with techIds & users from DATABASE):', {
+              techIds: detailedAppointment.techIds,
+              usersCount: detailedAppointment.users?.length,
+              status: detailedAppointment.status
+            });
+          } catch (error) {
+            console.log('⚠️ New API failed, trying fallback');
+            const normalizedNewStatus = normalizeStatus(newStatus);
+            
+            // Fallback based on status
+            if (normalizedNewStatus === 'completed' || normalizedNewStatus === 'done') {
+              try {
+                detailedAppointment = await getCompletedAppointmentById(appointmentId);
+                console.log('✅ Using completed API');
+              } catch (error2) {
+                detailedAppointment = await getAppointmentById(appointmentId);
+                console.log('✅ Using regular API');
+              }
+            } else {
+              detailedAppointment = await getAppointmentById(appointmentId);
+              console.log('✅ Using regular API');
+            }
+          }
+          
           console.log('✅ Detailed appointment fetched:', detailedAppointment);
           console.log('   👥 staffAssignments from API:', detailedAppointment.staffAssignments);
+          console.log('   🎯 techIds from DATABASE:', detailedAppointment.techIds);
+          console.log('   👥 users from DATABASE:', detailedAppointment.users?.length);
           console.log('   🔍 All keys:', Object.keys(detailedAppointment));
           
           // Parse staffAssignments từ backend nếu có
@@ -1186,31 +1309,55 @@ function StaffDashboard({ onNavigate }) {
             })));
           }
           
-          // Giữ lại thông tin assignedStaffs: ưu tiên API, fallback local state
+          // ✅ MERGE techIds: Ưu tiên API mới, fallback preserved data
+          if (!detailedAppointment.techIds && preservedTechIds) {
+            console.log('   🔄 Merging preserved techIds into detailedAppointment:', preservedTechIds);
+            detailedAppointment.techIds = preservedTechIds;
+          }
+          
+          // Giữ lại thông tin assignedStaffs: ưu tiên API, fallback preserved/local state
           const finalAssignedStaffs = assignedStaffsFromAPI && assignedStaffsFromAPI.length > 0
             ? assignedStaffsFromAPI
-            : (detailedAppointment.assignedStaffs || selectedAppointment.assignedStaffs);
+            : (detailedAppointment.assignedStaffs || preservedAssignedStaffs || selectedAppointment.assignedStaffs);
           
           // ✅ PRESERVE: Nếu đã có assignedStaffs từ startAppointment response (có tên), giữ lại
           const isInProgress = ['in-progress', 'in_progress', 'inProgress'].includes(selectedAppointment?.status) &&
                                ['in-progress', 'in_progress', 'inProgress'].includes(detailedAppointment.status);
           
-          const preservedAssignedStaffs = (selectedAppointment?.assignedStaffs && 
+          const mergedAssignedStaffs = (selectedAppointment?.assignedStaffs && 
                                            selectedAppointment.assignedStaffs.length > 0 &&
                                            isInProgress &&
                                            selectedAppointment.assignedStaffs.some(s => s.fullName && s.fullName !== `Kỹ thuật viên #${s.id}`))
             ? selectedAppointment.assignedStaffs // Giữ tên đã map từ startAppointment (có fullName thật)
             : finalAssignedStaffs; // Hoặc dùng từ API
           
+          // ✅ MERGE hasAssignment: Check nhiều nguồn
+          const mergedHasAssignment = !!(
+            (mergedAssignedStaffs && mergedAssignedStaffs.length > 0) ||
+            detailedAppointment.techIds ||
+            preservedTechIds ||
+            preservedHasAssignment ||
+            (preservedAssignedTechnicianIds && preservedAssignedTechnicianIds.length > 0)
+          );
+          
           const updatedAppointment = {
             ...detailedAppointment,
+            // ✅ Merge techIds - Ưu tiên API, fallback preserved
+            techIds: detailedAppointment.techIds || preservedTechIds,
             // Assignment info - Ưu tiên preserve tên đã có
-            assignedStaffs: preservedAssignedStaffs,
-            hasAssignment: !!(preservedAssignedStaffs && preservedAssignedStaffs.length > 0),
+            assignedStaffs: mergedAssignedStaffs,
+            hasAssignment: mergedHasAssignment,
             // Preserve local info as backup
-            assignedTechnicianIds: detailedAppointment.assignedTechnicianIds || selectedAppointment.assignedTechnicianIds,
-            assignedTechniciansCount: preservedAssignedStaffs?.length || detailedAppointment.assignedTechniciansCount || selectedAppointment.assignedTechniciansCount
+            assignedTechnicianIds: detailedAppointment.assignedTechnicianIds || preservedAssignedTechnicianIds || selectedAppointment.assignedTechnicianIds,
+            assignedTechniciansCount: mergedAssignedStaffs?.length || preservedAssignedTechniciansCount || detailedAppointment.assignedTechniciansCount || selectedAppointment.assignedTechniciansCount
           };
+          
+          console.log('✅ Merged assignment data:', {
+            techIds: updatedAppointment.techIds,
+            assignedStaffs: updatedAppointment.assignedStaffs,
+            hasAssignment: updatedAppointment.hasAssignment,
+            assignedTechniciansCount: updatedAppointment.assignedTechniciansCount
+          });
           
           console.log('✅ Final updatedAppointment:', {
             id: updatedAppointment.id,
@@ -1229,18 +1376,38 @@ function StaffDashboard({ onNavigate }) {
           );
           
         if (updatedAppointment) {
-            // Preserve assignment info
+            // ✅ Preserve assignment info with preserved data
+            console.log('⚠️ Using fallback with preserved data');
             setSelectedAppointment({
               ...updatedAppointment,
-              assignedStaffs: updatedAppointment.assignedStaffs || selectedAppointment.assignedStaffs,
-              assignedTechnicianIds: updatedAppointment.assignedTechnicianIds || selectedAppointment.assignedTechnicianIds,
-              assignedTechniciansCount: updatedAppointment.assignedTechniciansCount || selectedAppointment.assignedTechniciansCount
+              // Merge techIds
+              techIds: updatedAppointment.techIds || preservedTechIds,
+              // Merge assignedStaffs
+              assignedStaffs: updatedAppointment.assignedStaffs || preservedAssignedStaffs || selectedAppointment.assignedStaffs,
+              // Merge other fields
+              assignedTechnicianIds: updatedAppointment.assignedTechnicianIds || preservedAssignedTechnicianIds || selectedAppointment.assignedTechnicianIds,
+              assignedTechniciansCount: updatedAppointment.assignedTechniciansCount || preservedAssignedTechniciansCount || selectedAppointment.assignedTechniciansCount,
+              hasAssignment: updatedAppointment.hasAssignment || preservedHasAssignment || !!(preservedTechIds || (preservedAssignedStaffs && preservedAssignedStaffs.length > 0))
             });
           }
         }
       }
       
-      alert(`✅ Đã cập nhật trạng thái lịch hẹn #${appointmentId}`);
+      // ✅ REDIRECT TO VNPAY: Nếu hoàn thành và có URL thanh toán
+      const normalizedNewStatus = normalizeStatus(newStatus);
+      if ((normalizedNewStatus === 'completed' || normalizedNewStatus === 'done') && apiResponse?.url) {
+        console.log('💳 Redirecting to VNPay payment:', apiResponse.url);
+        alert(`✅ Đã hoàn thành lịch hẹn #${appointmentId}!\n\n🔄 Đang chuyển đến trang thanh toán VNPay...`);
+        
+        // Redirect đến VNPay trong tab mới
+        window.open(apiResponse.url, '_blank');
+        
+        // Hoặc nếu muốn redirect trong tab hiện tại:
+        // window.location.href = apiResponse.url;
+      } else {
+        // Alert thông thường nếu không có URL thanh toán
+        alert(`✅ Đã cập nhật trạng thái lịch hẹn #${appointmentId}`);
+      }
     } catch (error) {
       console.error('❌ Lỗi khi cập nhật trạng thái:', error);
       console.error('❌ Error details:', {
@@ -1318,12 +1485,55 @@ function StaffDashboard({ onNavigate }) {
     const appointment = appointments.find(apt => 
       (apt.id === appointmentId || apt.appointmentId === appointmentId)
     );
-    // Khởi tạo với technician hiện tại (nếu có)
-    if (appointment?.technicianId) {
-      setSelectedTechnicianIds([appointment.technicianId]);
-    } else {
-      setSelectedTechnicianIds([]);
+    
+    console.log('🔧 Opening technician modal for appointment:', {
+      appointmentId,
+      appointment,
+      techIds: appointment?.techIds,
+      users: appointment?.users
+    });
+    
+    // Parse techIds từ API response mới
+    let initialSelectedIds = [];
+    
+    // Priority 1: Parse techIds (string hoặc array) từ API response
+    if (appointment?.techIds) {
+      if (typeof appointment.techIds === 'string') {
+        // Parse string: "1,2,3" -> [1, 2, 3]
+        initialSelectedIds = appointment.techIds
+          .split(',')
+          .map(id => parseInt(id.trim()))
+          .filter(id => !isNaN(id));
+        console.log('✅ Parsed techIds from string:', initialSelectedIds);
+      } else if (Array.isArray(appointment.techIds)) {
+        initialSelectedIds = appointment.techIds.map(id => parseInt(id)).filter(id => !isNaN(id));
+        console.log('✅ Parsed techIds from array:', initialSelectedIds);
+      }
     }
+    // Priority 2: Fallback - check users array (lọc technicians từ users)
+    else if (appointment?.users && Array.isArray(appointment.users)) {
+      // Filter users có role là technician
+      const technicianUsers = appointment.users.filter(user => 
+        user.role?.toLowerCase() === 'technician' || 
+        user.role?.toLowerCase() === 'staff'
+      );
+      if (technicianUsers.length > 0) {
+        initialSelectedIds = technicianUsers.map(u => u.id).filter(Boolean);
+        console.log('✅ Extracted technician IDs from users array:', initialSelectedIds);
+      }
+    }
+    // Priority 3: Fallback - các field khác
+    else if (appointment?.assignedTechnicianIds && Array.isArray(appointment.assignedTechnicianIds)) {
+      initialSelectedIds = appointment.assignedTechnicianIds;
+      console.log('✅ Using assignedTechnicianIds:', initialSelectedIds);
+    }
+    else if (appointment?.technicianId) {
+      initialSelectedIds = [appointment.technicianId];
+      console.log('✅ Using single technicianId:', initialSelectedIds);
+    }
+    
+    console.log('🎯 Final initial selected IDs:', initialSelectedIds);
+    setSelectedTechnicianIds(initialSelectedIds);
     setShowTechnicianModal(true);
   };
 
@@ -1344,13 +1554,62 @@ function StaffDashboard({ onNavigate }) {
   // Handler để chọn appointment và fetch detail
   const handleSelectAppointment = async (appointment) => {
     try {
-      console.log('🔍 Loading appointment detail:', appointment.id || appointment.appointmentId);
+      const appointmentId = appointment.id || appointment.appointmentId;
+      const appointmentStatus = normalizeStatus(appointment.status);
       
-      // Fetch detailed data từ backend để có đầy đủ techIds, staffAssignments
-      const detailedData = await getAppointmentById(appointment.id || appointment.appointmentId);
-      console.log('✅ Detailed appointment loaded:', detailedData);
+      console.log('🔍 Loading appointment detail:', {
+        id: appointmentId,
+        status: appointmentStatus,
+        listData_techIds: appointment.techIds,
+        listData_users: appointment.users
+      });
       
-      setSelectedAppointment(detailedData);
+      let detailedData;
+      
+      // ✅ SỬ DỤNG API MỚI: /api/appointments/status/{id}
+      // API này trả về đầy đủ techIds & users cho TẤT CẢ status
+      console.log('✅ Using new API with full tech details: /api/appointments/status/' + appointmentId);
+      try {
+        detailedData = await getAppointmentDetailWithTechs(appointmentId);
+        console.log('✅ Appointment detail loaded (with techIds & users):', {
+          techIds: detailedData.techIds,
+          usersCount: detailedData.users?.length,
+          status: detailedData.status
+        });
+      } catch (error) {
+        console.log('⚠️ New API failed, fallback to regular API');
+        // Fallback 1: Try completed API if status is done
+        if (appointmentStatus === 'completed' || appointmentStatus === 'done') {
+          try {
+            detailedData = await getCompletedAppointmentById(appointmentId);
+          } catch (error2) {
+            detailedData = await getAppointmentById(appointmentId);
+          }
+        } else {
+          detailedData = await getAppointmentById(appointmentId);
+        }
+      }
+      
+      // ✅ MERGE data từ appointment list nếu detail API không có
+      const mergedAppointment = {
+        ...detailedData,
+        // Merge techIds từ list nếu detail không có
+        techIds: detailedData.techIds || appointment.techIds,
+        // Merge users từ list nếu detail không có
+        users: detailedData.users || appointment.users,
+        // Preserve assignment info từ list nếu có
+        assignedStaffs: detailedData.assignedStaffs || appointment.assignedStaffs,
+        assignedTechnicianIds: detailedData.assignedTechnicianIds || appointment.assignedTechnicianIds,
+        hasAssignment: detailedData.hasAssignment || appointment.hasAssignment || !!(appointment.techIds || (appointment.assignedStaffs && appointment.assignedStaffs.length > 0))
+      };
+      
+      console.log('✅ Merged appointment data:', {
+        techIds: mergedAppointment.techIds,
+        users: mergedAppointment.users?.length,
+        hasAssignment: mergedAppointment.hasAssignment
+      });
+      
+      setSelectedAppointment(mergedAppointment);
     } catch (error) {
       console.error('❌ Error loading appointment detail:', error);
       
@@ -1498,13 +1757,44 @@ function StaffDashboard({ onNavigate }) {
         console.log('✅ Updated appointment with assignment:', updatedAppointment);
           setSelectedAppointment(updatedAppointment);
         
-        // Vẫn fetch lại list để đồng bộ UI
+        // ✅ QUAN TRỌNG: Fetch lại appointment để lấy techIds từ DATABASE
+        // Sau khi giao việc, backend đã lưu techIds vào database
+        // Fetch lại để đảm bảo data đồng bộ với database
         try {
-          console.log('🔄 Fetching appointment detail by ID:', assigningAppointmentId);
-          const detailedAppointment = await getAppointmentById(assigningAppointmentId);
+          console.log('🔄 Fetching appointment detail from DATABASE (with techIds):', assigningAppointmentId);
+          
+          // ✅ SỬ DỤNG API MỚI: /api/appointments/status/{id}
+          // API này trả về đầy đủ techIds & users từ DATABASE
+          let detailedAppointment = null;
+          
+          try {
+            detailedAppointment = await getAppointmentDetailWithTechs(assigningAppointmentId);
+            console.log('✅ Fetched from NEW API (has techIds & users from DATABASE)');
+            console.log('   🎯 techIds:', detailedAppointment.techIds);
+            console.log('   👥 users:', detailedAppointment.users?.length);
+          } catch (error) {
+            console.log('⚠️ New API failed, trying fallback');
+            
+            // Fallback: Try completed API hoặc regular API
+            if (selectedAppointment?.status === 'completed' || selectedAppointment?.status === 'done') {
+              try {
+                detailedAppointment = await getCompletedAppointmentById(assigningAppointmentId);
+                console.log('✅ Fetched from completed API');
+              } catch (error2) {
+                detailedAppointment = await getAppointmentById(assigningAppointmentId);
+                console.log('✅ Fetched from regular API');
+              }
+            } else {
+              detailedAppointment = await getAppointmentById(assigningAppointmentId);
+              console.log('✅ Fetched from regular API');
+            }
+          }
+          
           console.log('✅ Detailed appointment fetched:', detailedAppointment);
           console.log('   🔍 All keys:', Object.keys(detailedAppointment));
           console.log('   👥 staffAssignments:', detailedAppointment.staffAssignments);
+          console.log('   🎯 techIds FROM DATABASE:', detailedAppointment.techIds);
+          console.log('   👥 users FROM DATABASE:', detailedAppointment.users);
           
           // Parse staffAssignments từ detail API nếu có
           let assignedStaffsFromDetail = null;
@@ -1545,6 +1835,28 @@ function StaffDashboard({ onNavigate }) {
             }).filter(s => s.id);
             
             console.log('   ✅ Mapped staffs from techIds:', assignedStaffsFromDetail);
+          }
+          // ✅ MỚI: Check users array (từ API mới - có đầy đủ thông tin)
+          else if (detailedAppointment.users && Array.isArray(detailedAppointment.users)) {
+            console.log('   🆕 Found users array from DATABASE:', detailedAppointment.users.length);
+            
+            // Filter users có role là technician
+            const technicianUsers = detailedAppointment.users.filter(user => 
+              user.role?.toLowerCase() === 'technician' || 
+              user.role?.toLowerCase() === 'staff'
+            );
+            
+            if (technicianUsers.length > 0) {
+              assignedStaffsFromDetail = technicianUsers.map(user => ({
+                id: user.id,
+                fullName: user.fullName || user.full_name,
+                email: user.email,
+                phone: user.phone,
+                role: user.role,
+                working: user.working || false
+              }));
+              console.log('   ✅ Mapped staffs from users array (DATABASE):', assignedStaffsFromDetail);
+            }
           }
           // Fallback: Check staffAssignments (cách cũ)
           else if (detailedAppointment.staffAssignments && Array.isArray(detailedAppointment.staffAssignments)) {
@@ -2372,7 +2684,7 @@ function StaffDashboard({ onNavigate }) {
                               <FaUserCog style={{ color: '#1976d2', fontSize: '14px' }} />
                               <span style={{ color: '#1976d2', fontWeight: '500' }}>
                                 {(() => {
-                                  // Ưu tiên: techNamesString từ inProgressAppointments
+                                  // ✅ Priority 1: techNamesString từ inProgressAppointments
                                   const inProgressApt = inProgressAppointments.find(apt => 
                                     (apt.id || apt.appointmentId) === appointmentId
                                   );
@@ -2380,7 +2692,19 @@ function StaffDashboard({ onNavigate }) {
                                     return inProgressApt.techNamesString;
                                   }
                                   
-                                  // Fallback: Parse từ techIds trong appointment
+                                  // ✅ Priority 2: Parse từ users array (database)
+                                  if (appointment.users && Array.isArray(appointment.users)) {
+                                    const technicianUsers = appointment.users.filter(user => 
+                                      user.role?.toLowerCase() === 'technician' || 
+                                      user.role?.toLowerCase() === 'staff'
+                                    );
+                                    if (technicianUsers.length > 0) {
+                                      const techNames = technicianUsers.map(u => u.fullName || u.name || `KTV #${u.id}`);
+                                      return `${techNames.join(', ')} (${technicianUsers.length} KTV)`;
+                                    }
+                                  }
+                                  
+                                  // ✅ Priority 3: Parse từ techIds trong appointment (database)
                                   let techIdsArray = [];
                                   if (appointment.techIds) {
                                     if (typeof appointment.techIds === 'string') {
@@ -2395,7 +2719,22 @@ function StaffDashboard({ onNavigate }) {
                                       const tech = technicians.find(t => t.id === techId || t.userId === techId);
                                       return tech ? (tech.fullName || tech.name || `KTV #${techId}`) : `KTV #${techId}`;
                                     });
-                                    return techNames.join(', ');
+                                    return `${techNames.join(', ')} (${techNames.length} KTV)`;
+                                  }
+                                  
+                                  // ✅ Priority 4: Check assignedStaffs (local state)
+                                  if (appointment.assignedStaffs && appointment.assignedStaffs.length > 0) {
+                                    const staffNames = appointment.assignedStaffs.map(s => s.fullName || `KTV #${s.id}`);
+                                    return `${staffNames.join(', ')} (${appointment.assignedStaffs.length} KTV)`;
+                                  }
+                                  
+                                  // ✅ Priority 5: Check assignedTechnicianIds (local state)
+                                  if (appointment.assignedTechnicianIds && appointment.assignedTechnicianIds.length > 0) {
+                                    const techNames = appointment.assignedTechnicianIds.map(id => {
+                                      const tech = technicians.find(t => t.id === id || t.userId === id);
+                                      return tech ? (tech.fullName || tech.name || `KTV #${id}`) : `KTV #${id}`;
+                                    });
+                                    return `${techNames.join(', ')} (${appointment.assignedTechnicianIds.length} KTV)`;
                                   }
                                   
                                   return 'Chưa giao việc';
@@ -2616,6 +2955,24 @@ function StaffDashboard({ onNavigate }) {
                             }
                           }
                           
+                          // ✅ MỚI: Parse technicians từ users array (API mới)
+                          let techniciansFromUsers = [];
+                          if (selectedAppointment.users && Array.isArray(selectedAppointment.users)) {
+                            // Filter users có role là technician/staff
+                            techniciansFromUsers = selectedAppointment.users.filter(user => 
+                              user.role?.toLowerCase() === 'technician' || 
+                              user.role?.toLowerCase() === 'staff'
+                            ).map(user => ({
+                              id: user.id,
+                              fullName: user.fullName || user.full_name,
+                              email: user.email,
+                              phone: user.phone,
+                              role: user.role
+                            }));
+                            
+                            console.log('✅ Parsed technicians from users array:', techniciansFromUsers);
+                          }
+                          
                           // Check nhiều field names có thể từ backend (bao gồm cả snake_case và camelCase)
                         const techId = selectedAppointment.technicianId || 
                                       selectedAppointment.technician_id ||
@@ -2627,10 +2984,12 @@ function StaffDashboard({ onNavigate }) {
                                           selectedAppointment.assignedTechnician ||
                                           selectedAppointment.assigned_technician;
                         
-                          const assignedTechs = selectedAppointment.assignedStaffs || // Từ local state
-                                               selectedAppointment.assignedTechnicians || 
-                                               selectedAppointment.assigned_technicians ||
-                                             selectedAppointment.technicians;
+                          const assignedTechs = techniciansFromUsers.length > 0 // ✅ Ưu tiên users array
+                                               ? techniciansFromUsers
+                                               : (selectedAppointment.assignedStaffs || // Từ local state
+                                                  selectedAppointment.assignedTechnicians || 
+                                                  selectedAppointment.assigned_technicians ||
+                                                  selectedAppointment.technicians);
                         
                           // Check assignment status từ backend hoặc từ local state sau khi assign
                           const hasAssignment = techIdsArray.length > 0 || // Backend mới: có techIds
@@ -2675,7 +3034,16 @@ function StaffDashboard({ onNavigate }) {
                                     return `${techNames.join(', ')} (${techNames.length} KTV)`;
                                   }
                                   
-                                  // Ưu tiên 2: Hiển thị từ assignedStaffs (có đầy đủ thông tin từ API)
+                                  // Ưu tiên 2: Hiển thị từ assignedTechs (bao gồm users array và assignedStaffs)
+                                  if (assignedTechs && assignedTechs.length > 0) {
+                                    const names = assignedTechs.map(t => t.fullName || t.name || `KTV #${t.id}`).filter(Boolean);
+                                    if (names.length > 0) {
+                                      return `${names.join(', ')} (${names.length} KTV)`;
+                                    }
+                                    return `${assignedTechs.length} kỹ thuật viên đã được giao`;
+                                  }
+                                  
+                                  // Ưu tiên 3: Hiển thị từ assignedStaffs (có đầy đủ thông tin từ API)
                                   if (selectedAppointment.assignedStaffs && selectedAppointment.assignedStaffs.length > 0) {
                                     const staffs = selectedAppointment.assignedStaffs;
                                     const names = staffs.map(s => s.fullName || `KTV #${s.id}`).filter(Boolean);
@@ -2685,7 +3053,7 @@ function StaffDashboard({ onNavigate }) {
                                     return `${staffs.length} kỹ thuật viên đã được giao`;
                                   }
                                   
-                                  // Fallback: từ local IDs (vừa assign, chưa có response)
+                                  // Ưu tiên 4: Fallback từ local IDs (vừa assign, chưa có response)
                                   if (selectedAppointment.assignedTechniciansCount > 0) {
                                     const count = selectedAppointment.assignedTechniciansCount;
                                     const ids = selectedAppointment.assignedTechnicianIds || [];
@@ -2700,15 +3068,6 @@ function StaffDashboard({ onNavigate }) {
                                       return `${techNames.join(', ')} (${count} KTV)`;
                                     }
                                     return `${count} kỹ thuật viên đã được giao`;
-                                  }
-                                  
-                                  // Nếu có array của nhiều technicians từ backend
-                                  if (assignedTechs && assignedTechs.length > 0) {
-                                    const names = assignedTechs.map(t => t.fullName || t.name).filter(Boolean);
-                                    if (names.length > 0) {
-                                      return `${names.join(', ')} (${names.length} KTV)`;
-                                    }
-                                    return `${assignedTechs.length} kỹ thuật viên đã được giao`;
                                   }
                                   
                                   // Nếu có techId, tìm từ danh sách
@@ -2779,6 +3138,131 @@ function StaffDashboard({ onNavigate }) {
                     </div>
                     )}
 
+                    {/* Chi tiết danh sách kỹ thuật viên - Hiển thị khi có nhiều KTV */}
+                    {normalizeStatus(selectedAppointment.status) !== 'pending' && (() => {
+                      // Parse techIds
+                      let techIdsArray = [];
+                      if (selectedAppointment.techIds) {
+                        if (typeof selectedAppointment.techIds === 'string') {
+                          techIdsArray = selectedAppointment.techIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+                        } else if (Array.isArray(selectedAppointment.techIds)) {
+                          techIdsArray = selectedAppointment.techIds.map(id => parseInt(id));
+                        }
+                      }
+                      
+                      // Parse technicians từ users array
+                      let techniciansFromUsers = [];
+                      if (selectedAppointment.users && Array.isArray(selectedAppointment.users)) {
+                        techniciansFromUsers = selectedAppointment.users.filter(user => 
+                          user.role?.toLowerCase() === 'technician' || 
+                          user.role?.toLowerCase() === 'staff'
+                        ).map(user => ({
+                          id: user.id,
+                          fullName: user.fullName || user.full_name,
+                          email: user.email,
+                          phone: user.phone,
+                          role: user.role
+                        }));
+                      }
+                      
+                      // Fallback: Get from assignedStaffs hoặc map từ techIds
+                      let techniciansList = techniciansFromUsers.length > 0 
+                        ? techniciansFromUsers
+                        : (selectedAppointment.assignedStaffs || []);
+                      
+                      // Nếu không có assignedStaffs nhưng có techIdsArray, map từ technicians list
+                      if (techniciansList.length === 0 && techIdsArray.length > 0) {
+                        techniciansList = techIdsArray.map(techId => {
+                          const tech = technicians.find(t => t.id === techId || t.userId === techId);
+                          if (tech) {
+                            return {
+                              id: tech.id || tech.userId,
+                              fullName: tech.fullName || tech.name || `Kỹ thuật viên #${techId}`,
+                              email: tech.email,
+                              phone: tech.phone,
+                              role: tech.role
+                            };
+                          }
+                          return null;
+                        }).filter(Boolean);
+                      }
+                      
+                      // Chỉ hiển thị khi có ít nhất 1 kỹ thuật viên
+                      if (techniciansList.length > 0) {
+                        return (
+                          <div className="details-section">
+                            <h3>Danh sách kỹ thuật viên ({techniciansList.length})</h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                              {techniciansList.map((tech, index) => (
+                                <div 
+                                  key={tech.id || index}
+                                  style={{
+                                    padding: '12px 16px',
+                                    background: '#f7fafc',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '8px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px'
+                                  }}
+                                >
+                                  <div style={{
+                                    width: '40px',
+                                    height: '40px',
+                                    borderRadius: '50%',
+                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    fontSize: '18px',
+                                    fontWeight: '600',
+                                    flexShrink: 0
+                                  }}>
+                                    <FaUserCog />
+                                  </div>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ 
+                                      fontWeight: '600', 
+                                      color: '#2d3748',
+                                      marginBottom: '4px',
+                                      fontSize: '15px'
+                                    }}>
+                                      {tech.fullName || tech.name || `Kỹ thuật viên #${tech.id}`}
+                                    </div>
+                                    <div style={{ 
+                                      display: 'flex', 
+                                      gap: '16px',
+                                      fontSize: '13px',
+                                      color: '#718096'
+                                    }}>
+                                      {tech.email && (
+                                        <span>📧 {tech.email}</span>
+                                      )}
+                                      {tech.phone && (
+                                        <span>📞 {tech.phone}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div style={{
+                                    padding: '4px 10px',
+                                    background: '#e3f2fd',
+                                    color: '#1565c0',
+                                    borderRadius: '12px',
+                                    fontSize: '12px',
+                                    fontWeight: '600'
+                                  }}>
+                                    KTV #{index + 1}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
                     <div className="details-section">
                       <h3>Ghi chú</h3>
                       <div className="notes-box">
@@ -2810,7 +3294,8 @@ function StaffDashboard({ onNavigate }) {
                         {selectedAppointment.status === 'accepted' && (
                           <>
                             {(() => {
-                              // Check xem đã có techIds hoặc assignedStaffs chưa
+                              // ✅ Check xem đã giao việc cho technician chưa
+                              // Priority 1: techIds từ database
                               let hasTechIds = false;
                               if (selectedAppointment.techIds) {
                                 if (typeof selectedAppointment.techIds === 'string') {
@@ -2820,19 +3305,26 @@ function StaffDashboard({ onNavigate }) {
                                 }
                               }
                               
-                              // Check assignedStaffs (ưu tiên cao hơn vì local state)
+                              // Priority 2: users array từ database
+                              const hasUsers = selectedAppointment.users && selectedAppointment.users.length > 0;
+                              
+                              // Priority 3: assignedStaffs (local state sau khi giao việc)
                               const hasAssignedStaffs = selectedAppointment.assignedStaffs?.length > 0;
                               const hasAssignmentFlag = selectedAppointment.hasAssignment === true;
                               
-                              console.log('🔍 Button visibility check:', {
+                              console.log('🔍 Start button visibility check:', {
+                                appointmentId: selectedAppointment.appointmentId || selectedAppointment.id,
+                                techIds: selectedAppointment.techIds,
                                 hasTechIds,
+                                usersCount: selectedAppointment.users?.length,
+                                hasUsers,
                                 hasAssignedStaffs,
                                 hasAssignmentFlag,
-                                assignedStaffsCount: selectedAppointment.assignedStaffs?.length
+                                canStart: hasTechIds || hasUsers || hasAssignedStaffs || hasAssignmentFlag
                               });
                               
                               // Nếu đã có technician được giao việc, hiển thị nút "Bắt đầu thực hiện"
-                              if (hasTechIds || hasAssignedStaffs || hasAssignmentFlag) {
+                              if (hasTechIds || hasUsers || hasAssignedStaffs || hasAssignmentFlag) {
                                 return (
                                   <>
                           <button 
@@ -2889,11 +3381,28 @@ function StaffDashboard({ onNavigate }) {
                           <>
                             {(() => {
                               // Check xem đã giao việc cho technician chưa
-                              const hasAssignment = selectedAppointment.hasAssignment || 
+                              // ✅ QUAN TRỌNG: Check techIds từ database
+                              const hasTechIds = !!(selectedAppointment.techIds && selectedAppointment.techIds.trim());
+                              const hasUsers = selectedAppointment.users && selectedAppointment.users.length > 0;
+                              
+                              const hasAssignment = hasTechIds || // ✅ Priority 1: techIds từ database
+                                                   hasUsers || // ✅ Priority 2: users array từ database
+                                                   selectedAppointment.hasAssignment || 
                                                    selectedAppointment.has_assignment ||
                                                    selectedAppointment.assignedStaffs?.length > 0 ||
                                                    selectedAppointment.assignedTechnicianIds?.length > 0 ||
                                                    selectedAppointment.assignedTechniciansCount > 0;
+                              
+                              console.log('🔍 Complete button validation:', {
+                                appointmentId: selectedAppointment.appointmentId || selectedAppointment.id,
+                                status: selectedAppointment.status,
+                                techIds: selectedAppointment.techIds,
+                                hasTechIds,
+                                usersCount: selectedAppointment.users?.length,
+                                hasUsers,
+                                hasAssignment,
+                                canComplete: hasAssignment
+                              });
                               
                               const canComplete = hasAssignment;
                               

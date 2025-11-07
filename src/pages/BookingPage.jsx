@@ -242,6 +242,16 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
     try {
       // Kiểm tra đăng nhập trước khi đặt lịch
       const token = localStorage.getItem('token');
+      const userStr = localStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      
+      console.log('🔐 Auth check:', {
+        hasToken: !!token,
+        token: token ? token.substring(0, 20) + '...' : null,
+        user: user,
+        userRole: user?.role
+      });
+      
       if (!token) {
         const confirmLogin = window.confirm(
           '⚠️ Bạn cần đăng nhập để đặt lịch hẹn.\n\nBạn có muốn đăng nhập ngay bây giờ không?'
@@ -281,7 +291,18 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
         return;
       }
 
-      console.log('Đang gửi yêu cầu đặt lịch...', appointmentData);
+      console.log('📤 Đang gửi yêu cầu đặt lịch...');
+      console.log('📋 Appointment Data:', JSON.stringify(appointmentData, null, 2));
+      console.log('🔍 Validation:', {
+        vehicleIdValid: !!selectedVehicleInfo?.id,
+        vehicleId: selectedVehicleInfo?.id,
+        serviceCenterIdValid: !!formData.serviceCenterId,
+        serviceCenterId: formData.serviceCenterId,
+        serviceTypeIdsValid: formData.selectedServices?.length > 0,
+        serviceTypeIds: formData.selectedServices,
+        appointmentDateValid: !!appointmentDateTime,
+        appointmentDate: appointmentDateTime
+      });
       
       // Gọi API tạo lịch hẹn
       const response = await createAppointment(appointmentData);
@@ -335,6 +356,17 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
       if (error.response?.status === 403) {
         // 403 Forbidden - Có thể do token hết hạn hoặc không có quyền
         const token = localStorage.getItem('token');
+        const userStr = localStorage.getItem('user');
+        const user = userStr ? JSON.parse(userStr) : null;
+        const backendMessage = error.response?.data?.message || error.response?.data?.error || '';
+        
+        console.log('🚫 403 Forbidden - Debug info:', {
+          hasToken: !!token,
+          userRole: user?.role,
+          backendMessage: backendMessage,
+          responseData: error.response?.data
+        });
+        
         if (!token) {
           errorMessage = 'Bạn cần đăng nhập để đặt lịch hẹn';
           const confirmLogin = window.confirm(
@@ -344,9 +376,13 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
             onNavigate('login');
           }
         } else {
-          errorMessage = 'Phiên đăng nhập đã hết hạn hoặc bạn không có quyền thực hiện thao tác này.\n\nVui lòng đăng nhập lại.';
+          // Hiển thị chi tiết error message từ backend
+          const detailedMessage = backendMessage || 'Phiên đăng nhập đã hết hạn hoặc bạn không có quyền thực hiện thao tác này.';
+          
+          errorMessage = `🚫 Không thể đặt lịch hẹn\n\n❌ Lỗi: ${detailedMessage}\n\n💡 Có thể do:\n• Token hết hạn\n• Không có quyền (Role: ${user?.role || 'unknown'})\n• Dữ liệu không hợp lệ\n\nVui lòng đăng nhập lại.`;
+          
           const confirmLogin = window.confirm(
-            '⚠️ Phiên đăng nhập đã hết hạn.\n\nBạn có muốn đăng nhập lại không?'
+            '⚠️ ' + errorMessage + '\n\nBạn có muốn đăng nhập lại không?'
           );
           if (confirmLogin) {
             localStorage.removeItem('token');

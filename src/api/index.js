@@ -112,6 +112,29 @@ export const getAppointmentById = async (appointmentId) => {
   return res.data;
 };
 
+// Staff: Lấy chi tiết appointment với đầy đủ thông tin techIds & users (✅)
+// OpenAPI: GET /api/appointments/status/{id}
+// Response: AppointmentDetailResponse (có techIds, users array với đầy đủ thông tin)
+// Endpoint này hoạt động cho TẤT CẢ status (pending, accepted, in_progress, completed)
+export const getAppointmentDetailWithTechs = async (appointmentId) => {
+  console.log('📞 Fetching appointment detail with techs:', appointmentId);
+  const res = await axiosClient.get(`/api/appointments/status/${appointmentId}`);
+  console.log('✅ Appointment detail response:', res.data);
+  console.log('   🎯 techIds:', res.data.techIds);
+  console.log('   👥 users:', res.data.users?.length);
+  return res.data;
+};
+
+// Staff: Lấy chi tiết appointment đã hoàn thành với đầy đủ thông tin (✅)
+// OpenAPI: GET /api/appointments/status/done/{id}
+// Response: AppointmentDetailResponse (có techIds, users array với đầy đủ thông tin)
+export const getCompletedAppointmentById = async (appointmentId) => {
+  console.log('📞 Fetching completed appointment detail:', appointmentId);
+  const res = await axiosClient.get(`/api/appointments/status/done/${appointmentId}`);
+  console.log('✅ Completed appointment detail response:', res.data);
+  return res.data;
+};
+
 // Lấy appointments theo status (✅)
 // OpenAPI: GET /api/appointments/appointments/status/{status}
 // Response: AppointmentResponse[] (có techIds field)
