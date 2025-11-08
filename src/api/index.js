@@ -135,7 +135,7 @@ export const getAppointmentsByStatus = async (status) => {
 
 // GET /api/appointments/status/done/{id} - Lấy appointment đã hoàn thành theo ID
 export const getAppointmentDone = async (id) => {
-  const res = await axiosClient.get(`/api/appointments/status/done/${id}`);
+  const res = await axiosClient.get(`/api/appointments/status/${id}`);
   return res.data;
 };
 
@@ -221,6 +221,18 @@ export const createMaintenanceRecord = async (appointmentId, data) => {
   return res.data;
 };
 
+// GET /MaintainanceRecord/all - Lấy tất cả maintenance records
+export const getAllMaintenanceRecords = async () => {
+  const res = await axiosClient.get("/MaintainanceRecord/all");
+  return res.data;
+};
+
+// GET /MaintainanceRecord/all/serviceCenter - Lấy maintenance records theo center
+export const getMaintenanceRecordsByCenter = async () => {
+  const res = await axiosClient.get("/MaintainanceRecord/all/serviceCenter");
+  return res.data;
+};
+
 // GET /MaintainanceRecord/staff/{staffId} - Lấy maintenance records theo staff
 export const getMaintenanceRecordsByStaff = async (staffId) => {
   const res = await axiosClient.get(`/MaintainanceRecord/staff/${staffId}`);
@@ -259,6 +271,12 @@ export const createAutoWorkLog = async (appointmentId) => {
   return res.data;
 };
 
+// GET /worklogs/center - Lấy tất cả worklogs theo center
+export const getAllWorkLogsByCenter = async () => {
+  const res = await axiosClient.get("/worklogs/center");
+  return res.data;
+};
+
 /* ================================
    🧾 INVOICE APIs
 ================================ */
@@ -281,11 +299,9 @@ export const getRevenue = async (startDate, endDate) => {
    💳 PAYMENT APIs
 ================================ */
 
-// GET /api/customer/payments/create - Tạo payment link (VNPay)
+// POST /api/customer/payments/create - Tạo payment link (VNPay)
 export const createPayment = async (paymentDto) => {
-  const res = await axiosClient.get("/api/customer/payments/create", {
-    params: paymentDto
-  });
+  const res = await axiosClient.post("/api/customer/payments/create", paymentDto);
   return res.data;
 };
 
@@ -301,15 +317,33 @@ export const paymentReturn = async (params) => {
    📊 REPORT APIs (Admin)
 ================================ */
 
-// GET /api/admin/reports/revenue - Báo cáo doanh thu
+// GET /api/admin/reports/revenue - Báo cáo doanh thu theo tháng
 export const getRevenueReport = async () => {
   const res = await axiosClient.get("/api/admin/reports/revenue");
   return res.data;
 };
 
-// GET /api/admin/reports/profit - Báo cáo lợi nhuận
+// GET /api/admin/reports/revenue/current-month - Doanh thu tháng hiện tại
+export const getRevenueCurrentMonth = async () => {
+  const res = await axiosClient.get("/api/admin/reports/revenue/current-month");
+  return res.data;
+};
+
+// GET /api/admin/reports/revenue/service - Doanh thu theo dịch vụ
+export const getRevenueByService = async () => {
+  const res = await axiosClient.get("/api/admin/reports/revenue/service");
+  return res.data;
+};
+
+// GET /api/admin/reports/profit - Báo cáo lợi nhuận theo tháng
 export const getProfitReport = async () => {
   const res = await axiosClient.get("/api/admin/reports/profit");
+  return res.data;
+};
+
+// GET /api/admin/reports/expense/current-month - Chi phí tháng hiện tại
+export const getCurrentMonthExpense = async () => {
+  const res = await axiosClient.get("/api/admin/reports/expense/current-month");
   return res.data;
 };
 
@@ -328,6 +362,18 @@ export const getTrendingServicesLastMonth = async () => {
 // GET /api/admin/reports/trending-parts - Top 5 parts được dùng nhiều nhất tháng trước
 export const getTrendingParts = async () => {
   const res = await axiosClient.get("/api/admin/reports/trending-parts");
+  return res.data;
+};
+
+// GET /api/admin/reports/parts/stock-report - Báo cáo tồn kho phụ tùng
+export const getPartStockReport = async () => {
+  const res = await axiosClient.get("/api/admin/reports/parts/stock-report");
+  return res.data;
+};
+
+// GET /api/admin/reports/payment-methods - Thống kê phương thức thanh toán
+export const getPaymentMethods = async () => {
+  const res = await axiosClient.get("/api/admin/reports/payment-methods");
   return res.data;
 };
 

@@ -96,6 +96,13 @@ function Footer({ onNavigate }) {
                   👨‍💼 Staff
                 </button>
                 <button 
+                  onClick={() => onNavigate('technician')}
+                  className="text-gray-600 hover:text-green-400 text-sm transition-colors"
+                  title="Dành cho kỹ thuật viên"
+                >
+                  🔧 Technician
+                </button>
+                <button 
                   onClick={() => {
                     console.log('Admin button clicked!', onNavigate);
                     if (onNavigate) {

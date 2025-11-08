@@ -5,7 +5,7 @@ import {
   FaPhone, FaEnvelope, FaCalendarAlt, FaTools, FaCheckCircle, FaTimes, 
   FaEdit, FaUsers, FaMoneyBillWave, FaChartLine, FaChartBar, FaCertificate,
   FaWarehouse, FaRobot, FaClipboardCheck, FaReceipt, FaCreditCard, 
-  FaFileInvoiceDollar, FaCalendarWeek, FaUserTie, FaBriefcase
+  FaFileInvoiceDollar, FaCalendarWeek, FaUserTie, FaBriefcase, FaEye
 } from 'react-icons/fa';
 import * as API from '../api/index.js';
 
@@ -19,7 +19,7 @@ function AdminDashboard({ onNavigate }) {
       alert('Bạn cần đăng nhập để truy cập trang này!');
       onNavigate && onNavigate('login');
     }
-  }, [onNavigate]);
+  }, []); // Fixed: remove onNavigate from deps to prevent infinite loop
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [vehicles, setVehicles] = useState([]);
@@ -50,6 +50,7 @@ function AdminDashboard({ onNavigate }) {
     pendingAppointments: 0,
     inProgressAppointments: 0,
     completedAppointments: 0,
+    cancelledAppointments: 0, // ✅ Add cancelled count
     totalRevenue: 0,
     revenueData: {},
     profitData: {},
@@ -60,68 +61,25 @@ function AdminDashboard({ onNavigate }) {
   });
   const [loadingOverview, setLoadingOverview] = useState(false);
 
-  // Customers & Cars Data
-  const [customers] = useState([
-    {
-      id: 1,
-      name: 'Nguyễn Văn A',
-      email: 'nguyenvana@email.com',
-      phone: '0123456789',
-      joinDate: '2024-01-15',
-      cars: [
-        {
-          id: 1,
-          brand: 'Tesla',
-          model: 'Model 3',
-          year: 2023,
-          vin: 'WBA3B5C50DF123456',
-          licensePlate: '29A-12345',
-          color: 'Đỏ',
-          serviceHistory: [
-            { date: '2024-09-15', service: 'Bảo dưỡng định kỳ', cost: 2500000, status: 'Hoàn thành' },
-            { date: '2024-07-10', service: 'Thay lốp xe', cost: 8000000, status: 'Hoàn thành' }
-          ]
-        }
-      ]
-    },
-    {
-      id: 2,
-      name: 'Trần Thị B',
-      email: 'tranthib@email.com',
-      phone: '0987654321',
-      joinDate: '2024-02-20',
-      cars: [
-        {
-          id: 2,
-          brand: 'VinFast',
-          model: 'VF e34',
-          year: 2023,
-          vin: 'VF8A1B2C3D4E56789',
-          licensePlate: '30B-67890',
-          color: 'Trắng',
-          serviceHistory: [
-            { date: '2024-10-01', service: 'Kiểm tra hệ thống điện', cost: 1500000, status: 'Hoàn thành' }
-          ]
-        }
-      ]
-    }
-  ]);
-
   // useEffect: Load danh sách xe và khách hàng khi component mount
   useEffect(() => {
     fetchVehicles();
     fetchCustomers();
+    fetchAppointments(); // Thêm fetch appointments
     if (activeTab === 'overview') {
       fetchOverviewData();
     }
+    if (activeTab === 'parts') {
+      fetchParts();
+    }
   }, [activeTab]);
 
-  // ========== FETCH OVERVIEW DATA ==========
+  // ========== FETCH OVERVIEW DATA - CHỈ DÙNG API ==========
   const fetchOverviewData = async () => {
     try {
       setLoadingOverview(true);
       setError(null);
-      console.log('🔄 Loading overview data...');
+      console.log('🔄 Loading overview data from API...');
 
       // Fetch tất cả data song song để tăng tốc độ
       const [
@@ -142,7 +100,7 @@ function AdminDashboard({ onNavigate }) {
         API.getProfitReport().catch(err => { console.error('Error profit:', err); return {}; }),
         API.getTrendingServices().catch(err => { console.error('Error trending:', err); return []; }),
         API.getTrendingServicesLastMonth().catch(err => { console.error('Error trending month:', err); return []; }),
-        API.getTop5PartsUsed().catch(err => { console.error('Error parts:', err); return []; }),
+        API.getAllParts().catch(err => { console.error('Error parts:', err); return []; }), // Sử dụng getAllParts thay vì getTop5PartsUsed
         API.getAllTechnicians().catch(err => { console.error('Error technicians:', err); return []; })
       ]);
 
@@ -157,13 +115,42 @@ function AdminDashboard({ onNavigate }) {
         technicians: techniciansData.length
       });
 
-      // Count appointments by status
-      const pending = appointmentsData.filter(a => a.status === 'PENDING').length;
-      const inProgress = appointmentsData.filter(a => a.status === 'IN_PROGRESS').length;
-      const completed = appointmentsData.filter(a => a.status === 'DONE').length;
+      // Log appointment statuses for debugging
+      console.log('📋 Appointment Statuses:', appointmentsData.map(a => ({
+        id: a.appointmentId,
+        status: a.status,
+        statusLower: a.status?.toLowerCase()
+      })));
+
+      // Count appointments by status - Đồng bộ với getStatusColor/getStatusText
+      const pending = appointmentsData.filter(a => {
+        const status = a.status?.toLowerCase();
+        return status === 'pending';
+      }).length;
+      
+      const inProgress = appointmentsData.filter(a => {
+        const status = a.status?.toLowerCase();
+        return status === 'in-progress' || status === 'in_progress' || status === 'inprogress';
+      }).length;
+      
+      const completed = appointmentsData.filter(a => {
+        const status = a.status?.toLowerCase();
+        return status === 'completed' || status === 'done';
+      }).length;
+
+      // ✅ Count cancelled appointments
+      const cancelled = appointmentsData.filter(a => {
+        const status = a.status?.toLowerCase();
+        return status === 'cancelled' || status === 'canceled';
+      }).length;
 
       // Calculate total revenue
       const totalRevenue = Object.values(revenueData).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+
+      // ✅ Debug trending services data structure
+      console.log('🔍 Trending Services Raw:', trendingData);
+      console.log('🔍 Trending Services Last Month Raw:', trendingMonthData);
+      console.log('🔍 Parts Raw:', partsData);
 
       setOverviewStats({
         totalCustomers: customersData.length,
@@ -172,7 +159,8 @@ function AdminDashboard({ onNavigate }) {
         pendingAppointments: pending,
         inProgressAppointments: inProgress,
         completedAppointments: completed,
-        totalRevenue: totalRevenue,
+        cancelledAppointments: cancelled, // ✅ Add cancelled count
+        totalRevenue: Math.abs(totalRevenue), // ✅ Use absolute value
         revenueData: revenueData,
         profitData: profitData,
         trendingServices: Array.isArray(trendingData) ? trendingData : Object.entries(trendingData || {}),
@@ -190,65 +178,36 @@ function AdminDashboard({ onNavigate }) {
     }
   };
 
-  // Hàm fetch danh sách khách hàng từ API
+  // Hàm fetch danh sách khách hàng từ API - CHỈ DÙNG API
   const fetchCustomers = async () => {
     try {
       setLoadingCustomers(true);
+      console.log('🔄 Fetching customers from API...');
       const data = await API.getAllCustomers();
       setAllCustomers(data);
-      console.log('✅ Loaded customers:', data);
+      console.log(`✅ Loaded ${data.length} customers from API`);
     } catch (err) {
       console.error('❌ Error loading customers:', err);
-      // Fallback: dùng data mẫu nếu API lỗi (không bao gồm cars)
-      const customersWithoutCars = customers.map(c => ({
-        id: c.id,
-        name: c.name,
-        email: c.email,
-        phone: c.phone,
-        joinDate: c.joinDate
-      }));
-      setAllCustomers(customersWithoutCars);
-      console.log('⚠️ Using mock customer data:', customersWithoutCars);
+      setAllCustomers([]);
     } finally {
       setLoadingCustomers(false);
     }
   };
 
-  // Hàm fetch danh sách xe từ API (kèm thông tin chủ xe)
+  // Hàm fetch danh sách xe từ API (kèm thông tin chủ xe) - CHỈ DÙNG API
   const fetchVehicles = async () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('🔄 Fetching vehicles from API...');
       
-      // Gọi API lấy tất cả xe đã bảo dưỡng
       const data = await API.getVehiclesMaintained();
       setVehicles(data);
-      console.log('✅ Loaded vehicles with owners:', data);
+      console.log(`✅ Loaded ${data.length} vehicles with owners from API`);
     } catch (err) {
       console.error('❌ Error loading vehicles:', err);
-      
-      // Fallback: Lấy xe từ mock data customers
-      const mockVehicles = customers.flatMap(customer => 
-        customer.cars.map(car => ({
-          id: car.id,
-          vin: car.vin,
-          model: `${car.brand} ${car.model}`,
-          year: car.year,
-          color: car.color,
-          licensePlate: car.licensePlate,
-          owner: {
-            id: customer.id,
-            name: customer.name,
-            email: customer.email,
-            phone: customer.phone
-          },
-          serviceHistory: car.serviceHistory
-        }))
-      );
-      
-      setVehicles(mockVehicles);
-      console.log('⚠️ Using mock vehicle data:', mockVehicles);
-      setError(null); // Không hiển thị lỗi vì đã có fallback data
+      setError(err.message || 'Không thể tải dữ liệu từ API');
+      setVehicles([]);
     } finally {
       setLoading(false);
     }
@@ -365,159 +324,184 @@ function AdminDashboard({ onNavigate }) {
     }
   };
 
-  // Appointments Data
-  const [appointments, setAppointments] = useState([
-    {
-      id: 1,
-      customerName: 'Nguyễn Văn A',
-      phone: '0123456789',
-      carInfo: 'Tesla Model 3 - 29A-12345',
-      service: 'Bảo dưỡng định kỳ',
-      date: '2025-10-20',
-      time: '09:00',
-      status: 'pending',
-      technician: null,
-      notes: 'Khách hàng yêu cầu kiểm tra hệ thống phanh'
-    },
-    {
-      id: 2,
-      customerName: 'Trần Thị B',
-      phone: '0987654321',
-      carInfo: 'VinFast VF e34 - 30B-67890',
-      service: 'Thay lốp xe',
-      date: '2025-10-20',
-      time: '10:30',
-      status: 'confirmed',
-      technician: 'Phạm Văn D',
-      notes: 'Thay 4 lốp mới'
-    }
-  ]);
+  // ========================================
+  // 🧑 CUSTOMER CRUD HANDLERS
+  // ========================================
+  
+  // Thêm khách hàng mới
+  const handleAddCustomer = () => {
+    setCustomerModalMode('add');
+    setSelectedCustomer(null);
+    setCustomerFormData({
+      name: '',
+      username: '',
+      email: '',
+      phone: '',
+      address: ''
+    });
+    setShowCustomerModal(true);
+  };
 
-  // Maintenance Data
-  const [maintenanceList, setMaintenanceList] = useState([
-    {
-      id: 1,
-      ticketNumber: 'TK-001',
-      customerName: 'Nguyễn Văn A',
-      carInfo: 'Tesla Model 3 - 29A-12345',
-      vin: 'WBA3B5C50DF123456',
-      service: 'Bảo dưỡng định kỳ',
-      status: 'waiting',
-      startTime: '2025-10-17 09:00',
-      estimatedTime: '2 giờ',
-      technician: 'Phạm Văn D',
-      checklist: [
-        { item: 'Kiểm tra pin', status: 'completed' },
-        { item: 'Kiểm tra phanh', status: 'completed' },
-        { item: 'Kiểm tra lốp xe', status: 'in-progress' },
-        { item: 'Kiểm tra hệ thống điện', status: 'pending' }
-      ],
-      carCondition: {
-        exterior: 'Tốt - Không có vết xước',
-        interior: 'Sạch sẽ',
-        battery: '95% - Tình trạng tốt',
-        tire: 'Lốp trước: 70%, Lốp sau: 75%',
-        notes: 'Xe trong tình trạng tốt'
+  // Sửa khách hàng
+  const handleEditCustomer = (customer) => {
+    setCustomerModalMode('edit');
+    setSelectedCustomer(customer);
+    setCustomerFormData({
+      name: customer.name || '',
+      username: customer.username || '',
+      email: customer.email || '',
+      phone: customer.phone || '',
+      address: customer.address || ''
+    });
+    setShowCustomerModal(true);
+  };
+
+  // Xem chi tiết khách hàng
+  const handleViewCustomer = (customer) => {
+    setCustomerModalMode('view');
+    setSelectedCustomer(customer);
+    setCustomerFormData({
+      name: customer.name || '',
+      username: customer.username || '',
+      email: customer.email || '',
+      phone: customer.phone || '',
+      address: customer.address || ''
+    });
+    setShowCustomerModal(true);
+  };
+
+  // Lưu khách hàng (add/edit)
+  const handleSaveCustomer = async () => {
+    // Validation
+    if (!customerFormData.username.trim()) {
+      alert('⚠️ Vui lòng nhập tên đăng nhập!');
+      return;
+    }
+    if (!customerFormData.email.trim() || !customerFormData.email.includes('@')) {
+      alert('⚠️ Vui lòng nhập email hợp lệ!');
+      return;
+    }
+
+    setSavingCustomer(true);
+    try {
+      if (customerModalMode === 'edit' && selectedCustomer) {
+        // Cập nhật khách hàng
+        await API.updateUser(selectedCustomer.id, {
+          name: customerFormData.name,
+          username: customerFormData.username,
+          email: customerFormData.email,
+          phone: customerFormData.phone,
+          address: customerFormData.address
+        });
+        alert('✅ Cập nhật khách hàng thành công!');
+      } else if (customerModalMode === 'add') {
+        // Tính năng thêm khách hàng - cần API endpoint
+        alert('⚠️ Chức năng thêm khách hàng chưa được hỗ trợ bởi backend!');
+        setShowCustomerModal(false);
+        setSavingCustomer(false);
+        return;
       }
+      
+      setShowCustomerModal(false);
+      fetchCustomers(); // Reload danh sách
+    } catch (err) {
+      console.error('❌ Error saving customer:', err);
+      alert(`❌ Lỗi: ${err.message || 'Không thể lưu khách hàng'}`);
+    } finally {
+      setSavingCustomer(false);
     }
-  ]);
+  };
 
-  // Parts Inventory Data
-  const [partsList] = useState([
-    {
-      id: 'PT-001',
-      name: 'Pin Lithium-ion 75kWh',
-      category: 'Pin & Điện',
-      brand: 'Tesla',
-      stock: 5,
-      minStock: 2,
-      price: 250000000,
-      status: 'in-stock',
-      aiRecommendation: { suggestedMinStock: 3, reason: 'Dựa trên lịch sử thay thế, tần suất sử dụng cao' }
-    },
-    {
-      id: 'PT-002',
-      name: 'Phanh đĩa thông gió trước',
-      category: 'Phanh',
-      brand: 'Brembo',
-      stock: 1,
-      minStock: 3,
-      price: 8500000,
-      status: 'low-stock',
-      aiRecommendation: { suggestedMinStock: 5, reason: 'Phụ tùng thay thế thường xuyên, cần tăng dự trữ' }
+  // Xóa khách hàng
+  const handleDeleteCustomer = async (customerId) => {
+    if (!confirm('⚠️ Bạn có chắc muốn xóa khách hàng này?')) {
+      return;
     }
-  ]);
 
-  // Staff Management Data
-  const [staffList] = useState([
-    {
-      id: 1,
-      name: 'Phạm Văn D',
-      role: 'Technician',
-      email: 'phamvand@service.com',
-      phone: '0901234567',
-      shift: 'Ca sáng (8:00-16:00)',
-      performance: { completedJobs: 45, avgTime: '2.5h', rating: 4.8 },
-      certificates: ['EV Technician Level 2', 'Battery Safety Certified'],
-      workingHours: { thisWeek: 40, thisMonth: 160 }
-    },
-    {
-      id: 2,
-      name: 'Nguyễn Văn E',
-      role: 'Technician',
-      email: 'nguyenvane@service.com',
-      phone: '0912345678',
-      shift: 'Ca chiều (14:00-22:00)',
-      performance: { completedJobs: 38, avgTime: '2.8h', rating: 4.6 },
-      certificates: ['EV Technician Level 1'],
-      workingHours: { thisWeek: 38, thisMonth: 152 }
-    },
-    {
-      id: 3,
-      name: 'Trần Văn G',
-      role: 'Staff',
-      email: 'tranvang@service.com',
-      phone: '0923456789',
-      shift: 'Ca sáng (8:00-16:00)',
-      performance: { completedJobs: 52, avgTime: '2.2h', rating: 4.9 },
-      certificates: ['Customer Service Certified'],
-      workingHours: { thisWeek: 42, thisMonth: 168 }
+    try {
+      await API.deleteEmployee(customerId); // API dùng chung cho user
+      alert('✅ Đã xóa khách hàng thành công!');
+      fetchCustomers();
+    } catch (err) {
+      console.error('❌ Error deleting customer:', err);
+      alert(`❌ Lỗi: ${err.message || 'Không thể xóa khách hàng'}`);
     }
-  ]);
+  };
 
-  // Financial Data
-  const [financialData] = useState({
-    revenue: {
-      today: 15000000,
-      thisWeek: 85000000,
-      thisMonth: 320000000,
-      thisYear: 1250000000
-    },
-    expenses: {
-      thisMonth: 180000000,
-      thisYear: 720000000
-    },
-    profit: {
-      thisMonth: 140000000,
-      thisYear: 530000000
-    },
-    serviceStats: [
-      { service: 'Bảo dưỡng định kỳ', count: 145, revenue: 362500000 },
-      { service: 'Thay lốp xe', count: 89, revenue: 712000000 },
-      { service: 'Sửa chữa động cơ', count: 67, revenue: 335000000 },
-      { service: 'Kiểm tra hệ thống điện', count: 123, revenue: 184500000 }
-    ],
-    paymentMethods: {
-      online: 65,
-      offline: 35
-    }
+  // Appointments Data
+  const [appointments, setAppointments] = useState([]);
+  const [loadingAppointments, setLoadingAppointments] = useState(false);
+  const [appointmentsError, setAppointmentsError] = useState(null);
+
+  // ✅ Customer Modal & Edit State
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [customerModalMode, setCustomerModalMode] = useState('add'); // 'add' | 'edit' | 'view'
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customerFormData, setCustomerFormData] = useState({
+    name: '',
+    username: '',
+    email: '',
+    phone: '',
+    address: ''
   });
+  const [savingCustomer, setSavingCustomer] = useState(false);
 
-  // Chat Data
-  const [chatCustomers] = useState([
-    { id: 1, name: 'Nguyễn Văn A', lastMessage: 'Cảm ơn bạn!', time: '10:30', unread: 2 },
-    { id: 2, name: 'Trần Thị B', lastMessage: 'Xe của tôi đã sẵn sàng chưa?', time: '09:15', unread: 0 }
-  ]);
+  // Maintenance, Parts, Staff, Financial, Chat Data - CHỜ API
+  const [maintenanceList, setMaintenanceList] = useState([]);
+  const [partsList, setPartsList] = useState([]);
+  const [loadingParts, setLoadingParts] = useState(false);
+  const [staffList, setStaffList] = useState([]);
+  const [financialData, setFinancialData] = useState({
+    revenue: { thisMonth: 0 },
+    expenses: { thisMonth: 0 },
+    profit: { thisMonth: 0 },
+    serviceStats: [],
+    paymentMethods: { online: 0, offline: 0 }
+  });
+  const [chatCustomers, setChatCustomers] = useState([]);
+
+  // Fetch Parts from API
+  const fetchParts = async () => {
+    try {
+      setLoadingParts(true);
+      console.log('🔄 Fetching parts from API...');
+      const data = await API.getAllParts();
+      setPartsList(data);
+      console.log(`✅ Loaded ${data.length} parts from API`);
+    } catch (err) {
+      console.error('❌ Error loading parts:', err);
+      setPartsList([]);
+    } finally {
+      setLoadingParts(false);
+    }
+  };
+
+  // Hàm fetch danh sách appointments từ API - CHỈ DÙNG API
+  const fetchAppointments = async () => {
+    try {
+      setLoadingAppointments(true);
+      setAppointmentsError(null);
+      console.log('🔄 Fetching appointments from API...');
+      
+      const data = await API.getAllAppointments();
+      console.log('✅ API Response:', data);
+      
+      if (Array.isArray(data)) {
+        setAppointments(data);
+        console.log(`✅ Loaded ${data.length} appointments from API`);
+      } else {
+        setAppointments([]);
+        console.warn('⚠️ API returned non-array data');
+      }
+    } catch (err) {
+      console.error('❌ Error fetching appointments:', err);
+      setAppointmentsError(err.message || 'Không thể tải dữ liệu từ API');
+      setAppointments([]);
+    } finally {
+      setLoadingAppointments(false);
+    }
+  };
+
   const [activeChatCustomer, setActiveChatCustomer] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -528,23 +512,37 @@ function AdminDashboard({ onNavigate }) {
   };
 
   const getStatusColor = (status) => {
-    switch(status) {
+    const statusLower = status?.toLowerCase();
+    switch(statusLower) {
       case 'pending': return 'status-pending';
+      case 'accepted':
       case 'confirmed': return 'status-confirmed';
-      case 'in-progress': return 'status-in-progress';
-      case 'completed': return 'status-completed';
+      case 'in-progress':
+      case 'in_progress':
+      case 'inprogress': return 'status-in-progress';
+      case 'completed':
+      case 'done': return 'status-completed';
       case 'waiting': return 'status-waiting';
+      case 'cancelled':
+      case 'canceled': return 'status-cancelled';
       default: return '';
     }
   };
 
   const getStatusText = (status) => {
-    switch(status) {
+    const statusLower = status?.toLowerCase();
+    switch(statusLower) {
       case 'pending': return 'Chờ xác nhận';
+      case 'accepted':
       case 'confirmed': return 'Đã xác nhận';
-      case 'in-progress': return 'Đang thực hiện';
-      case 'completed': return 'Hoàn thành';
+      case 'in-progress':
+      case 'in_progress':
+      case 'inprogress': return 'Đang thực hiện';
+      case 'completed':
+      case 'done': return 'Hoàn thành';
       case 'waiting': return 'Đang chờ';
+      case 'cancelled':
+      case 'canceled': return 'Đã hủy';
       default: return status;
     }
   };
@@ -565,10 +563,6 @@ function AdminDashboard({ onNavigate }) {
 
   return (
     <div className="admin-dashboard">
-      {/* Test div - remove this later */}
-      <div style={{ background: 'red', color: 'white', padding: '20px', textAlign: 'center' }}>
-        Admin Dashboard đã load!
-      </div>
       {/* Header */}
       <div className="admin-header">
         <div className="header-left">
@@ -747,6 +741,18 @@ function AdminDashboard({ onNavigate }) {
                     </div>
                   </div>
                   
+                  {/* ✅ NEW: Cancelled Appointments Card */}
+                  <div className="stat-card cancelled">
+                    <div className="stat-icon">
+                      <FaTimes />
+                    </div>
+                    <div className="stat-info">
+                      <h3>{overviewStats.cancelledAppointments}</h3>
+                      <p>Đã hủy</p>
+                      <span className="stat-detail status-cancelled">Không thực hiện</span>
+                    </div>
+                  </div>
+                  
                   <div className="stat-card completed">
                     <div className="stat-icon">
                       <FaCheckCircle />
@@ -785,22 +791,25 @@ function AdminDashboard({ onNavigate }) {
                       </button>
                     </div>
                     <div className="chart-body">
-                      {Object.keys(overviewStats.revenueData).length > 0 ? (
+                      {Object.keys(overviewStats.revenueData || {}).length > 0 ? (
                         <div className="bar-chart">
                           {Object.entries(overviewStats.revenueData).map(([month, revenue]) => {
-                            const maxRevenue = Math.max(...Object.values(overviewStats.revenueData));
-                            const height = maxRevenue > 0 ? (revenue / maxRevenue) * 100 : 0;
+                            // ✅ Convert to absolute value to avoid negative display
+                            const revenueValue = Math.abs(typeof revenue === 'number' ? revenue : parseFloat(revenue) || 0);
+                            const allValues = Object.values(overviewStats.revenueData).map(v => Math.abs(parseFloat(v) || 0));
+                            const maxRevenue = Math.max(...allValues, 1); // Avoid division by 0
+                            const height = (revenueValue / maxRevenue) * 100;
                             return (
                               <div key={month} className="bar-item">
                                 <div className="bar-wrapper">
                                   <div 
                                     className="bar" 
                                     style={{ height: `${height}%` }}
-                                    title={formatCurrency(revenue)}
+                                    title={formatCurrency(revenueValue)}
                                   ></div>
                                 </div>
-                                <div className="bar-label">{month}</div>
-                                <div className="bar-value">{formatCurrency(revenue)}</div>
+                                <div className="bar-label">{String(month)}</div>
+                                <div className="bar-value">{formatCurrency(revenueValue)}</div>
                               </div>
                             );
                           })}
@@ -820,22 +829,25 @@ function AdminDashboard({ onNavigate }) {
                       <h3><FaChartLine /> Lợi nhuận theo tháng</h3>
                     </div>
                     <div className="chart-body">
-                      {Object.keys(overviewStats.profitData).length > 0 ? (
+                      {Object.keys(overviewStats.profitData || {}).length > 0 ? (
                         <div className="bar-chart">
                           {Object.entries(overviewStats.profitData).map(([month, profit]) => {
-                            const maxProfit = Math.max(...Object.values(overviewStats.profitData));
-                            const height = maxProfit > 0 ? (profit / maxProfit) * 100 : 0;
+                            // ✅ Convert to absolute value to avoid negative display
+                            const profitValue = Math.abs(typeof profit === 'number' ? profit : parseFloat(profit) || 0);
+                            const allValues = Object.values(overviewStats.profitData).map(v => Math.abs(parseFloat(v) || 0));
+                            const maxProfit = Math.max(...allValues, 1); // Avoid division by 0
+                            const height = (profitValue / maxProfit) * 100;
                             return (
                               <div key={month} className="bar-item">
                                 <div className="bar-wrapper">
                                   <div 
                                     className="bar bar-profit" 
                                     style={{ height: `${height}%` }}
-                                    title={formatCurrency(profit)}
+                                    title={formatCurrency(profitValue)}
                                   ></div>
                                 </div>
-                                <div className="bar-label">{month}</div>
-                                <div className="bar-value">{formatCurrency(profit)}</div>
+                                <div className="bar-label">{String(month)}</div>
+                                <div className="bar-value">{formatCurrency(profitValue)}</div>
                               </div>
                             );
                           })}
@@ -869,7 +881,20 @@ function AdminDashboard({ onNavigate }) {
                           </thead>
                           <tbody>
                             {overviewStats.trendingServices.slice(0, 5).map((item, index) => {
-                              const [serviceName, count] = Array.isArray(item) ? item : [item.key, item.value];
+                              // ✅ Handle different data formats from API
+                              let serviceName = 'N/A';
+                              let count = 0;
+                              
+                              if (Array.isArray(item)) {
+                                // Format: [key, value]
+                                serviceName = item[0] || 'N/A';
+                                count = item[1] || 0;
+                              } else if (typeof item === 'object') {
+                                // Format: {key, value} or {serviceType, count}
+                                serviceName = item.key || item.serviceType || item.name || 'N/A';
+                                count = item.value || item.count || 0;
+                              }
+                              
                               return (
                                 <tr key={index}>
                                   <td>{index + 1}</td>
@@ -905,7 +930,20 @@ function AdminDashboard({ onNavigate }) {
                           </thead>
                           <tbody>
                             {overviewStats.trendingServicesLastMonth.slice(0, 5).map((item, index) => {
-                              const [serviceName, count] = Array.isArray(item) ? item : [item.key, item.value];
+                              // ✅ Handle different data formats from API
+                              let serviceName = 'N/A';
+                              let count = 0;
+                              
+                              if (Array.isArray(item)) {
+                                // Format: [key, value]
+                                serviceName = item[0] || 'N/A';
+                                count = item[1] || 0;
+                              } else if (typeof item === 'object') {
+                                // Format: {key, value} or {serviceType, count}
+                                serviceName = item.key || item.serviceType || item.name || 'N/A';
+                                count = item.value || item.count || 0;
+                              }
+                              
                               return (
                                 <tr key={index}>
                                   <td>{index + 1}</td>
@@ -927,24 +965,24 @@ function AdminDashboard({ onNavigate }) {
                   {/* Top Parts Used */}
                   <div className="trending-card">
                     <div className="card-header">
-                      <h3><FaWarehouse /> Top 5 Linh kiện (Tháng trước)</h3>
+                      <h3><FaWarehouse /> Phụ tùng trong kho</h3>
                     </div>
                     <div className="card-body">
-                      {overviewStats.trendingParts && Object.keys(overviewStats.trendingParts).length > 0 ? (
+                      {Array.isArray(overviewStats.trendingParts) && overviewStats.trendingParts.length > 0 ? (
                         <table className="trending-table">
                           <thead>
                             <tr>
                               <th>#</th>
-                              <th>Linh kiện</th>
+                              <th>Phụ tùng</th>
                               <th>Số lượng</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {Object.entries(overviewStats.trendingParts).slice(0, 5).map(([partName, quantity], index) => (
-                              <tr key={index}>
+                            {overviewStats.trendingParts.slice(0, 5).map((part, index) => (
+                              <tr key={part.id || index}>
                                 <td>{index + 1}</td>
-                                <td>{partName}</td>
-                                <td className="count-badge">{quantity}</td>
+                                <td>{part.name || part.partName || 'N/A'}</td>
+                                <td className="count-badge">{part.quantityInStock || part.quantity || 0}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -970,47 +1008,95 @@ function AdminDashboard({ onNavigate }) {
                 <FaSearch />
                 <input
                   type="text"
-                  placeholder="Tìm kiếm khách hàng (tên, email, SĐT, VIN)..."
+                  placeholder="Tìm kiếm khách hàng (tên, email, SĐT)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <button className="add-btn">
+              <button className="add-btn" onClick={handleAddCustomer}>
                 <FaPlus />
                 Thêm khách hàng
               </button>
             </div>
 
-            <div className="customers-grid">
-              {customers.map(customer => (
-                <div key={customer.id} className="customer-card">
-                  <div className="customer-header">
-                    <div className="customer-avatar">
-                      <FaUser />
+            {loadingCustomers && (
+              <div className="loading-message">
+                <p>⏳ Đang tải dữ liệu khách hàng từ API...</p>
+              </div>
+            )}
+
+            {!loadingCustomers && allCustomers.length === 0 && (
+              <div className="empty-message">
+                <p>📭 Chưa có khách hàng nào trong hệ thống</p>
+              </div>
+            )}
+
+            {!loadingCustomers && allCustomers.length > 0 && (
+              <div className="customers-grid">
+                {allCustomers
+                  .filter(customer => 
+                    searchQuery === '' || 
+                    customer.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    customer.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    customer.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    customer.phone?.toLowerCase().includes(searchQuery.toLowerCase())
+                  )
+                  .map(customer => (
+                    <div key={customer.id} className="customer-card">
+                      <div className="customer-header">
+                        <div className="customer-avatar">
+                          <FaUser />
+                        </div>
+                        <div>
+                          <h3>{customer.name || customer.username}</h3>
+                          <p>ID: #{customer.id}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="customer-info">
+                        <div className="info-row">
+                          <FaEnvelope />
+                          <span>{customer.email}</span>
+                        </div>
+                        <div className="info-row">
+                          <FaPhone />
+                          <span>{customer.phone}</span>
+                        </div>
+                        {customer.joinDate && (
+                          <div className="info-row">
+                            <FaCalendarAlt />
+                            <span>Tham gia: {new Date(customer.joinDate).toLocaleDateString('vi-VN')}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="customer-actions">
+                        <button 
+                          className="btn-view"
+                          onClick={() => handleViewCustomer(customer)}
+                          title="Xem chi tiết"
+                        >
+                          <FaEye />
+                        </button>
+                        <button 
+                          className="btn-edit"
+                          onClick={() => handleEditCustomer(customer)}
+                          title="Chỉnh sửa"
+                        >
+                          <FaEdit />
+                        </button>
+                        <button 
+                          className="btn-delete"
+                          onClick={() => handleDeleteCustomer(customer.id)}
+                          title="Xóa"
+                        >
+                          <FaTimes />
+                        </button>
+                      </div>
                     </div>
-                    <div>
-                      <h3>{customer.name}</h3>
-                      <p>ID: #{customer.id}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="customer-info">
-                    <div className="info-row">
-                      <FaEnvelope />
-                      <span>{customer.email}</span>
-                    </div>
-                    <div className="info-row">
-                      <FaPhone />
-                      <span>{customer.phone}</span>
-                    </div>
-                    <div className="info-row">
-                      <FaCalendarAlt />
-                      <span>Tham gia: {new Date(customer.joinDate).toLocaleDateString('vi-VN')}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1101,11 +1187,6 @@ function AdminDashboard({ onNavigate }) {
                           const vehicle = vehicleData.vehicle || vehicleData;
                           const owner = vehicleData.owner || vehicle.owner;
                           
-                          // Tìm lịch sử từ data mẫu (tạm thời)
-                          const carDetail = customers.find(c => 
-                            c.cars.some(car => car.vin === vehicle.vin || car.id === vehicle.id)
-                          )?.cars.find(car => car.vin === vehicle.vin || car.id === vehicle.id);
-                          
                           return (
                             <tr key={vehicle.id}>
                               <td>{index + 1}</td>
@@ -1120,24 +1201,7 @@ function AdminDashboard({ onNavigate }) {
                               <td>{vehicle.year}</td>
                               <td>{vehicle.color}</td>
                               <td>
-                                {carDetail?.serviceHistory ? (
-                                  <div className="service-history">
-                                    <span className="history-count">
-                                      {carDetail.serviceHistory.length} lần bảo trì
-                                    </span>
-                                    {carDetail.serviceHistory.length > 0 && (
-                                      <button 
-                                        className="btn-sm btn-history" 
-                                        title="Xem lịch sử"
-                                        onClick={() => alert(`Lịch sử:\n${carDetail.serviceHistory.map(h => `- ${h.date}: ${h.service} (${formatCurrency(h.cost)})`).join('\n')}`)}
-                                      >
-                                        <FaHistory /> Chi tiết
-                                      </button>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <span className="no-history">Chưa có lịch sử</span>
-                                )}
+                                <span className="no-history">Chưa có API lịch sử</span>
                               </td>
                               <td>
                                 <button 
@@ -1202,72 +1266,138 @@ function AdminDashboard({ onNavigate }) {
               <div className="stat-card pending">
                 <FaClock />
                 <div>
-                  <h4>{appointments.filter(a => a.status === 'pending').length}</h4>
+                  <h4>{appointments.filter(a => a.status?.toLowerCase() === 'pending').length}</h4>
                   <p>Chờ xác nhận</p>
                 </div>
               </div>
               <div className="stat-card confirmed">
                 <FaCheckCircle />
                 <div>
-                  <h4>{appointments.filter(a => a.status === 'confirmed').length}</h4>
+                  <h4>{appointments.filter(a => {
+                    const s = a.status?.toLowerCase();
+                    return s === 'accepted' || s === 'confirmed';
+                  }).length}</h4>
                   <p>Đã xác nhận</p>
                 </div>
               </div>
               <div className="stat-card in-progress">
                 <FaTools />
                 <div>
-                  <h4>{appointments.filter(a => a.status === 'in-progress').length}</h4>
+                  <h4>{appointments.filter(a => {
+                    const s = a.status?.toLowerCase();
+                    return s === 'in_progress' || s === 'in-progress' || s === 'inprogress';
+                  }).length}</h4>
                   <p>Đang thực hiện</p>
                 </div>
               </div>
               <div className="stat-card completed">
                 <FaCheckCircle />
                 <div>
-                  <h4>{appointments.filter(a => a.status === 'completed').length}</h4>
+                  <h4>{appointments.filter(a => {
+                    const s = a.status?.toLowerCase();
+                    return s === 'completed' || s === 'done';
+                  }).length}</h4>
                   <p>Hoàn thành</p>
                 </div>
               </div>
             </div>
 
-            <div className="appointments-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Khách hàng</th>
-                    <th>Xe</th>
-                    <th>Dịch vụ</th>
-                    <th>Ngày giờ</th>
-                    <th>Kỹ thuật viên</th>
-                    <th>Trạng thái</th>
-                    <th>Hành động</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {appointments.map(apt => (
-                    <tr key={apt.id}>
-                      <td>#{apt.id}</td>
-                      <td>{apt.customerName}</td>
-                      <td>{apt.carInfo}</td>
-                      <td>{apt.service}</td>
-                      <td>{apt.date} {apt.time}</td>
-                      <td>{apt.technician || 'Chưa phân công'}</td>
-                      <td>
-                        <span className={`status-badge ${getStatusColor(apt.status)}`}>
-                          {getStatusText(apt.status)}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="action-buttons-small">
-                          <button className="btn-edit"><FaEdit /></button>
-                          <button className="btn-assign"><FaUserTie /></button>
-                        </div>
-                      </td>
+            {loadingAppointments && (
+              <div className="loading-message">
+                <p>⏳ Đang tải dữ liệu lịch hẹn từ API...</p>
+              </div>
+            )}
+
+            {!loadingAppointments && appointmentsError && (
+              <div className="error-message">
+                <p>❌ Lỗi: {appointmentsError}</p>
+                <button onClick={fetchAppointments} className="btn-retry">
+                  🔄 Thử lại
+                </button>
+              </div>
+            )}
+
+            {!loadingAppointments && !appointmentsError && appointments.length === 0 && (
+              <div className="empty-message">
+                <p>📭 Chưa có lịch hẹn nào trong hệ thống</p>
+              </div>
+            )}
+
+            {!loadingAppointments && !appointmentsError && appointments.length > 0 && (
+              <div className="appointments-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Khách hàng</th>
+                      <th>Xe</th>
+                      <th>Dịch vụ</th>
+                      <th>Ngày giờ</th>
+                      <th>Kỹ thuật viên</th>
+                      <th>Trạng thái</th>
+                      <th>Hành động</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {appointments.map(apt => {
+                      // Map AppointmentAllFieldsDto from API
+                      // API fields: appointmentId, customerId, vehicleId, centerId, appoimentDate (typo in API), 
+                      // status, createAt, fullName, email, phone, serviceType
+                      const appointmentId = apt.appointmentId || apt.id;
+                      const customerName = apt.fullName || apt.customerName || 'N/A';
+                      const customerEmail = apt.email || '';
+                      const customerPhone = apt.phone || '';
+                      
+                      // For vehicle info, we need to fetch separately or use vehicleId
+                      const vehicleInfo = apt.vehicleId ? `Xe #${apt.vehicleId}` : 'N/A';
+                      
+                      const serviceType = apt.serviceType || apt.service || 'Bảo dưỡng';
+                      
+                      // Handle API typo: "appoimentDate" instead of "appointmentDate"
+                      const appointmentDate = apt.appoimentDate || apt.appointmentDate;
+                      const formattedDate = appointmentDate
+                        ? new Date(appointmentDate).toLocaleString('vi-VN', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : 'N/A';
+                      
+                      const technicians = 'Chưa phân công'; // API doesn't return technicians in this endpoint
+                      
+                      return (
+                        <tr key={appointmentId}>
+                          <td>#{appointmentId}</td>
+                          <td>
+                            <div>
+                              <div><strong>{customerName}</strong></div>
+                              {customerPhone && <div style={{fontSize: '0.85em', color: '#666'}}>📞 {customerPhone}</div>}
+                            </div>
+                          </td>
+                          <td>{vehicleInfo}</td>
+                          <td>{serviceType}</td>
+                          <td>{formattedDate}</td>
+                          <td>{technicians}</td>
+                          <td>
+                            <span className={`status-badge ${getStatusColor(apt.status)}`}>
+                              {getStatusText(apt.status)}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="action-buttons-small">
+                              <button className="btn-edit" title="Chỉnh sửa"><FaEdit /></button>
+                              <button className="btn-assign" title="Phân công"><FaUserTie /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
@@ -1284,71 +1414,81 @@ function AdminDashboard({ onNavigate }) {
               </div>
             </div>
 
-            <div className="maintenance-stats">
-              <div className="stat-card waiting">
-                <FaClock />
-                <div>
-                  <h4>{maintenanceList.filter(m => m.status === 'waiting').length}</h4>
-                  <p>Đang chờ</p>
-                </div>
+            {maintenanceList.length === 0 ? (
+              <div className="empty-message" style={{padding: '60px 20px', textAlign: 'center'}}>
+                <FaTools size={60} style={{color: '#ccc', marginBottom: '20px'}} />
+                <h3>Chưa có API quy trình bảo dưỡng</h3>
+                <p>Backend chưa cung cấp endpoint cho tab này</p>
               </div>
-              <div className="stat-card in-progress">
-                <FaTools />
-                <div>
-                  <h4>{maintenanceList.filter(m => m.status === 'in-progress').length}</h4>
-                  <p>Đang làm</p>
-                </div>
-              </div>
-              <div className="stat-card completed">
-                <FaCheckCircle />
-                <div>
-                  <h4>{maintenanceList.filter(m => m.status === 'completed').length}</h4>
-                  <p>Hoàn tất</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="maintenance-cards">
-              {maintenanceList.map(item => (
-                <div key={item.id} className="maintenance-card">
-                  <div className="maintenance-header">
+            ) : (
+              <>
+                <div className="maintenance-stats">
+                  <div className="stat-card waiting">
+                    <FaClock />
                     <div>
-                      <h3>{item.ticketNumber}</h3>
-                      <p>{item.customerName} - {item.carInfo}</p>
-                    </div>
-                    <span className={`status-badge ${getStatusColor(item.status)}`}>
-                      {getStatusText(item.status)}
-                    </span>
-                  </div>
-                  
-                  <div className="maintenance-info">
-                    <div className="info-item">
-                      <FaUser />
-                      <span>KT viên: {item.technician}</span>
-                    </div>
-                    <div className="info-item">
-                      <FaClock />
-                      <span>Thời gian: {item.estimatedTime}</span>
+                      <h4>{maintenanceList.filter(m => m.status === 'waiting').length}</h4>
+                      <p>Đang chờ</p>
                     </div>
                   </div>
-
-                  <div className="checklist-summary">
-                    <h4>Checklist tiến độ</h4>
-                    <div className="progress-bar">
-                      <div 
-                        className="progress-fill"
-                        style={{
-                          width: `${(item.checklist.filter(c => c.status === 'completed').length / item.checklist.length) * 100}%`
-                        }}
-                      />
+                  <div className="stat-card in-progress">
+                    <FaTools />
+                    <div>
+                      <h4>{maintenanceList.filter(m => m.status === 'in-progress').length}</h4>
+                      <p>Đang làm</p>
                     </div>
-                    <p>
-                      {item.checklist.filter(c => c.status === 'completed').length} / {item.checklist.length} hoàn thành
-                    </p>
+                  </div>
+                  <div className="stat-card completed">
+                    <FaCheckCircle />
+                    <div>
+                      <h4>{maintenanceList.filter(m => m.status === 'completed').length}</h4>
+                      <p>Hoàn tất</p>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+
+                <div className="maintenance-cards">
+                  {maintenanceList.map(item => (
+                    <div key={item.id} className="maintenance-card">
+                      <div className="maintenance-header">
+                        <div>
+                          <h3>{item.ticketNumber}</h3>
+                          <p>{item.customerName} - {item.carInfo}</p>
+                        </div>
+                        <span className={`status-badge ${getStatusColor(item.status)}`}>
+                          {getStatusText(item.status)}
+                        </span>
+                      </div>
+                      
+                      <div className="maintenance-info">
+                        <div className="info-item">
+                          <FaUser />
+                          <span>KT viên: {item.technician}</span>
+                        </div>
+                        <div className="info-item">
+                          <FaClock />
+                          <span>Thời gian: {item.estimatedTime}</span>
+                        </div>
+                      </div>
+
+                      <div className="checklist-summary">
+                        <h4>Checklist tiến độ</h4>
+                        <div className="progress-bar">
+                          <div 
+                            className="progress-fill"
+                            style={{
+                              width: `${(item.checklist.filter(c => c.status === 'completed').length / item.checklist.length) * 100}%`
+                            }}
+                          />
+                        </div>
+                        <p>
+                          {item.checklist.filter(c => c.status === 'completed').length} / {item.checklist.length} hoàn thành
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -1369,68 +1509,92 @@ function AdminDashboard({ onNavigate }) {
               </button>
             </div>
 
-            <div className="parts-stats">
-              <div className="stat-card">
-                <FaWarehouse />
-                <div>
-                  <h4>{partsList.length}</h4>
-                  <p>Tổng phụ tùng</p>
-                </div>
+            {loadingParts ? (
+              <div className="loading-message">
+                <p>⏳ Đang tải dữ liệu phụ tùng từ API...</p>
               </div>
-              <div className="stat-card">
-                <FaRobot />
-                <div>
-                  <h4>AI Gợi ý</h4>
-                  <p>Đề xuất tối ưu tồn kho</p>
-                </div>
+            ) : partsList.length === 0 ? (
+              <div className="empty-message" style={{padding: '60px 20px', textAlign: 'center'}}>
+                <FaWarehouse size={60} style={{color: '#ccc', marginBottom: '20px'}} />
+                <h3>Chưa có phụ tùng nào trong kho</h3>
+                <p>Bấm "Thêm phụ tùng" để thêm phụ tùng mới</p>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="parts-stats">
+                  <div className="stat-card">
+                    <FaWarehouse />
+                    <div>
+                      <h4>{partsList.length}</h4>
+                      <p>Tổng phụ tùng</p>
+                    </div>
+                  </div>
+                  <div className="stat-card">
+                    <FaRobot />
+                    <div>
+                      <h4>AI Gợi ý</h4>
+                      <p>Đề xuất tối ưu tồn kho</p>
+                    </div>
+                  </div>
+                </div>
 
-            <div className="parts-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Mã phụ tùng</th>
-                    <th>Tên</th>
-                    <th>Danh mục</th>
-                    <th>Tồn kho</th>
-                    <th>Tồn tối thiểu</th>
-                    <th>AI Đề xuất</th>
-                    <th>Trạng thái</th>
-                    <th>Hành động</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {partsList.map(part => (
-                    <tr key={part.id}>
-                      <td>{part.id}</td>
-                      <td>{part.name}</td>
-                      <td>{part.category}</td>
-                      <td>{part.stock}</td>
-                      <td>{part.minStock}</td>
-                      <td>
-                        <div className="ai-recommendation">
-                          <FaRobot />
-                          <div>
-                            <strong>{part.aiRecommendation.suggestedMinStock}</strong>
-                            <p>{part.aiRecommendation.reason}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`stock-badge ${part.status}`}>
-                          {part.status === 'in-stock' ? 'Còn hàng' : 
-                           part.status === 'low-stock' ? 'Sắp hết' : 'Hết hàng'}
-                        </span>
-                      </td>
-                      <td>
-                        <button className="btn-edit"><FaEdit /></button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                <div className="parts-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Mã phụ tùng</th>
+                        <th>Tên</th>
+                        <th>Danh mục</th>
+                        <th>Tồn kho</th>
+                        <th>Tồn tối thiểu</th>
+                        <th>AI Đề xuất</th>
+                        <th>Trạng thái</th>
+                        <th>Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {partsList.map(part => {
+                        const stock = part.quantityInStock || part.stock || 0;
+                        const minStock = part.minimumStock || part.minStock || 10;
+                        const status = stock === 0 ? 'out-stock' : stock < minStock ? 'low-stock' : 'in-stock';
+                        
+                        return (
+                          <tr key={part.id || part.partId}>
+                            <td>{part.id || part.partId}</td>
+                            <td>{part.name || part.partName || 'N/A'}</td>
+                            <td>{part.category || part.categoryName || 'Chưa phân loại'}</td>
+                            <td><strong>{stock}</strong></td>
+                            <td>{minStock}</td>
+                            <td>
+                              {part.aiRecommendation ? (
+                                <div className="ai-recommendation">
+                                  <FaRobot />
+                                  <div>
+                                    <strong>{part.aiRecommendation.suggestedMinStock}</strong>
+                                    <p>{part.aiRecommendation.reason}</p>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span style={{color: '#999'}}>Chưa có đề xuất</span>
+                              )}
+                            </td>
+                            <td>
+                              <span className={`stock-badge ${status}`}>
+                                {status === 'in-stock' ? 'Còn hàng' : 
+                                 status === 'low-stock' ? 'Sắp hết' : 'Hết hàng'}
+                              </span>
+                            </td>
+                            <td>
+                              <button className="btn-edit" title="Chỉnh sửa"><FaEdit /></button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -1451,8 +1615,15 @@ function AdminDashboard({ onNavigate }) {
               </button>
             </div>
 
-            <div className="staff-grid">
-              {staffList.map(staff => (
+            {staffList.length === 0 ? (
+              <div className="empty-message" style={{padding: '60px 20px', textAlign: 'center'}}>
+                <FaUsers size={60} style={{color: '#ccc', marginBottom: '20px'}} />
+                <h3>Chưa có API quản lý nhân sự</h3>
+                <p>Backend chưa cung cấp endpoint cho tab này</p>
+              </div>
+            ) : (
+              <div className="staff-grid">
+                {staffList.map(staff => (
                 <div key={staff.id} className="staff-card">
                   <div className="staff-header">
                     <div className="staff-avatar">
@@ -1519,14 +1690,23 @@ function AdminDashboard({ onNavigate }) {
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* Finance & Reports Tab */}
         {activeTab === 'finance' && (
           <div className="finance-section">
-            <div className="finance-stats">
+            {financialData.serviceStats.length === 0 ? (
+              <div className="empty-message" style={{padding: '60px 20px', textAlign: 'center'}}>
+                <FaMoneyBillWave size={60} style={{color: '#ccc', marginBottom: '20px'}} />
+                <h3>Chưa có API tài chính & báo cáo</h3>
+                <p>Backend chưa cung cấp endpoint cho tab này</p>
+              </div>
+            ) : (
+              <>
+                <div className="finance-stats">
               <div className="stat-card revenue">
                 <FaMoneyBillWave />
                 <div>
@@ -1588,13 +1768,22 @@ function AdminDashboard({ onNavigate }) {
                 </div>
               </div>
             </div>
+              </>
+            )}
           </div>
         )}
 
         {/* Chat Tab */}
         {activeTab === 'chat' && (
           <div className="chat-section">
-            <div className="chat-layout">
+            {chatCustomers.length === 0 ? (
+              <div className="empty-message" style={{padding: '60px 20px', textAlign: 'center'}}>
+                <FaComments size={60} style={{color: '#ccc', marginBottom: '20px'}} />
+                <h3>Chưa có API chat</h3>
+                <p>Backend chưa cung cấp endpoint cho tab này</p>
+              </div>
+            ) : (
+              <div className="chat-layout">
               <div className="chat-list">
                 <h3>Tin nhắn</h3>
                 <div className="chat-items">
@@ -1666,6 +1855,7 @@ function AdminDashboard({ onNavigate }) {
                 )}
               </div>
             </div>
+            )}
           </div>
         )}
       </div>
@@ -1796,6 +1986,102 @@ function AdminDashboard({ onNavigate }) {
                     disabled={savingVehicle}
                   >
                     {savingVehicle ? '⏳ Đang lưu...' : (modalMode === 'add' ? '✅ Thêm xe' : '💾 Lưu thay đổi')}
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🧑 Customer Modal */}
+      {showCustomerModal && (
+        <div className="modal-overlay" onClick={() => setShowCustomerModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>
+                {customerModalMode === 'add' && '➕ Thêm khách hàng mới'}
+                {customerModalMode === 'edit' && '✏️ Chỉnh sửa khách hàng'}
+                {customerModalMode === 'view' && '👁️ Chi tiết khách hàng'}
+              </h2>
+              <button className="close-btn" onClick={() => setShowCustomerModal(false)}>
+                <FaTimes />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => { e.preventDefault(); handleSaveCustomer(); }}>
+              <div className="form-group">
+                <label>Họ tên</label>
+                <input
+                  type="text"
+                  placeholder="VD: Nguyễn Văn A"
+                  value={customerFormData.name}
+                  onChange={(e) => setCustomerFormData({...customerFormData, name: e.target.value})}
+                  disabled={customerModalMode === 'view'}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Tên đăng nhập <span className="required">*</span></label>
+                <input
+                  type="text"
+                  placeholder="VD: nguyenvana"
+                  value={customerFormData.username}
+                  onChange={(e) => setCustomerFormData({...customerFormData, username: e.target.value})}
+                  required
+                  disabled={customerModalMode === 'view'}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Email <span className="required">*</span></label>
+                <input
+                  type="email"
+                  placeholder="VD: nguyenvana@email.com"
+                  value={customerFormData.email}
+                  onChange={(e) => setCustomerFormData({...customerFormData, email: e.target.value})}
+                  required
+                  disabled={customerModalMode === 'view'}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Số điện thoại</label>
+                <input
+                  type="tel"
+                  placeholder="VD: 0901234567"
+                  value={customerFormData.phone}
+                  onChange={(e) => setCustomerFormData({...customerFormData, phone: e.target.value})}
+                  disabled={customerModalMode === 'view'}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Địa chỉ</label>
+                <textarea
+                  placeholder="VD: 123 Đường ABC, Quận 1, TP.HCM"
+                  value={customerFormData.address}
+                  onChange={(e) => setCustomerFormData({...customerFormData, address: e.target.value})}
+                  rows="3"
+                  disabled={customerModalMode === 'view'}
+                />
+              </div>
+
+              <div className="form-actions">
+                <button 
+                  type="button" 
+                  className="btn-cancel"
+                  onClick={() => setShowCustomerModal(false)}
+                >
+                  {customerModalMode === 'view' ? 'Đóng' : 'Hủy'}
+                </button>
+                {customerModalMode !== 'view' && (
+                  <button 
+                    type="submit" 
+                    className="btn-save"
+                    disabled={savingCustomer}
+                  >
+                    {savingCustomer ? '⏳ Đang lưu...' : (customerModalMode === 'add' ? '✅ Thêm khách hàng' : '💾 Lưu thay đổi')}
                   </button>
                 )}
               </div>
