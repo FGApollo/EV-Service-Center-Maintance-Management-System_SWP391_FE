@@ -185,14 +185,18 @@ function AdminDashboard({ onNavigate }) {
       console.log('🔄 Fetching customers from API...');
       const data = await API.getAllCustomers();
       console.log('📦 Raw API Response:', data);
-      console.log(`✅ Loaded ${data.length} customers from API`);
+      console.log('📦 Data type:', typeof data);
+      console.log('📦 Is array?', Array.isArray(data));
+      console.log(`✅ Loaded ${data?.length || 0} customers from API`);
       
       // Log chi tiết từng customer để kiểm tra data
-      if (data.length > 0) {
+      if (data && data.length > 0) {
         console.log('👤 First customer sample:', data[0]);
+        console.log('👤 Customer fields:', Object.keys(data[0]));
       }
       
-      setAllCustomers(data);
+      setAllCustomers(data || []);
+      console.log('✅ State updated with customers');
     } catch (err) {
       console.error('❌ Error loading customers:', err);
       console.error('❌ Error details:', err.response?.data || err.message);
@@ -1061,6 +1065,7 @@ function AdminDashboard({ onNavigate }) {
                 {allCustomers
                   .filter(customer => 
                     searchQuery === '' || 
+                    customer.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     customer.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     customer.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     customer.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1073,7 +1078,7 @@ function AdminDashboard({ onNavigate }) {
                           <FaUser />
                         </div>
                         <div>
-                          <h3>{customer.name || customer.username}</h3>
+                          <h3>{customer.fullName || customer.name || customer.username}</h3>
                           <p>ID: #{customer.id}</p>
                         </div>
                       </div>
@@ -1218,7 +1223,7 @@ function AdminDashboard({ onNavigate }) {
                               <td>
                                 <div className="vehicle-info">
                                   <strong>{vehicle.model}</strong>
-                                  {owner && <p className="owner-name">👤 {owner.name || owner.username}</p>}
+                                  {owner && <p className="owner-name">👤 {owner.fullName || owner.name || owner.username}</p>}
                                 </div>
                               </td>
                               <td><code>{vehicle.vin}</code></td>
@@ -1915,7 +1920,7 @@ function AdminDashboard({ onNavigate }) {
                     </option>
                     {allCustomers.map(customer => (
                       <option key={customer.id} value={customer.id}>
-                        {customer.name || customer.username} ({customer.email})
+                        {customer.fullName || customer.name || customer.username} ({customer.email})
                       </option>
                     ))}
                   </select>
@@ -1929,7 +1934,7 @@ function AdminDashboard({ onNavigate }) {
 
               {modalMode === 'view' && selectedVehicle?.owner && (
                 <div className="info-display">
-                  <strong>👤 Chủ xe:</strong> {selectedVehicle.owner.name || selectedVehicle.owner.username}
+                  <strong>👤 Chủ xe:</strong> {selectedVehicle.owner.fullName || selectedVehicle.owner.name || selectedVehicle.owner.username}
                   <br />
                   <strong>📧 Email:</strong> {selectedVehicle.owner.email}
                 </div>
