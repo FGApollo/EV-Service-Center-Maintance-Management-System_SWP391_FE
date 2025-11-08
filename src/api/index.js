@@ -35,7 +35,10 @@ export const getProfile = async () => {
 
 // PUT /api/update/{id} - Cập nhật thông tin user
 export const updateUser = async (id, data) => {
+  console.log('📤 API Request: PUT /api/update/' + id);
+  console.log('📤 Request Data:', data);
   const res = await axiosClient.put(`/api/update/${id}`, data);
+  console.log('📥 API Response:', res.data);
   return res.data;
 };
 
@@ -47,7 +50,10 @@ export const getUsersByRole = async (role) => {
 
 // GET /api/users/all_customer - Lấy tất cả customers
 export const getAllCustomers = async () => {
+  console.log('📤 API Request: GET /api/users/all_customer');
   const res = await axiosClient.get("/api/users/all_customer");
+  console.log('📥 API Response:', res.data);
+  console.log('📊 Total customers:', res.data?.length || 0);
   return res.data;
 };
 

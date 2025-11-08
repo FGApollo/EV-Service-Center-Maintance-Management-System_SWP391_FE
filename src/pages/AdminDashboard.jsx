@@ -184,10 +184,18 @@ function AdminDashboard({ onNavigate }) {
       setLoadingCustomers(true);
       console.log('🔄 Fetching customers from API...');
       const data = await API.getAllCustomers();
-      setAllCustomers(data);
+      console.log('📦 Raw API Response:', data);
       console.log(`✅ Loaded ${data.length} customers from API`);
+      
+      // Log chi tiết từng customer để kiểm tra data
+      if (data.length > 0) {
+        console.log('👤 First customer sample:', data[0]);
+      }
+      
+      setAllCustomers(data);
     } catch (err) {
       console.error('❌ Error loading customers:', err);
+      console.error('❌ Error details:', err.response?.data || err.message);
       setAllCustomers([]);
     } finally {
       setLoadingCustomers(false);
@@ -386,13 +394,24 @@ function AdminDashboard({ onNavigate }) {
     try {
       if (customerModalMode === 'edit' && selectedCustomer) {
         // Cập nhật khách hàng
-        await API.updateUser(selectedCustomer.id, {
-          name: customerFormData.name,
-          username: customerFormData.username,
+        console.log('🔄 Updating customer:', selectedCustomer.id, customerFormData);
+        const response = await API.updateUser(selectedCustomer.id, {
+          fullName: customerFormData.name, // Backend expects 'fullName' not 'name'
           email: customerFormData.email,
-          phone: customerFormData.phone,
-          address: customerFormData.address
+          phone: customerFormData.phone
+          // Note: username and address không được hỗ trợ bởi backend API
         });
+        console.log('✅ Update response:', response);
+        
+        // Cập nhật state ngay lập tức thay vì fetch lại
+        setAllCustomers(prevCustomers => 
+          prevCustomers.map(c => 
+            c.id === selectedCustomer.id 
+              ? { ...c, ...customerFormData }
+              : c
+          )
+        );
+        
         alert('✅ Cập nhật khách hàng thành công!');
       } else if (customerModalMode === 'add') {
         // Tính năng thêm khách hàng - cần API endpoint
@@ -403,7 +422,13 @@ function AdminDashboard({ onNavigate }) {
       }
       
       setShowCustomerModal(false);
-      fetchCustomers(); // Reload danh sách
+      // Fetch lại để đảm bảo đồng bộ với server
+      console.log('🔄 Force refresh customer list...');
+      
+      // Đợi 500ms để backend xử lý xong
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      await fetchCustomers();
     } catch (err) {
       console.error('❌ Error saving customer:', err);
       alert(`❌ Lỗi: ${err.message || 'Không thể lưu khách hàng'}`);
