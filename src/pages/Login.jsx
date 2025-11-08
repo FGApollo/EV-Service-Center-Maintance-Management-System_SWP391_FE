@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import "./Login.css";
-import { login, register } from "../api"; // ✅ import từ API thật
+import { login, register } from "../api/index.js"; // ✅ Quay về named import
 
 function Login({ onNavigate, onLogin }) {
   const [formData, setFormData] = useState({
@@ -69,8 +69,7 @@ function Login({ onNavigate, onLogin }) {
             phone: userInfo.phone || '',
             address: userInfo.address || '',
             avatar: userInfo.avatar || null,
-            role: userInfo.role || 'customer',
-            center_id: userInfo.center_id || userInfo.centerId || null
+            role: userInfo.role || 'customer'
           };
           
           console.log("💾 Lưu user data vào localStorage:", userData);

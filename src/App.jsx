@@ -10,6 +10,7 @@ import MyCar from "./pages/MyCar.jsx";
 import StaffDashboard from "./pages/StaffDashboard.jsx";
 import TechnicianDashboard from "./pages/TechnicianDashboard.jsx";
 import Footer from "./components/Footer.jsx";
+import AdminDashboard from './pages/AdminDashboard.jsx';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -76,9 +77,10 @@ function App() {
   };
 
   const renderPage = () => {
-    switch(currentPage) {
+    console.log('Current page:', currentPage);
+    switch (currentPage) {
       case 'login':
-        return <Login onNavigate={handleNavigate} onLogin={handleLogin} />;
+        return <Login onNavigate={setCurrentPage} onLogin={handleLogin} />;
       case 'booking':
         return <BookingPage onNavigate={handleNavigate} onNavigateToPayment={handleNavigateToPayment} prefilledVehicle={selectedVehicle} />;
       case 'payment':
@@ -86,30 +88,40 @@ function App() {
       case 'payment-return':
         return <PaymentReturnPage onNavigate={handleNavigate} />;
       case 'profile':
-        return <Profile onNavigate={handleNavigate} />;
+        return <Profile onNavigate={setCurrentPage} />;
       case 'mycar':
-        return <MyCar onNavigate={handleNavigate} onNavigateWithVehicle={handleNavigateWithVehicle} />;
+        return <MyCar onNavigate={setCurrentPage} />;
       case 'staff':
-        return <StaffDashboard onNavigate={handleNavigate} />;
+        return <StaffDashboard onNavigate={setCurrentPage} />;
       case 'technician':
-        return <TechnicianDashboard onNavigate={handleNavigate} />;
+        return <TechnicianDashboard onNavigate={setCurrentPage} />;
+      case 'admin':
+        console.log('Rendering AdminDashboard...');
+        return <AdminDashboard onNavigate={setCurrentPage} />;
       case 'home':
       default:
-        return (
-          <>
-            <Navbar onNavigate={handleNavigate} isLoggedIn={isLoggedIn} onLogout={() => { setIsLoggedIn(false); setUser(null); localStorage.removeItem('token'); localStorage.removeItem('user'); }} user={user} />
-            <main>
-              <Home onNavigate={handleNavigate} />
-            </main>
-            <Footer onNavigate={handleNavigate} />
-          </>
-        );
+        return <Home onNavigate={setCurrentPage} />;
     }
   };
 
   return (
     <div className="App">
-      {renderPage()}
+      <Navbar 
+        onNavigate={setCurrentPage} 
+        isLoggedIn={isLoggedIn} 
+        onLogout={() => { 
+          setIsLoggedIn(false); 
+          setUser(null); 
+          localStorage.removeItem('token'); 
+          localStorage.removeItem('user');
+          setCurrentPage('home');
+        }} 
+        user={user} 
+      />
+      <main>
+        {renderPage()}
+      </main>
+      <Footer onNavigate={setCurrentPage} />
     </div>
   );
 }

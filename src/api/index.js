@@ -15,6 +15,10 @@ export const login = async (data) => {
   const res = await axiosClient.post("/api/auth/login", data);
   if (res.data?.token) {
     localStorage.setItem("token", res.data.token);
+    if (res.data?.role) localStorage.setItem("role", res.data.role);
+    if (res.data?.fullName) localStorage.setItem("fullName", res.data.fullName);
+    if (res.data?.id) localStorage.setItem("userId", res.data.id);
+    if (res.data?.centerId) localStorage.setItem("centerId", res.data.centerId);
   }
   return res.data;
 };
@@ -23,21 +27,64 @@ export const login = async (data) => {
    👤 USER PROFILE
 ---------------------------------- */
 
-// Cập nhật hồ sơ (✅ Cần token)
-export const updateProfile = async (userId, data) => {
-  const res = await axiosClient.put(`/api/update/${userId}`, data);
-  return res.data;
-};
-
 // Xem hồ sơ người dùng (✅ Cần token)
 export const getProfile = async () => {
   const res = await axiosClient.get("/api/profile");
   return res.data;
 };
 
+// Cập nhật thông tin user (✅ Cần token)
+export const updateUser = async (id, data) => {
+  console.log('📤 API Request: PUT /api/update/' + id);
+  console.log('📤 Request Data:', data);
+  const res = await axiosClient.put(`/api/update/${id}`, data);
+  console.log('📥 API Response:', res.data);
+  return res.data;
+};
+
+// Cập nhật hồ sơ (✅ Cần token) - Alias for backward compatibility
+export const updateProfile = async (userId, data) => {
+  return updateUser(userId, data);
+};
+
 // Đổi mật khẩu (✅ Cần token)
 export const changePassword = async (data) => {
   const res = await axiosClient.post("/api/auth/change-password", data);
+  return res.data;
+};
+
+// Lấy danh sách users theo role (✅ Cần token)
+export const getUsersByRole = async (role) => {
+  const res = await axiosClient.get("/api/users", { params: { role } });
+  return res.data;
+};
+
+// Lấy tất cả customers (✅ Cần token - Admin/Staff)
+export const getAllCustomers = async () => {
+  console.log('📤 API Request: GET /api/users/all_customer');
+  const res = await axiosClient.get("/api/users/all_customer");
+  console.log('📥 API Response:', res.data);
+  console.log('📊 Total customers:', res.data?.length || 0);
+  return res.data;
+};
+
+// Lấy danh sách technicians (✅ Cần token)
+export const getAllTechnicians = async () => {
+  const res = await axiosClient.get("/api/users/allTechnicians");
+  return res.data;
+};
+
+// Tạo employee mới (Admin/Staff) (✅ Cần token)
+export const createEmployee = async (role, data) => {
+  const res = await axiosClient.post("/api/users/employees", data, {
+    params: { role }
+  });
+  return res.data;
+};
+
+// Xóa employee (✅ Cần token)
+export const deleteEmployee = async (id) => {
+  const res = await axiosClient.delete(`/api/users/${id}`);
   return res.data;
 };
 
@@ -84,6 +131,18 @@ export const addVehicle = async (data) => {
 // Xóa xe (✅)
 export const deleteVehicle = async (id) => {
   const res = await axiosClient.delete(`/api/vehicles/${id}`);
+  return res.data;
+};
+
+// Lấy danh sách xe đã bảo dưỡng (với thông tin owner) (✅ Cần token)
+export const getVehiclesMaintained = async () => {
+  const res = await axiosClient.get("/api/vehicles/maintained");
+  return res.data;
+};
+
+// Lấy lịch hẹn gần nhất của xe (✅)
+export const getLatestAppointment = async (vehicleId) => {
+  const res = await axiosClient.get(`/api/vehicles/${vehicleId}/appointments/latest_time`);
   return res.data;
 };
 
@@ -204,6 +263,26 @@ export const createAppointment = async (data) => {
   return res.data;
 };
 
+// Lấy tất cả appointments (Admin) (✅ Cần token)
+export const getAllAppointments = async () => {
+  const res = await axiosClient.get("/api/appointments/all");
+  return res.data;
+};
+
+// Lấy appointment đã hoàn thành theo ID (✅ Cần token)
+export const getAppointmentDone = async (id) => {
+  const res = await axiosClient.get(`/api/appointments/status/${id}`);
+  return res.data;
+};
+
+// Lấy appointments của staff (✅ Cần token)
+export const getAppointmentsByStaff = async (staffId) => {
+  const res = await axiosClient.get("/api/appointments/staff", {
+    params: { id: staffId }
+  });
+  return res.data;
+};
+
 // Staff: Chấp nhận lịch hẹn (pending → confirmed) (✅)
 export const acceptAppointment = async (appointmentId) => {
   const res = await axiosClient.put(`/api/appointments/${appointmentId}/accept`);
@@ -213,6 +292,18 @@ export const acceptAppointment = async (appointmentId) => {
 // Staff: Hủy lịch hẹn (✅)
 export const cancelAppointment = async (appointmentId) => {
   const res = await axiosClient.put(`/api/appointments/${appointmentId}/cancel`);
+  return res.data;
+};
+
+// Chuyển trạng thái sang In Progress (✅ Cần token)
+export const inProgressAppointment = async (id, technicianIds) => {
+  const res = await axiosClient.put(`/api/appointments/${id}/inProgress`, technicianIds);
+  return res.data;
+};
+
+// Hoàn thành lịch hẹn (✅ Cần token)
+export const doneAppointment = async (id, maintenanceData) => {
+  const res = await axiosClient.put(`/api/appointments/${id}/done`, maintenanceData);
   return res.data;
 };
 
@@ -452,10 +543,202 @@ export const verifyMoMoPayment = async (callbackData) => {
 };
 
 /* --------------------------------
+   🔧 PARTS APIs
+---------------------------------- */
+
+// Lấy tất cả parts (✅ Cần token)
+export const getAllParts = async () => {
+  const res = await axiosClient.get("/api/auth/parts");
+  return res.data;
+};
+
+// Lấy part theo ID (✅ Cần token)
+export const getPartById = async (id) => {
+  const res = await axiosClient.get(`/api/auth/parts/${id}`);
+  return res.data;
+};
+
+// Tạo part mới (✅ Cần token)
+export const createPart = async (data) => {
+  const res = await axiosClient.post("/api/auth/parts/create", data);
+  return res.data;
+};
+
+// Cập nhật part (✅ Cần token)
+export const updatePart = async (id, data) => {
+  const res = await axiosClient.put(`/api/auth/parts/update/${id}`, data);
+  return res.data;
+};
+
+// Xóa part (✅ Cần token)
+export const deletePart = async (id) => {
+  const res = await axiosClient.delete(`/api/auth/parts/delete/${id}`);
+  return res.data;
+};
+
+// Sử dụng part (✅ Cần token)
+export const usePart = async (data) => {
+  const res = await axiosClient.post("/api/technician/part_usage", data);
+  return res.data;
+};
+
+/* --------------------------------
+   📋 MAINTENANCE RECORD APIs
+---------------------------------- */
+
+// Tạo maintenance record (✅ Cần token)
+export const createMaintenanceRecord = async (appointmentId, data) => {
+  const res = await axiosClient.post(`/MaintainanceRecord/${appointmentId}`, data);
+  return res.data;
+};
+
+// Lấy tất cả maintenance records (✅ Cần token)
+export const getAllMaintenanceRecords = async () => {
+  const res = await axiosClient.get("/MaintainanceRecord/all");
+  return res.data;
+};
+
+// Lấy maintenance records theo center (✅ Cần token)
+export const getMaintenanceRecordsByCenter = async () => {
+  const res = await axiosClient.get("/MaintainanceRecord/all/serviceCenter");
+  return res.data;
+};
+
+// Lấy maintenance records theo staff (✅ Cần token)
+export const getMaintenanceRecordsByStaff = async (staffId) => {
+  const res = await axiosClient.get(`/MaintainanceRecord/staff/${staffId}`);
+  return res.data;
+};
+
+/* --------------------------------
+   👷 STAFF ASSIGNMENT APIs
+---------------------------------- */
+
+// Assign technicians cho appointment (✅ Cần token)
+export const assignTechnicians = async (appointmentId, technicianIds) => {
+  const res = await axiosClient.put(`/assignments/${appointmentId}/staff`, technicianIds);
+  return res.data;
+};
+
+// Lấy danh sách staff rảnh (✅ Cần token)
+export const getFreeStaff = async () => {
+  const res = await axiosClient.get("/assignments/free");
+  return res.data;
+};
+
+/* --------------------------------
+   📝 WORKLOG APIs
+---------------------------------- */
+
+// Tạo worklog thủ công (✅ Cần token)
+export const createWorkLog = async (data) => {
+  const res = await axiosClient.post("/worklogs", data);
+  return res.data;
+};
+
+// Tạo worklog tự động cho appointment (✅ Cần token)
+export const createAutoWorkLog = async (appointmentId) => {
+  const res = await axiosClient.post(`/worklogs/${appointmentId}`);
+  return res.data;
+};
+
+// Lấy tất cả worklogs theo center (✅ Cần token)
+export const getAllWorkLogsByCenter = async () => {
+  const res = await axiosClient.get("/worklogs/center");
+  return res.data;
+};
+
+/* --------------------------------
+   📊 REPORT APIs (Admin)
+---------------------------------- */
+
+// Lấy doanh thu theo khoảng thời gian (✅ Cần token - Admin)
+export const getRevenue = async (startDate, endDate) => {
+  const res = await axiosClient.get("/api/auth/invoices/revenue", {
+    params: { startDate, endDate }
+  });
+  return res.data;
+};
+
+// Báo cáo doanh thu theo tháng (✅ Cần token - Admin)
+export const getRevenueReport = async () => {
+  const res = await axiosClient.get("/api/admin/reports/revenue");
+  return res.data;
+};
+
+// Doanh thu tháng hiện tại (✅ Cần token - Admin)
+export const getRevenueCurrentMonth = async () => {
+  const res = await axiosClient.get("/api/admin/reports/revenue/current-month");
+  return res.data;
+};
+
+// Doanh thu theo dịch vụ (✅ Cần token - Admin)
+export const getRevenueByService = async () => {
+  const res = await axiosClient.get("/api/admin/reports/revenue/service");
+  return res.data;
+};
+
+// Báo cáo lợi nhuận theo tháng (✅ Cần token - Admin)
+export const getProfitReport = async () => {
+  const res = await axiosClient.get("/api/admin/reports/profit");
+  return res.data;
+};
+
+// Chi phí tháng hiện tại (✅ Cần token - Admin)
+export const getCurrentMonthExpense = async () => {
+  const res = await axiosClient.get("/api/admin/reports/expense/current-month");
+  return res.data;
+};
+
+// Top dịch vụ phổ biến (all time) (✅ Cần token - Admin)
+export const getTrendingServices = async () => {
+  const res = await axiosClient.get("/api/admin/reports/trending-services/alltime");
+  return res.data;
+};
+
+// Top dịch vụ tháng trước (✅ Cần token - Admin)
+export const getTrendingServicesLastMonth = async () => {
+  const res = await axiosClient.get("/api/admin/reports/trending-services/last-month");
+  return res.data;
+};
+
+// Top 5 parts được dùng nhiều nhất tháng trước (✅ Cần token - Admin)
+export const getTrendingParts = async () => {
+  const res = await axiosClient.get("/api/admin/reports/trending-parts");
+  return res.data;
+};
+
+// Báo cáo tồn kho phụ tùng (✅ Cần token - Admin)
+export const getPartStockReport = async () => {
+  const res = await axiosClient.get("/api/admin/reports/parts/stock-report");
+  return res.data;
+};
+
+// Thống kê phương thức thanh toán (✅ Cần token - Admin)
+export const getPaymentMethods = async () => {
+  const res = await axiosClient.get("/api/admin/reports/payment-methods");
+  return res.data;
+};
+
+/* --------------------------------
+   🔔 REMINDER APIs (Test)
+---------------------------------- */
+
+// Chạy scheduler manually (test) (✅ Cần token)
+export const runReminderScheduler = async () => {
+  const res = await axiosClient.get("/api/auth/reminder/run");
+  return res.data;
+};
+
+/* --------------------------------
    🧹 TIỆN ÍCH
 ---------------------------------- */
 
 // Đăng xuất: xóa token local
 export const logout = () => {
   localStorage.removeItem("token");
+  localStorage.removeItem("role");
+  localStorage.removeItem("fullName");
+  localStorage.removeItem("userId");
+  localStorage.removeItem("centerId");
 };
