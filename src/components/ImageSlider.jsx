@@ -8,40 +8,58 @@ const ImageSlider = () => {
   const slides = [
     {
       id: 1,
-      image: "https://images.unsplash.com/photo-1617469767053-d3b523a0b982?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80",
-      title: "Đội Ngũ Xe Điện Chuyên Nghiệp",
-      subtitle: "Khuyến mãi đặc biệt",
-      description: "Giảm giá lên đến 20% cho các dịch vụ xe điện trong tháng này",
-      cta1: "Đặt Lịch Hẹn",
-      cta2: "Liên Hệ Ngay"
+      image: "https://images.unsplash.com/photo-1593941707882-a5bba14938c7?ixlib=rb-4.0.3&auto=format&fit=crop&w=2400&q=80",
+      title: "EMPOWER YOUR DRIVE",
+      subtitle: "Premium EV Service Center",
+      description: "Step into the future with a car that blends elegant features, sleek design, and everything you need for the road ahead",
+      cta1: "Explore",
+      cta2: "Book Service"
     },
     {
       id: 2,
-      image: "https://images.unsplash.com/photo-1560958089-b8a1929cea89?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80",
-      title: "Dịch vụ sữa chữa xe điện cao cấp",
-      subtitle: "Công nghệ tiên tiến",
-      description: "Sử dụng thiết bị hiện đại để đảm bảo chất lượng dịch vụ tốt nhất",
-      cta1: "Đặt Lịch Hẹn",
-      cta2: "Liên Hệ Ngay"
+      image: "https://images.unsplash.com/photo-1617469767053-d3b523a0b982?ixlib=rb-4.0.3&auto=format&fit=crop&w=2400&q=80",
+      title: "ELECTRIC REVOLUTION",
+      subtitle: "Advanced Technology",
+      description: "Experience the pinnacle of electric vehicle performance and innovation",
+      cta1: "Discover More",
+      cta2: "Schedule Now"
     },
     {
       id: 3,
-      image: "https://images.unsplash.com/photo-1571068316344-75bc76f77890?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80",
-      title: "Dịch Vụ Bảo Dưỡng",
-      subtitle: "Chăm sóc xe điện chuyên nghiệp",
-      description: "Đội ngũ kỹ thuật viên được đào tạo chuyên sâu",
-      cta1: "Đặt Lịch Hẹn",
-      cta2: "Liên Hệ Ngay"
+      image: "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2400&q=80",
+      title: "LUXURY REDEFINED",
+      subtitle: "Premium Service Excellence",
+      description: "Where cutting-edge technology meets unparalleled craftsmanship",
+      cta1: "Learn More",
+      cta2: "Contact Us"
+    },
+    {
+      id: 4,
+      image: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?ixlib=rb-4.0.3&auto=format&fit=crop&w=2400&q=80",
+      title: "PERFORMANCE UNLEASHED",
+      subtitle: "Next-Gen Electric Power",
+      description: "Elevate your driving experience with precision engineering and dynamic performance",
+      cta1: "Explore",
+      cta2: "Book Now"
+    },
+    {
+      id: 5,
+      image: "https://images.unsplash.com/photo-1619405399517-d7fce0f13302?ixlib=rb-4.0.3&auto=format&fit=crop&w=2400&q=80",
+      title: "FUTURE IS NOW",
+      subtitle: "Sustainable Excellence",
+      description: "Join the electric revolution with world-class service and maintenance",
+      cta1: "Get Started",
+      cta2: "Learn More"
     }
   ];
 
-  // Auto play slides
+  // Auto play slides - Longer interval for smooth Ken Burns effect
   useEffect(() => {
     if (!isAutoPlay) return;
     
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 5000);
+    }, 8000); // 8 seconds to match Ken Burns animation
 
     return () => clearInterval(interval);
   }, [isAutoPlay, slides.length]);
