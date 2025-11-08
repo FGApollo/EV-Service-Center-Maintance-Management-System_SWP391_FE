@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './BookingPage.css';
+import { createAppointment, getVehicles, getVehicleByVin } from '../api';
 
-function BookingPage({ onNavigate }) {
+function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     // Step 1: Vehicle Info
-    licensePlate: '',
-    vehicleModel: '',
-    mileage: '',
+    licensePlate: prefilledVehicle?.licensePlate || prefilledVehicle?.vin || '',
+    vehicleModel: prefilledVehicle ? [prefilledVehicle.brand, prefilledVehicle.model].filter(Boolean).join(' ') : '',
+    mileage: prefilledVehicle?.mileage || '',
     
-    // Step 2: Dealer
-    selectedDealer: '',
+    // Step 2: Service Center (Chi nhánh)
+    serviceCenterId: null,  // ID chi nhánh được chọn
     
     // Step 3: Services
     selectedServices: [],
@@ -22,17 +23,123 @@ function BookingPage({ onNavigate }) {
     // Step 5: Personal Info
     firstName: '',
     lastName: '',
-    company: '',
     email: '',
     phone: '',
     agreeToTerms: false
   });
 
-  const totalSteps = 4;
+  // State cho danh sách xe và thông tin xe được chọn
+  const [myVehicles, setMyVehicles] = useState([]);
+  const [selectedVehicleInfo, setSelectedVehicleInfo] = useState(prefilledVehicle || null);
+  const [vehicleLoading, setVehicleLoading] = useState(false);
+  const [showVehicleDropdown, setShowVehicleDropdown] = useState(false);
+
+  // Fetch danh sách xe của user khi component mount
+  useEffect(() => {
+    const fetchMyVehicles = async () => {
+      try {
+        const data = await getVehicles();
+        setMyVehicles(data || []);
+      } catch (err) {
+        console.error('Lỗi khi tải danh sách xe:', err);
+      }
+    };
+    fetchMyVehicles();
+
+    // Tự động điền thông tin user từ localStorage
+    try {
+      const userString = localStorage.getItem('user');
+      if (userString) {
+        const user = JSON.parse(userString);
+        setFormData(prev => ({
+          ...prev,
+          firstName: user.firstName || user.name?.split(' ')[0] || '',
+          lastName: user.lastName || user.name?.split(' ').slice(1).join(' ') || '',
+          email: user.email || '',
+          phone: user.phone || ''
+        }));
+      }
+    } catch (err) {
+      console.error('Lỗi khi tải thông tin user:', err);
+    }
+  }, []);
+
+  // Cập nhật formData khi có thông tin xe được truyền vào
+  useEffect(() => {
+    if (prefilledVehicle) {
+      const vehicleName = [prefilledVehicle.brand, prefilledVehicle.model]
+        .filter(Boolean)
+        .join(' ');
+      
+      setFormData(prev => ({
+        ...prev,
+        licensePlate: prefilledVehicle.licensePlate || prefilledVehicle.vin || '',
+        vehicleModel: vehicleName,
+        mileage: prefilledVehicle.mileage || ''
+      }));
+      setSelectedVehicleInfo(prefilledVehicle);
+    }
+  }, [prefilledVehicle]);
+
+  // Tự động tìm xe khi nhập VIN
+  useEffect(() => {
+    const searchVehicleByVin = async () => {
+      const vin = formData.licensePlate.trim();
+      if (vin.length >= 3) {
+        try {
+          setVehicleLoading(true);
+          const vehicle = await getVehicleByVin(vin);
+          if (vehicle) {
+            setSelectedVehicleInfo(vehicle);
+            const vehicleName = [vehicle.brand, vehicle.model]
+              .filter(Boolean)
+              .join(' ');
+            setFormData(prev => ({
+              ...prev,
+              vehicleModel: vehicleName,
+              mileage: vehicle.mileage || prev.mileage
+            }));
+          }
+        } catch (err) {
+          // Không tìm thấy xe, reset thông tin
+          if (err.response?.status === 404) {
+            setSelectedVehicleInfo(null);
+          }
+          console.error('Lỗi khi tìm xe:', err);
+        } finally {
+          setVehicleLoading(false);
+        }
+      } else {
+        setSelectedVehicleInfo(null);
+      }
+    };
+
+    // Debounce để tránh gọi API quá nhiều
+    const timeoutId = setTimeout(searchVehicleByVin, 500);
+    return () => clearTimeout(timeoutId);
+  }, [formData.licensePlate]);
+
+  // Handler để chọn xe từ dropdown
+  const handleSelectVehicle = (vehicle) => {
+    const vehicleName = [vehicle.brand, vehicle.model]
+      .filter(Boolean)
+      .join(' ');
+    
+    setFormData(prev => ({
+      ...prev,
+      licensePlate: vehicle.licensePlate || vehicle.vin,
+      vehicleModel: vehicleName,
+      mileage: vehicle.mileage || ''
+    }));
+    setSelectedVehicleInfo(vehicle);
+    setShowVehicleDropdown(false);
+  };
+
+  const totalSteps = 5;
 
   const services = [
     {
-      id: 'maintenance-eq-regular',
+      id: 1,
       name: 'Bảo dưỡng hệ thống thắng - xe EQ',
       category: 'Bảo dưỡng',
       icon: '🔧',
@@ -40,7 +147,7 @@ function BookingPage({ onNavigate }) {
       description: 'Kiểm tra và bảo dưỡng hệ thống thắng chuyên dụng cho xe điện'
     },
     {
-      id: 'maintenance-eq-a', 
+      id: 2, 
       name: 'BẢO DƯỠNG A - Dòng xe EQ',
       category: 'Bảo dưỡng',
       icon: '⚡',
@@ -48,7 +155,7 @@ function BookingPage({ onNavigate }) {
       description: 'Bảo dưỡng toàn diện cơ bản cho xe điện EQ'
     },
     {
-      id: 'maintenance-eq-b',
+      id: 3,
       name: 'Bảo Dưỡng B - Dòng xe EQ',
       category: 'Bảo dưỡng',
       icon: '🔋',
@@ -56,7 +163,7 @@ function BookingPage({ onNavigate }) {
       description: 'Bảo dưỡng nâng cao với kiểm tra hệ thống pin và động cơ điện'
     },
     {
-      id: 'rain-sensor',
+      id: 4,
       name: 'Thay cao su gạt mưa xe EQ',
       category: 'Bảo dưỡng',
       icon: '🌧️',
@@ -64,7 +171,7 @@ function BookingPage({ onNavigate }) {
       description: 'Thay thế gạt mưa chính hãng'
     },
     {
-      id: 'tire-work',
+      id: 5,
       name: 'Công việc khác cho xe EQ',
       category: 'Các chào giá khác',
       icon: '⚙️',
@@ -73,12 +180,24 @@ function BookingPage({ onNavigate }) {
     }
   ];
 
-  const dealers = [
+  const serviceCenters = [
     {
-      id: 'dealer-1',
-      name: 'Công ty TNHH Vinamotor Nghệ An',
-      address: 'Ngã Tư Sân Bay Vinh, Phường Vinh Phú',
-      city: '460000 Nghệ An'
+      id: 1,
+      name: 'Chi nhánh 1 - CarCare Quận 1',
+      address: '123 Lê Lợi, Quận 1',
+      city: 'Hồ Chí Minh',
+      phone: '024-3456-7890',
+      workingHours: 'Thứ 2 - Thứ 7: 8:00 - 18:00',
+      icon: '🏢'
+    },
+    {
+      id: 2,
+      name: 'Chi nhánh 2 - CarCare Thủ Đức',
+      address: '456 Võ Văn Ngân, Thủ Đức',
+      city: 'Hồ Chí Minh',
+      phone: '028-9876-5432',
+      workingHours: 'Thứ 2 - Thứ 7: 8:00 - 18:00',
+      icon: '🏢'
     }
   ];
 
@@ -119,10 +238,178 @@ function BookingPage({ onNavigate }) {
     }
   };
 
-  const handleSubmit = () => {
-    console.log('Booking submitted:', formData);
-    alert('Đặt lịch thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.');
-    onNavigate('home');
+  const handleSubmit = async () => {
+    try {
+      // Kiểm tra đăng nhập trước khi đặt lịch
+      const token = localStorage.getItem('token');
+      const userStr = localStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      
+      console.log('🔐 Auth check:', {
+        hasToken: !!token,
+        token: token ? token.substring(0, 20) + '...' : null,
+        user: user,
+        userRole: user?.role
+      });
+      
+      if (!token) {
+        const confirmLogin = window.confirm(
+          '⚠️ Bạn cần đăng nhập để đặt lịch hẹn.\n\nBạn có muốn đăng nhập ngay bây giờ không?'
+        );
+        if (confirmLogin) {
+          onNavigate('login');
+        }
+        return;
+      }
+
+      // Chuẩn bị dữ liệu theo format API backend
+      // Kết hợp date và time thành ISO string
+      const appointmentDateTime = new Date(
+        `${formData.selectedDate ? 
+          `2025-10-${formData.selectedDate}` : 
+          new Date().toISOString().split('T')[0]} ${formData.selectedTime || '09:00'}`
+      ).toISOString();
+
+      const appointmentData = {
+        vehicleId: selectedVehicleInfo?.id || 0,  // ID xe từ database
+        serviceCenterId: formData.serviceCenterId,  // ID trung tâm dịch vụ đã chọn
+        appointmentDate: appointmentDateTime,  // ISO datetime string
+        serviceTypeIds: formData.selectedServices  // Array các ID dịch vụ (numbers)
+      };
+
+      // Validation
+      if (!selectedVehicleInfo?.id) {
+        alert('⚠️ Vui lòng chọn xe có sẵn trong hệ thống hoặc nhập VIN/biển số hợp lệ');
+        return;
+      }
+      if (!formData.serviceCenterId) {
+        alert('⚠️ Vui lòng chọn chi nhánh dịch vụ');
+        return;
+      }
+      if (!formData.selectedServices || formData.selectedServices.length === 0) {
+        alert('⚠️ Vui lòng chọn ít nhất một dịch vụ');
+        return;
+      }
+
+      console.log('📤 Đang gửi yêu cầu đặt lịch...');
+      console.log('📋 Appointment Data:', JSON.stringify(appointmentData, null, 2));
+      console.log('🔍 Validation:', {
+        vehicleIdValid: !!selectedVehicleInfo?.id,
+        vehicleId: selectedVehicleInfo?.id,
+        serviceCenterIdValid: !!formData.serviceCenterId,
+        serviceCenterId: formData.serviceCenterId,
+        serviceTypeIdsValid: formData.selectedServices?.length > 0,
+        serviceTypeIds: formData.selectedServices,
+        appointmentDateValid: !!appointmentDateTime,
+        appointmentDate: appointmentDateTime
+      });
+      
+      // Gọi API tạo lịch hẹn
+      const response = await createAppointment(appointmentData);
+      
+      console.log('✅ Đặt lịch thành công:', response);
+      console.log('📋 Response data:', {
+        appointmentId: response.appointmentId || response.id,
+        invoiceId: response.invoiceId,
+        invoices: response.invoices
+      });
+      
+      // ✅ Invoice đã được tạo tự động bởi backend khi đặt lịch
+      const appointmentId = response.appointmentId || response.id;
+      
+      // Navigate sang trang thanh toán với thông tin appointment và invoice từ response
+      const paymentData = {
+        id: appointmentId,
+        appointmentId: appointmentId,
+        appointmentDate: appointmentData.appointmentDate,
+        vehicleModel: formData.vehicleModel,
+        serviceCenterId: formData.serviceCenterId,
+        serviceTypes: formData.selectedServices,
+        // ✅ Invoice info từ API response (đã tích hợp trong API đặt lịch)
+        invoiceId: response.invoiceId || (response.invoices && response.invoices[0]?.id),
+        invoices: response.invoices || [],
+        ...response
+      };
+      
+      console.log('📤 Chuyển sang thanh toán:', paymentData);
+      
+      if (onNavigateToPayment) {
+        onNavigateToPayment(paymentData);
+      } else {
+        // Fallback nếu không có payment handler
+        alert('✅ Đặt lịch thành công! Chúng tôi sẽ xác nhận lịch hẹn của bạn trong thời gian sớm nhất.');
+        onNavigate('home');
+      }
+      
+    } catch (error) {
+      console.error('Lỗi khi đặt lịch:', error);
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+      
+      // Xử lý lỗi chi tiết hơn
+      let errorMessage = 'Vui lòng thử lại sau';
+      
+      if (error.response?.status === 403) {
+        // 403 Forbidden - Có thể do token hết hạn hoặc không có quyền
+        const token = localStorage.getItem('token');
+        const userStr = localStorage.getItem('user');
+        const user = userStr ? JSON.parse(userStr) : null;
+        const backendMessage = error.response?.data?.message || error.response?.data?.error || '';
+        
+        console.log('🚫 403 Forbidden - Debug info:', {
+          hasToken: !!token,
+          userRole: user?.role,
+          backendMessage: backendMessage,
+          responseData: error.response?.data
+        });
+        
+        if (!token) {
+          errorMessage = 'Bạn cần đăng nhập để đặt lịch hẹn';
+          const confirmLogin = window.confirm(
+            '⚠️ Bạn chưa đăng nhập.\n\nBạn có muốn đăng nhập ngay bây giờ không?'
+          );
+          if (confirmLogin) {
+            onNavigate('login');
+          }
+        } else {
+          // Hiển thị chi tiết error message từ backend
+          const detailedMessage = backendMessage || 'Phiên đăng nhập đã hết hạn hoặc bạn không có quyền thực hiện thao tác này.';
+          
+          errorMessage = `🚫 Không thể đặt lịch hẹn\n\n❌ Lỗi: ${detailedMessage}\n\n💡 Có thể do:\n• Token hết hạn\n• Không có quyền (Role: ${user?.role || 'unknown'})\n• Dữ liệu không hợp lệ\n\nVui lòng đăng nhập lại.`;
+          
+          const confirmLogin = window.confirm(
+            '⚠️ ' + errorMessage + '\n\nBạn có muốn đăng nhập lại không?'
+          );
+          if (confirmLogin) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            onNavigate('login');
+          }
+        }
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+        const confirmLogin = window.confirm(
+          '⚠️ Phiên đăng nhập đã hết hạn.\n\nBạn có muốn đăng nhập lại không?'
+        );
+        if (confirmLogin) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          onNavigate('login');
+        }
+      } else if (error.response?.status === 400) {
+        errorMessage = error.response?.data?.message || 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      alert(`❌ Không thể đặt lịch: ${errorMessage}`);
+    }
   };
 
   const getProgressPercentage = () => {
@@ -132,9 +419,10 @@ function BookingPage({ onNavigate }) {
   const getStepTitle = () => {
     switch(currentStep) {
       case 1: return 'Thông tin xe của bạn';
-      case 2: return 'Chọn một hoặc nhiều dịch vụ';
-      case 3: return 'Lịch hẹn';
-      case 4: return 'Chi tiết cá nhân';
+      case 2: return 'Chọn chi nhánh';
+      case 3: return 'Chọn một hoặc nhiều dịch vụ';
+      case 4: return 'Lịch hẹn';
+      case 5: return 'Chi tiết cá nhân';
       default: return '';
     }
   };
@@ -142,9 +430,10 @@ function BookingPage({ onNavigate }) {
   const getStepSubtitle = () => {
     switch(currentStep) {
       case 1: return 'Đối với một đề nghị dịch vụ rõng bước, chúng tôi cần một số thông tin về xe của bạn.';
-      case 2: return 'Chọn một hoặc nhiều dịch vụ.';
-      case 3: return 'Kiểm tra các cuộc hẹn có sẵn và chọn một cuộc hẹn phù hợp với lịch trình của bạn';
-      case 4: return 'Chúng tôi chỉ cần một số thông tin về bạn.';
+      case 2: return 'Vui lòng chọn chi nhánh gần bạn nhất để được phục vụ tốt nhất.';
+      case 3: return 'Chọn một hoặc nhiều dịch vụ.';
+      case 4: return 'Kiểm tra các cuộc hẹn có sẵn và chọn một cuộc hẹn phù hợp với lịch trình của bạn';
+      case 5: return 'Chúng tôi chỉ cần một số thông tin về bạn.';
       default: return '';
     }
   };
@@ -180,15 +469,64 @@ function BookingPage({ onNavigate }) {
           Thông tin xe
         </h2>
         <div className="form-grid">
-          <div className="form-group full-width">
-            <label>Số VIN</label>
+          <div className="form-group full-width" style={{ position: 'relative' }}>
+            <label>Số VIN / Biển số xe</label>
             <input
               type="text"
               className="form-input"
-              placeholder="Nhập biển số xe"
+              placeholder="Nhập hoặc chọn VIN/biển số xe"
               value={formData.licensePlate}
               onChange={(e) => handleInputChange('licensePlate', e.target.value)}
+              onFocus={() => setShowVehicleDropdown(true)}
+              onBlur={() => setTimeout(() => setShowVehicleDropdown(false), 200)}
             />
+            {vehicleLoading && (
+              <span style={{ position: 'absolute', right: '10px', top: '38px', fontSize: '12px', color: '#999' }}>
+                Đang tìm...
+              </span>
+            )}
+            
+            {/* Dropdown hiển thị danh sách xe của user */}
+            {showVehicleDropdown && myVehicles.length > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                background: 'white',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                maxHeight: '200px',
+                overflowY: 'auto',
+                zIndex: 1000,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+              }}>
+                <div style={{ padding: '8px', fontSize: '12px', color: '#666', borderBottom: '1px solid #eee' }}>
+                  Chọn từ xe của tôi:
+                </div>
+                {myVehicles.map(vehicle => (
+                  <div
+                    key={vehicle.id}
+                    onClick={() => handleSelectVehicle(vehicle)}
+                    style={{
+                      padding: '10px 12px',
+                      cursor: 'pointer',
+                      borderBottom: '1px solid #f0f0f0',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = '#f5f5f5'}
+                    onMouseLeave={(e) => e.target.style.background = 'white'}
+                  >
+                    <div style={{ fontWeight: '500', marginBottom: '4px' }}>
+                      {[vehicle.brand, vehicle.model].filter(Boolean).join(' ') || 'Xe'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>
+                      {vehicle.licensePlate || vehicle.vin} • Năm {vehicle.year}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>  
           
           <div className="form-group full-width">
@@ -205,20 +543,115 @@ function BookingPage({ onNavigate }) {
         </div>
       </div>
 
-      {formData.licensePlate && (
-        <div className="form-section">
+      {/* Hiển thị thông tin xe chi tiết khi tìm thấy */}
+      {selectedVehicleInfo && (
+        <div className="form-section" style={{ background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '8px', padding: '20px' }}>
+          <h3 style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>✅</span>
+            <span>Thông tin xe</span>
+          </h3>
           <div className="sidebar-item">
             <div className="sidebar-item-content">
-              <h4>Mercedes-Benz Xe ô tô con Điện</h4>
-              <p>{formData.licensePlate}</p>
+              <h4 style={{ fontSize: '18px', marginBottom: '12px' }}>
+                {[selectedVehicleInfo.brand, selectedVehicleInfo.model]
+                  .filter(Boolean)
+                  .join(' ') || 'Thông tin xe'}
+              </h4>
+              <div style={{ display: 'grid', gap: '8px', fontSize: '14px' }}>
+                <p style={{ margin: 0 }}>
+                  <strong>Biển số:</strong> {selectedVehicleInfo.licensePlate || 'N/A'}
+                </p>
+                {selectedVehicleInfo.vin && (
+                  <p style={{ margin: 0 }}>
+                    <strong>VIN:</strong> {selectedVehicleInfo.vin}
+                  </p>
+                )}
+                <p style={{ margin: 0 }}>
+                  <strong>Năm sản xuất:</strong> {selectedVehicleInfo.year}
+                </p>
+                {selectedVehicleInfo.color && (
+                  <p style={{ margin: 0 }}>
+                    <strong>Màu sắc:</strong> {selectedVehicleInfo.color}
+                  </p>
+                )}
+                {selectedVehicleInfo.mileage && (
+                  <p style={{ margin: 0 }}>
+                    <strong>Số km đã đi:</strong> {selectedVehicleInfo.mileage.toLocaleString()} km
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
-          </div>
+        </div>
+      )}
+
+      {/* Thông báo khi không tìm thấy xe */}
+      {formData.licensePlate && !selectedVehicleInfo && !vehicleLoading && formData.licensePlate.length >= 3 && (
+        <div className="form-section" style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '8px', padding: '15px' }}>
+          <p style={{ margin: 0, color: '#856404', fontSize: '14px' }}>
+            ⚠️ Không tìm thấy thông tin xe với VIN/biển số này. Bạn có thể tiếp tục đặt lịch hoặc chọn xe khác.
+          </p>
         </div>
       )}
     </div>
   );
 
   const renderStep2 = () => (
+    <div className="booking-step-content">
+      <div className="form-section">
+        <h2>
+          <span className="form-section-icon">📍</span>
+          Chọn chi nhánh dịch vụ
+        </h2>
+        <div className="selection-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+          {serviceCenters.map(center => (
+            <div 
+              key={center.id}
+              className={`selection-card ${formData.serviceCenterId === center.id ? 'selected' : ''}`}
+              onClick={() => handleInputChange('serviceCenterId', center.id)}
+              style={{ 
+                padding: '24px',
+                cursor: 'pointer',
+                minHeight: '220px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}
+            >
+              <div className="selection-card-header" style={{ justifyContent: 'space-between' }}>
+                <span className="selection-card-icon" style={{ fontSize: '32px' }}>{center.icon}</span>
+                <input
+                  type="radio"
+                  name="serviceCenter"
+                  className="selection-checkbox"
+                  checked={formData.serviceCenterId === center.id}
+                  onChange={() => {}}
+                  style={{ width: '20px', height: '20px' }}
+                />
+              </div>
+              <h3 style={{ fontSize: '18px', margin: '8px 0', fontWeight: '600' }}>{center.name}</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px', color: '#666' }}>
+                <p style={{ margin: 0, display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                  <span>📍</span>
+                  <span>{center.address}, {center.city}</span>
+                </p>
+                <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>📞</span>
+                  <span>{center.phone}</span>
+                </p>
+                <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>🕒</span>
+                  <span>{center.workingHours}</span>
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderStep3 = () => (
     <div className="booking-step-content">
       <div className="form-section">
         <h2>
@@ -296,7 +729,7 @@ function BookingPage({ onNavigate }) {
     </div>
   );
 
-  const renderStep3 = () => (
+  const renderStep4 = () => (
     <div className="booking-step-content">
       <div className="form-section">
         <h2>
@@ -369,93 +802,61 @@ function BookingPage({ onNavigate }) {
     </div>
   );
 
-  const renderStep4 = () => (
+  const renderStep5 = () => (
     <div className="booking-step-content">
       <div className="form-section">
-        <h2>Làm thế nào chúng tôi có thể liên lạc với bạn?</h2>
+        <h2>Thông tin liên hệ</h2>
         <div className="contact-form">
           <div className="form-grid">
             <div className="form-group">
-          <label>Tên</label>
-          <input
-            type="text"
+              <label>Tên</label>
+              <input
+                type="text"
                 className="form-input"
                 placeholder="Tên"
-            value={formData.firstName}
-            onChange={(e) => handleInputChange('firstName', e.target.value)}
-          />
-        </div>
+                value={formData.firstName}
+                onChange={(e) => handleInputChange('firstName', e.target.value)}
+              />
+            </div>
 
             <div className="form-group">
-          <label>Họ</label>
-          <input
-            type="text"
+              <label>Họ</label>
+              <input
+                type="text"
                 className="form-input"
                 placeholder="Họ"
-            value={formData.lastName}
-            onChange={(e) => handleInputChange('lastName', e.target.value)}
-          />
-        </div>
+                value={formData.lastName}
+                onChange={(e) => handleInputChange('lastName', e.target.value)}
+              />
+            </div>
 
             <div className="form-group full-width">
-          <label>Công ty</label>
-          <input
-            type="text"
-                className="form-input"
-                placeholder="Công ty"
-            value={formData.company}
-            onChange={(e) => handleInputChange('company', e.target.value)}
-          />
-              <span className="form-helper-text">Không bắt buộc</span>
-        </div>
-
-            <div className="form-group full-width">
-          <label>Email</label>
-          <input
-            type="email"
+              <label>Email</label>
+              <input
+                type="email"
                 className="form-input"
                 placeholder="Email"
-            value={formData.email}
-            onChange={(e) => handleInputChange('email', e.target.value)}
-          />
-        </div>
+                value={formData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+              />
+            </div>
 
             <div className="form-group full-width">
-              <label>Điện thoại</label>
+              <label>Số điện thoại</label>
               <div className="phone-input-group">
                 <select className="country-code-select">
                   <option>VN (+84)</option>
-            </select>
-            <input
-              type="tel"
+                </select>
+                <input
+                  type="tel"
                   className="form-input"
-                  placeholder="Điện thoại"
-              value={formData.phone}
-              onChange={(e) => handleInputChange('phone', e.target.value)}
-            />
+                  placeholder="Số điện thoại"
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                />
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="expandable-section">
-        <div className="expandable-header">
-          <h3>
-            Địa chỉ của bạn là gì?
-            <span className="expandable-required">(Không bắt buộc)</span>
-          </h3>
-          <div className="expandable-toggle">▼</div>
-        </div>
-      </div>
-
-      <div className="expandable-section">
-        <div className="expandable-header">
-          <h3>
-            Bật ký ý kiến cho đối tác Mercedes-Benz của bạn?
-            <span className="expandable-required">(Không bắt buộc)</span>
-          </h3>
-          <div className="expandable-toggle">▼</div>
         </div>
       </div>
 
@@ -474,7 +875,7 @@ function BookingPage({ onNavigate }) {
           onChange={(e) => handleInputChange('agreeToTerms', e.target.checked)}
         />
         <label htmlFor="terms" className="checkbox-label">
-          Tôi hiểu rằng Dữ liệu liên quan sau khi khách hàng và phương tiện được thu thập trong quá trình đặt chỗ sẽ được chuyển tiếp đến Xưởng dịch vụ ủy quyền Mercedes-Benz liên quan sau khi hoàn thành đặt chỗ. Tôi đã đọc và đồng thuận với tất cả các điều khoản và điều kiện được đề cập trong Luật và Dữ liệu Cá nhân.
+          Tôi hiểu rằng Dữ liệu liên quan sau khi khách hàng và phương tiện được thu thập trong quá trình đặt chỗ sẽ được chuyển tiếp đến Xưởng dịch vụ ủy quyền. Tôi đã đọc và đồng ý với tất cả các điều khoản và điều kiện về bảo mật dữ liệu cá nhân.
         </label>
       </div>
     </div>
@@ -502,8 +903,14 @@ function BookingPage({ onNavigate }) {
             <h3>Xe</h3>
             <div className="sidebar-item">
               <div className="sidebar-item-content">
-                <h4>Mercedes-Benz Xe ô tô con Điện</h4>
-            <p>{formData.licensePlate}</p>
+                <h4>
+                  {selectedVehicleInfo 
+                    ? [selectedVehicleInfo.brand, selectedVehicleInfo.model]
+                        .filter(Boolean)
+                        .join(' ') || 'Thông tin xe'
+                    : formData.vehicleModel || 'Thông tin xe'}
+                </h4>
+                <p>{formData.licensePlate}</p>
               </div>
               {currentStep > 1 && (
                 <button 
@@ -519,13 +926,26 @@ function BookingPage({ onNavigate }) {
           </div>
         )}
 
-        {dealers.length > 0 && currentStep >= 2 && (
+        {formData.serviceCenterId && currentStep >= 3 && (
           <div className="sidebar-section">
-            <h3>Đại lý ủy quyền Mercedes-Benz</h3>
+            <h3>Chi nhánh dịch vụ</h3>
             <div className="sidebar-item">
               <div className="sidebar-item-content">
-                <h4>{dealers[0].name}</h4>
+                <h4>{serviceCenters.find(c => c.id === formData.serviceCenterId)?.name}</h4>
+                <p style={{ fontSize: '14px', color: '#666', margin: '4px 0 0 0' }}>
+                  {serviceCenters.find(c => c.id === formData.serviceCenterId)?.city}
+                </p>
               </div>
+              {currentStep > 2 && (
+                <button 
+                  className="sidebar-edit-btn"
+                  onClick={() => setCurrentStep(2)}
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -538,10 +958,10 @@ function BookingPage({ onNavigate }) {
                 <div className="sidebar-item-content">
                   <h4>{service.name}</h4>
                 </div>
-                {currentStep > 2 && (
+                {currentStep > 3 && (
                   <button 
                     className="sidebar-edit-btn"
-                    onClick={() => setCurrentStep(2)}
+                    onClick={() => setCurrentStep(3)}
                   >
                     <svg viewBox="0 0 24 24" fill="currentColor">
                       <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" />
@@ -560,10 +980,10 @@ function BookingPage({ onNavigate }) {
               <div className="sidebar-item-content">
                 <h4>Thứ Sáu, {formData.selectedDate} thg 10 2025, {formData.selectedTime}</h4>
               </div>
-              {currentStep > 3 && (
+              {currentStep > 4 && (
                 <button 
                   className="sidebar-edit-btn"
-                  onClick={() => setCurrentStep(3)}
+                  onClick={() => setCurrentStep(4)}
                 >
                   <svg viewBox="0 0 24 24" fill="currentColor">
                     <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" />
@@ -616,9 +1036,10 @@ function BookingPage({ onNavigate }) {
             onClick={currentStep === totalSteps ? handleSubmit : nextStep}
             disabled={
               (currentStep === 1 && !formData.licensePlate) ||
-              (currentStep === 2 && formData.selectedServices.length === 0) ||
-              (currentStep === 3 && (!formData.selectedDate || !formData.selectedTime)) ||
-              (currentStep === 4 && (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.agreeToTerms))
+              (currentStep === 2 && !formData.serviceCenterId) ||
+              (currentStep === 3 && formData.selectedServices.length === 0) ||
+              (currentStep === 4 && (!formData.selectedDate || !formData.selectedTime)) ||
+              (currentStep === 5 && (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.agreeToTerms))
             }
           >
             {currentStep === totalSteps ? 'Hoàn thành' : 'Tiếp tục'}
@@ -640,6 +1061,7 @@ function BookingPage({ onNavigate }) {
           {currentStep === 2 && renderStep2()}
           {currentStep === 3 && renderStep3()}
           {currentStep === 4 && renderStep4()}
+          {currentStep === 5 && renderStep5()}
 
         {/* Navigation Buttons */}
           <div className="step-navigation">

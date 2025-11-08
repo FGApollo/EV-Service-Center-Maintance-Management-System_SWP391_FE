@@ -9,18 +9,18 @@ const ImageSlider = () => {
     {
       id: 1,
       image: "https://images.unsplash.com/photo-1617469767053-d3b523a0b982?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80",
-      title: "Xe Điện Model S",
+      title: "Đội Ngũ Xe Điện Chuyên Nghiệp",
       subtitle: "Khuyến mãi đặc biệt",
-      description: "Giảm $7,500 với Federal Tax Credit",
+      description: "Giảm giá lên đến 20% cho các dịch vụ xe điện trong tháng này",
       cta1: "Đặt Lịch Hẹn",
       cta2: "Liên Hệ Ngay"
     },
     {
       id: 2,
       image: "https://images.unsplash.com/photo-1560958089-b8a1929cea89?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80",
-      title: "Xe Điện Model Y",
-      subtitle: "SUV điện cao cấp",
-      description: "Hiệu suất vượt trội, thiết kế tinh tế",
+      title: "Dịch vụ sữa chữa xe điện cao cấp",
+      subtitle: "Công nghệ tiên tiến",
+      description: "Sử dụng thiết bị hiện đại để đảm bảo chất lượng dịch vụ tốt nhất",
       cta1: "Đặt Lịch Hẹn",
       cta2: "Liên Hệ Ngay"
     },

@@ -11,10 +11,10 @@ function Home({ onNavigate }) {
 
   return (
     <div id="home" className="home-container">
-      {/* Tesla-style Hero Slider */}
+      {/*Hero Slider*/}
       <ImageSlider />
 
-      {/* Services Section */}
+      {/*Services Section*/}
       <section id="services" className="services-section">
         <div className="section-header">
           <h2>Dịch Vụ Của Chúng Tôi</h2>
