@@ -172,6 +172,36 @@ function PaymentGatewayPage({ appointmentData, onNavigate, onPaymentComplete }) 
     }).format(amount);
   };
 
+  // Format ngày giờ hẹn
+  const formatAppointmentDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('vi-VN', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return 'N/A';
+    }
+  };
+
+  const formatAppointmentTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    } catch (error) {
+      return 'N/A';
+    }
+  };
+
   // Payment methods với icons và descriptions
   const paymentMethods = [
     {
@@ -408,8 +438,20 @@ function PaymentGatewayPage({ appointmentData, onNavigate, onPaymentComplete }) 
         <div className="order-summary-card">
           <div className="summary-row">
             <span>Mã đơn hàng:</span>
-            <strong>#{appointmentData?.id || 'N/A'}</strong>
+            <strong>#{appointmentData?.id || appointmentData?.appointmentId || 'N/A'}</strong>
           </div>
+          {appointmentData?.appointmentDate && (
+            <div className="summary-row">
+              <span>Ngày hẹn:</span>
+              <strong>{formatAppointmentDate(appointmentData.appointmentDate)}</strong>
+            </div>
+          )}
+          {appointmentData?.appointmentDate && (
+            <div className="summary-row">
+              <span>Giờ hẹn:</span>
+              <strong>{formatAppointmentTime(appointmentData.appointmentDate)}</strong>
+            </div>
+          )}
           <div className="summary-row">
             <span>Số tiền:</span>
             <strong className="amount">{formatMoney(totalAmount)}</strong>
