@@ -53,7 +53,7 @@
   gap: 20px;
 }
 
-.technician-info {
+.technician-info-header {
   display: flex;
   align-items: center;
   gap: 15px;
@@ -98,15 +98,15 @@
   margin: 0 auto;
 }
 
-/* Status Cards */
-.status-cards {
+/* Maintenance Stats */
+.maintenance-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 25px;
   margin-bottom: 30px;
 }
 
-.status-card {
+.stat-card {
   background: white;
   border-radius: 16px;
   padding: 30px;
@@ -115,44 +115,70 @@
   align-items: center;
   gap: 20px;
   transition: all 0.3s ease;
+  position: relative;
+  border: 3px solid transparent;
 }
 
-.status-card:hover {
+.stat-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
 }
 
-.status-card-icon {
-  width: 70px;
-  height: 70px;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 32px;
-  color: white;
+.stat-card.active-filter {
+  border-color: currentColor;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  transform: translateY(-5px) scale(1.02);
 }
 
-.status-card.waiting .status-card-icon {
-  background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);
+.stat-card.active-filter::before {
+  content: '✓ Đang lọc';
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  font-size: 11px;
+  color: #667eea;
+  font-weight: 600;
 }
 
-.status-card.in-progress .status-card-icon {
-  background: linear-gradient(135deg, #9f7aea 0%, #805ad5 100%);
+.stat-card.waiting {
+  color: #f6ad55;
 }
 
-.status-card.completed .status-card-icon {
-  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+.stat-card.waiting.active-filter {
+  border-color: #f6ad55;
+  background: linear-gradient(135deg, rgba(246, 173, 85, 0.1) 0%, rgba(237, 137, 54, 0.1) 100%);
 }
 
-.status-card-info h2 {
+.stat-card.in-progress {
+  color: #9f7aea;
+}
+
+.stat-card.in-progress.active-filter {
+  border-color: #9f7aea;
+  background: linear-gradient(135deg, rgba(159, 122, 234, 0.1) 0%, rgba(128, 90, 213, 0.1) 100%);
+}
+
+.stat-card.completed {
+  color: #48bb78;
+}
+
+.stat-card.completed.active-filter {
+  border-color: #48bb78;
+  background: linear-gradient(135deg, rgba(72, 187, 120, 0.1) 0%, rgba(56, 161, 105, 0.1) 100%);
+}
+
+.stat-card svg {
+  font-size: 40px;
+}
+
+.stat-card h4 {
   font-size: 42px;
-  font-weight: 700;
   margin: 0 0 5px;
   color: #2d3748;
+  font-weight: 700;
 }
 
-.status-card-info p {
+.stat-card p {
   font-size: 16px;
   color: #718096;
   margin: 0;
@@ -167,8 +193,8 @@
   height: calc(100vh - 350px);
 }
 
-/* Appointments List */
-.appointments-list {
+/* Maintenance List */
+.maintenance-list {
   background: white;
   border-radius: 16px;
   padding: 20px;
@@ -176,12 +202,41 @@
   overflow-y: auto;
 }
 
-.appointments-list h3 {
-  font-size: 18px;
-  color: #2d3748;
-  margin: 0 0 20px;
+.list-header {
+  margin-bottom: 20px;
   padding-bottom: 15px;
   border-bottom: 2px solid #e2e8f0;
+}
+
+.maintenance-list h3 {
+  font-size: 18px;
+  color: #2d3748;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.clear-filter-btn {
+  padding: 6px 12px;
+  background: #e53e3e;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.clear-filter-btn:hover {
+  background: #c53030;
+  transform: scale(1.05);
 }
 
 .list-items {
@@ -190,8 +245,8 @@
   gap: 12px;
 }
 
-.appointment-item {
-  padding: 16px;
+.maintenance-item {
+  padding: 15px;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -199,17 +254,17 @@
   background: #f7fafc;
 }
 
-.appointment-item:hover {
+.maintenance-item:hover {
   background: white;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.appointment-item.active {
+.maintenance-item.active {
   background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
   border-color: #667eea;
 }
 
-.appointment-header {
+.maintenance-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -217,12 +272,16 @@
   gap: 10px;
 }
 
-.appointment-header h4 {
+.maintenance-header h4 {
   font-size: 16px;
   color: #2d3748;
-  margin: 0;
+  margin: 0 0 5px;
   font-weight: 600;
-  flex: 1;
+}
+
+.customer-name {
+  font-size: 13px;
+  color: #718096;
 }
 
 .car-info,
@@ -232,13 +291,21 @@
   margin: 5px 0;
 }
 
-.appointment-time {
+.maintenance-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 12px;
+  color: #718096;
+  align-items: center;
+}
+
+.maintenance-footer .time {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
   color: #667eea;
-  margin-top: 10px;
   font-weight: 500;
 }
 
@@ -262,14 +329,6 @@
   margin-left: 15px;
 }
 
-.status-badge svg {
-  font-size: 14px;
-}
-
-.status-badge.large svg {
-  font-size: 16px;
-}
-
 .status-waiting {
   background: #fef3c7;
   color: #78350f;
@@ -285,8 +344,8 @@
   color: #22543d;
 }
 
-/* Appointment Details */
-.appointment-details {
+/* Maintenance Details */
+.maintenance-details {
   background: white;
   border-radius: 16px;
   padding: 30px;
@@ -368,17 +427,157 @@
   font-weight: 500;
 }
 
-.notes-box {
+/* VIN Box */
+.vin-box {
+  padding: 15px;
+  background: #2d3748;
+  border-radius: 12px;
+  font-family: 'Courier New', monospace;
+  text-align: center;
+}
+
+.vin-box code {
+  color: #48bb78;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+/* Checklist */
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.checklist-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 15px;
   background: #f7fafc;
   border-radius: 12px;
+  border-left: 4px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.checklist-item.completed {
+  border-left-color: #48bb78;
+  background: #f0fff4;
+}
+
+.checklist-item.in-progress {
+  border-left-color: #9f7aea;
+  background: #faf5ff;
+}
+
+.checklist-item.pending {
+  border-left-color: #cbd5e0;
+}
+
+.checklist-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.checklist-info .icon {
+  font-size: 20px;
+}
+
+.checklist-info .icon.completed {
+  color: #48bb78;
+}
+
+.checklist-info .icon.in-progress {
+  color: #9f7aea;
+}
+
+.checklist-info .icon.pending {
+  color: #cbd5e0;
+}
+
+.checklist-info span {
+  font-size: 15px;
+  color: #2d3748;
+  font-weight: 500;
+}
+
+.checklist-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-small {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-small.start {
+  background: #4299e1;
+  color: white;
+}
+
+.btn-small.complete {
+  background: #48bb78;
+  color: white;
+}
+
+.btn-small:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Car Condition */
+.car-condition {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.condition-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 15px;
+  background: #f7fafc;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.condition-item strong {
+  color: #4a5568;
+}
+
+.condition-item span {
+  color: #2d3748;
+  font-weight: 500;
+}
+
+.condition-notes {
+  padding: 15px;
+  background: #f7fafc;
+  border-radius: 10px;
   border-left: 4px solid #667eea;
 }
 
-.notes-box p {
-  margin: 0;
+.condition-notes strong {
+  display: block;
   color: #4a5568;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.condition-notes p {
+  margin: 0;
+  color: #2d3748;
   line-height: 1.6;
+  font-size: 14px;
 }
 
 /* Action Buttons */
@@ -427,21 +626,14 @@
   box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
 }
 
-.completed-message {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  padding: 20px;
-  background: #f0fff4;
-  border: 2px solid #48bb78;
-  border-radius: 12px;
+.action-btn.edit {
+  background: #e2e8f0;
+  color: #4a5568;
 }
 
-.completed-message p {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #22543d;
+.action-btn.edit:hover {
+  background: #cbd5e0;
+  transform: translateY(-2px);
 }
 
 /* Empty State */
@@ -537,11 +729,11 @@
     grid-template-columns: 1fr;
   }
 
-  .appointments-list {
+  .maintenance-list {
     max-height: 300px;
   }
 
-  .status-cards {
+  .maintenance-stats {
     grid-template-columns: repeat(3, 1fr);
   }
 }
@@ -557,7 +749,7 @@
     padding: 20px;
   }
 
-  .status-cards {
+  .maintenance-stats {
     grid-template-columns: 1fr;
   }
 
@@ -574,5 +766,3 @@
     justify-content: center;
   }
 }
-
-
