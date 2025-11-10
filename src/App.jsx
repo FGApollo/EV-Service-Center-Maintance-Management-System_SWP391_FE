@@ -10,8 +10,8 @@ import MyCar from "./pages/MyCar.jsx";
 import StaffDashboard from "./pages/StaffDashboard.jsx";
 import TechnicianDashboard from "./pages/TechnicianDashboard.jsx";
 import Footer from "./components/Footer.jsx";
-import AdminDashboard from './pages/AdminDashboard.jsx'; // Keep for backward compatibility
-import ManagerDashboard from './pages/ManagerDashboard.jsx'; // New Manager Dashboard
+import AdminDashboard from './pages/AdminDashboard.jsx';
+import ManagerDashboard from './pages/ManagerDashboard.jsx';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -26,6 +26,45 @@ function App() {
   });
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [appointmentForPayment, setAppointmentForPayment] = useState(null);
+
+  // 🔗 URL Routing - Sync currentPage với URL hash
+  useEffect(() => {
+    // Function để extract page từ URL hash
+    const getPageFromHash = () => {
+      const hash = window.location.hash.slice(1); // Bỏ dấu #
+      
+      console.log('📍 Current URL:', window.location.href);
+      console.log('📍 Hash:', window.location.hash);
+      console.log('📍 Parsed hash:', hash);
+      
+      // Nếu không có hash, về home
+      if (!hash) return 'home';
+      
+      // Extract main page (trước dấu / hoặc toàn bộ nếu không có /)
+      const mainPage = hash.split('/')[0] || hash;
+      
+      console.log('📍 Main page extracted:', mainPage);
+      
+      return mainPage;
+    };
+
+    // Set initial page từ URL
+    const initialPage = getPageFromHash();
+    setCurrentPage(initialPage);
+
+    // Listen to hash changes (Back/Forward browser buttons)
+    const handleHashChange = () => {
+      const newPage = getPageFromHash();
+      console.log('🔄 Hash changed to:', newPage);
+      setCurrentPage(newPage);
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []); // ✅ Chỉ chạy 1 lần khi mount
 
   // Check URL params để detect payment return
   useEffect(() => {
@@ -42,6 +81,7 @@ function App() {
     if (hasPaymentParams) {
       console.log('🔄 Detected payment return callback');
       setCurrentPage('payment-return');
+      window.location.hash = 'payment-return';
     }
   }, []);
 
@@ -53,35 +93,50 @@ function App() {
 
   // Navigate to payment với appointment data
   const handleNavigateToPayment = (appointmentData) => {
+    console.log('🔗 Navigate to payment with appointment:', appointmentData);
     setAppointmentForPayment(appointmentData);
-    setCurrentPage('payment');
+    window.location.hash = 'payment';
   };
 
   // Handle payment complete
   const handlePaymentComplete = (paymentData) => {
     console.log('✅ Payment completed:', paymentData);
     setAppointmentForPayment(null);
-    setCurrentPage('home');
+    window.location.hash = 'home';
     alert('✅ Thanh toán thành công! Cảm ơn bạn đã sử dụng dịch vụ.');
   };
 
   // Navigate thông thường - clear vehicle data
   const handleNavigate = (page) => {
+    console.log('🔗 Navigate to:', page);
     setSelectedVehicle(null); // Reset thông tin xe khi navigate thông thường
-    setCurrentPage(page);
+    
+    // ✅ Set hash và đảm bảo path luôn là /
+    if (page.startsWith('#')) {
+      window.location.hash = page.slice(1); // Bỏ # vì window.location.hash tự thêm
+    } else {
+      window.location.hash = page;
+    }
   };
 
   // Navigate với vehicle data - chỉ dùng khi bấm "Đặt lịch" từ MyCar
   const handleNavigateWithVehicle = (page, vehicleData) => {
+    console.log('🔗 Navigate to:', page, 'with vehicle:', vehicleData);
     setSelectedVehicle(vehicleData);
-    setCurrentPage(page);
+    
+    // ✅ Set hash và đảm bảo path luôn là /
+    if (page.startsWith('#')) {
+      window.location.hash = page.slice(1); // Bỏ # vì window.location.hash tự thêm
+    } else {
+      window.location.hash = page;
+    }
   };
 
   const renderPage = () => {
     console.log('Current page:', currentPage);
     switch (currentPage) {
       case 'login':
-        return <Login onNavigate={setCurrentPage} onLogin={handleLogin} />;
+        return <Login onNavigate={handleNavigate} onLogin={handleLogin} />;
       case 'booking':
         return <BookingPage onNavigate={handleNavigate} onNavigateToPayment={handleNavigateToPayment} prefilledVehicle={selectedVehicle} />;
       case 'payment':
@@ -89,22 +144,22 @@ function App() {
       case 'payment-return':
         return <PaymentReturnPage onNavigate={handleNavigate} />;
       case 'profile':
-        return <Profile onNavigate={setCurrentPage} />;
+        return <Profile onNavigate={handleNavigate} />;
       case 'mycar':
-        return <MyCar onNavigate={setCurrentPage} />;
+        return <MyCar onNavigate={handleNavigate} onNavigateWithVehicle={handleNavigateWithVehicle} />;
       case 'staff':
-        return <StaffDashboard onNavigate={setCurrentPage} />;
+        return <StaffDashboard onNavigate={handleNavigate} />;
       case 'technician':
-        return <TechnicianDashboard onNavigate={setCurrentPage} />;
+        return <TechnicianDashboard onNavigate={handleNavigate} />;
       case 'admin':
         console.log('Rendering AdminDashboard (deprecated - use manager)...');
-        return <AdminDashboard onNavigate={setCurrentPage} />;
+        return <AdminDashboard onNavigate={handleNavigate} />;
       case 'manager':
         console.log('Rendering ManagerDashboard...');
-        return <ManagerDashboard onNavigate={setCurrentPage} />;
+        return <ManagerDashboard onNavigate={handleNavigate} />;
       case 'home':
       default:
-        return <Home onNavigate={setCurrentPage} />;
+        return <Home onNavigate={handleNavigate} />;
     }
   };
 
@@ -116,14 +171,14 @@ function App() {
     <div className="App">
       {shouldShowNavbar && (
         <Navbar 
-          onNavigate={setCurrentPage} 
+          onNavigate={handleNavigate} 
           isLoggedIn={isLoggedIn} 
           onLogout={() => { 
             setIsLoggedIn(false); 
             setUser(null); 
             localStorage.removeItem('token'); 
             localStorage.removeItem('user');
-            setCurrentPage('home');
+            window.location.hash = 'home'; // ✅ Update hash
           }} 
           user={user} 
         />
@@ -131,7 +186,7 @@ function App() {
       <main>
         {renderPage()}
       </main>
-      {shouldShowFooter && <Footer onNavigate={setCurrentPage} />}
+      {shouldShowFooter && <Footer onNavigate={handleNavigate} />}
     </div>
   );
 }

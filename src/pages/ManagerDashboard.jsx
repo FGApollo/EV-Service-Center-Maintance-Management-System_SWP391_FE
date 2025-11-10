@@ -8,6 +8,7 @@ import {
   FaFileInvoiceDollar, FaCalendarWeek, FaUserTie, FaBriefcase, FaEye
 } from 'react-icons/fa';
 import * as API from '../api/index.js';
+import * as CenterAPI from '../services/centerAwareAPI.js'; // ✅ Thêm import centerAwareAPI
 import { getCurrentUser, getCurrentCenterId } from '../utils/centerFilter';
 import { hasPermission, PERMISSIONS, ROLES } from '../constants/roles';
 
@@ -31,33 +32,104 @@ function ManagerDashboard({ onNavigate }) {
   const currentUser = getCurrentUser();
   const { role, centerId, fullName } = currentUser;
   
+  // Format display name - nếu có "Admin" trong tên thì đổi thành "Manager"
+  const displayName = fullName 
+    ? fullName.replace(/Admin/gi, 'Manager')
+    : 'Manager User';
+  
   // Kiểm tra đăng nhập & quyền truy cập
   useEffect(() => {
+    let hasShownAlert = false; // Flag để chỉ hiển thị alert 1 lần
+    
     const token = localStorage.getItem('token');
     if (!token) {
-      alert('Bạn cần đăng nhập để truy cập trang này!');
-      onNavigate && onNavigate('login');
+      if (!hasShownAlert) {
+        hasShownAlert = true;
+        alert('Bạn cần đăng nhập để truy cập trang này!');
+        onNavigate && onNavigate('login');
+      }
       return;
     }
     
-    // Kiểm tra role có phải Manager/Admin không
-    // Accept both 'manager' and 'admin' for backward compatibility
-    if (role !== ROLES.MANAGER && role?.toLowerCase() !== 'admin') {
-      alert('Bạn không có quyền truy cập trang này!');
-      onNavigate && onNavigate('login');
+    // Kiểm tra role phải là MANAGER
+    // Chỉ accept 'manager' role, không accept 'admin'
+    if (role !== ROLES.MANAGER) {
+      if (!hasShownAlert) {
+        hasShownAlert = true;
+        alert('Bạn không có quyền truy cập trang này! Trang này chỉ dành cho Manager.');
+        onNavigate && onNavigate('login');
+      }
       return;
     }
     
     // Kiểm tra có centerId không
     if (!centerId) {
-      alert('Tài khoản chưa được gán vào trung tâm nào!');
-      onNavigate && onNavigate('login');
+      if (!hasShownAlert) {
+        hasShownAlert = true;
+        alert('Tài khoản chưa được gán vào trung tâm nào!');
+        onNavigate && onNavigate('login');
+      }
       return;
     }
     
     console.log('✅ Manager authorized:', { role, centerId, fullName });
   }, []); // Fixed: remove onNavigate from deps to prevent infinite loop
-  const [activeTab, setActiveTab] = useState('overview');
+  
+  // Đồng bộ activeTab với URL
+  const [activeTab, setActiveTab] = useState(() => {
+    const hash = window.location.hash.slice(1); // Bỏ dấu #
+    // Extract tab từ URL: #manager/overview -> overview
+    const parts = hash.split('/');
+    const tab = parts[1] || 'overview'; // Default là overview nếu không có
+    console.log('📍 Initial tab from URL:', hash, '→', tab);
+    return tab;
+  });
+  
+  // Listen to hash changes để update activeTab
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1);
+      const parts = hash.split('/');
+      const tab = parts[1] || 'overview';
+      console.log('🔄 Hash changed, new tab:', tab);
+      setActiveTab(tab);
+    };
+    
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+  
+  // Update URL khi chuyển tab
+  const handleTabChange = (tab) => {
+    console.log('📍 Changing tab to:', tab);
+    setActiveTab(tab);
+    
+    // ✅ Set hash - window.location.hash tự động thêm # nên không cần thêm
+    window.location.hash = `manager/${tab}`;
+  };
+  
+  // 🔒 RESET ALL MODAL STATES KHI CHUYỂN TAB (Tránh modals bị trồng lên tab khác)
+  useEffect(() => {
+    console.log('🔄 Tab changed to:', activeTab, '- Resetting all modal states');
+    
+    // Đóng tất cả modals
+    setShowVehicleModal(false);
+    setShowCustomerModal(false);
+    
+    // Reset modal modes
+    setModalMode('add');
+    setCustomerModalMode('add');
+    
+    // Clear selected data
+    setSelectedVehicle(null);
+    setSelectedCustomer(null);
+    
+    // Reset search
+    setSearchQuery('');
+    
+    console.log('✅ All modal states reset for tab:', activeTab);
+  }, [activeTab]); // Trigger khi activeTab thay đổi
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [vehicles, setVehicles] = useState([]);
   const [allCustomers, setAllCustomers] = useState([]); // Danh sách khách hàng từ API
@@ -70,6 +142,7 @@ function ManagerDashboard({ onNavigate }) {
   const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit' | 'view'
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [vehicleFormData, setVehicleFormData] = useState({
+    vehicleId: null, // ✅ Thêm vehicleId để lưu ID khi edit
     vin: '',
     model: '',
     year: new Date().getFullYear(),
@@ -116,9 +189,9 @@ function ManagerDashboard({ onNavigate }) {
     try {
       setLoadingOverview(true);
       setError(null);
-      console.log('🔄 Loading overview data from API...');
+      console.log('🔄 Loading overview data from CenterAPI (filtered by centerId)...');
 
-      // Fetch tất cả data song song để tăng tốc độ
+      // ✅ Fetch tất cả data song song - SỬ DỤNG CenterAPI để auto-filter theo centerId
       const [
         customersData,
         vehiclesData,
@@ -130,15 +203,15 @@ function ManagerDashboard({ onNavigate }) {
         partsData,
         techniciansData
       ] = await Promise.all([
-        API.getAllCustomers().catch(err => { console.error('Error customers:', err); return []; }),
-        API.getVehiclesMaintained().catch(err => { console.error('Error vehicles:', err); return []; }),
-        API.getAllAppointments().catch(err => { console.error('Error appointments:', err); return []; }),
-        API.getRevenueReport().catch(err => { console.error('Error revenue:', err); return {}; }),
-        API.getProfitReport().catch(err => { console.error('Error profit:', err); return {}; }),
-        API.getTrendingServices().catch(err => { console.error('Error trending:', err); return []; }),
-        API.getTrendingServicesLastMonth().catch(err => { console.error('Error trending month:', err); return []; }),
-        API.getAllParts().catch(err => { console.error('Error parts:', err); return []; }), // Sử dụng getAllParts thay vì getTop5PartsUsed
-        API.getAllTechnicians().catch(err => { console.error('Error technicians:', err); return []; })
+        CenterAPI.getCustomers().catch(err => { console.error('Error customers:', err); return []; }),
+        CenterAPI.getVehicles().catch(err => { console.error('Error vehicles:', err); return []; }),
+        CenterAPI.getAppointments().catch(err => { console.error('Error appointments:', err); return []; }),
+        CenterAPI.getRevenueReport().catch(err => { console.error('Error revenue:', err); return {}; }),
+        CenterAPI.getProfitReport().catch(err => { console.error('Error profit:', err); return {}; }),
+        CenterAPI.getTrendingServices().catch(err => { console.error('Error trending:', err); return []; }),
+        CenterAPI.getTrendingServicesLastMonth().catch(err => { console.error('Error trending month:', err); return []; }),
+        CenterAPI.getParts().catch(err => { console.error('Error parts:', err); return []; }),
+        CenterAPI.getTechnicians().catch(err => { console.error('Error technicians:', err); return []; })
       ]);
 
       console.log('📊 Overview Data:', {
@@ -267,6 +340,7 @@ function ManagerDashboard({ onNavigate }) {
     setModalMode('add');
     setSelectedVehicle(null);
     setVehicleFormData({
+      vehicleId: null,
       vin: '',
       model: '',
       year: new Date().getFullYear(),
@@ -278,31 +352,47 @@ function ManagerDashboard({ onNavigate }) {
   };
 
   // Mở modal sửa xe
-  const handleEditVehicle = (vehicle) => {
+  const handleEditVehicle = (vehicleData) => {
+    console.log('🔧 Edit vehicle clicked, vehicleData:', vehicleData);
+    
+    // Xử lý cả 2 trường hợp: API trả về {vehicle, owner} hoặc chỉ vehicle
+    const vehicle = vehicleData.vehicle || vehicleData;
+    const owner = vehicleData.owner || vehicle.owner;
+    
+    console.log('📝 Extracted vehicle:', vehicle);
+    console.log('📝 Vehicle ID:', vehicle.id);
+    console.log('📝 Extracted owner:', owner);
+    
     setModalMode('edit');
-    setSelectedVehicle(vehicle);
+    // Lưu toàn bộ vehicleData để sau này dùng
+    setSelectedVehicle(vehicleData);
     setVehicleFormData({
+      vehicleId: vehicle.id, // ✅ LƯU ID VÀO FORM DATA
       vin: vehicle.vin || '',
       model: vehicle.model || '',
       year: vehicle.year || new Date().getFullYear(),
       color: vehicle.color || '',
       licensePlate: vehicle.licensePlate || '',
-      customerId: vehicle.owner?.id || ''
+      customerId: owner?.id || ''
     });
     setShowVehicleModal(true);
   };
 
   // Mở modal xem chi tiết
-  const handleViewVehicle = (vehicle) => {
+  const handleViewVehicle = (vehicleData) => {
+    const vehicle = vehicleData.vehicle || vehicleData;
+    const owner = vehicleData.owner || vehicle.owner;
+    
     setModalMode('view');
-    setSelectedVehicle(vehicle);
+    setSelectedVehicle(vehicleData);
     setVehicleFormData({
+      vehicleId: vehicle.id || null,
       vin: vehicle.vin || '',
       model: vehicle.model || '',
       year: vehicle.year || '',
       color: vehicle.color || '',
       licensePlate: vehicle.licensePlate || '',
-      customerId: vehicle.owner?.id || ''
+      customerId: owner?.id || ''
     });
     setShowVehicleModal(true);
   };
@@ -331,27 +421,39 @@ function ManagerDashboard({ onNavigate }) {
           model: vehicleFormData.model,
           year: vehicleFormData.year,
           color: vehicleFormData.color,
-          licensePlate: vehicleFormData.licensePlate
+          licensePlate: vehicleFormData.licensePlate,
+          customerId: vehicleFormData.customerId
         });
         alert('✅ Thêm xe thành công!');
       } else if (modalMode === 'edit') {
-        // Cập nhật xe - API không có endpoint này, chỉ có thể xóa và thêm lại
-        alert('⚠️ Chức năng cập nhật xe chưa được hỗ trợ từ backend');
-        // await API.updateVehicle(selectedVehicle.id, {
-        //   vin: vehicleFormData.vin,
-        //   model: vehicleFormData.model,
-        //   year: vehicleFormData.year,
-        //   color: vehicleFormData.color,
-        //   licensePlate: vehicleFormData.licensePlate
-        // });
-        // alert('✅ Cập nhật xe thành công!');
+        // Cập nhật xe - Lấy ID từ vehicleFormData (đã lưu khi handleEditVehicle)
+        const vehicleId = vehicleFormData.vehicleId;
+        
+        console.log('� Updating vehicle, vehicleId from form:', vehicleId);
+        
+        if (!vehicleId) {
+          console.error('❌ Cannot find vehicle ID in form data:', vehicleFormData);
+          alert('⚠️ Không tìm thấy ID xe để cập nhật\n\nDebug info đã được ghi vào console');
+          setSavingVehicle(false);
+          return;
+        }
+        
+        await API.updateVehicle(vehicleId, {
+          vin: vehicleFormData.vin,
+          model: vehicleFormData.model,
+          year: vehicleFormData.year,
+          color: vehicleFormData.color,
+          licensePlate: vehicleFormData.licensePlate
+        });
+        alert('✅ Cập nhật xe thành công!');
       }
       
       setShowVehicleModal(false);
       fetchVehicles(); // Reload danh sách
     } catch (err) {
       console.error('❌ Error saving vehicle:', err);
-      alert(`❌ Lỗi: ${err.message || 'Không thể lưu xe'}`);
+      const errorMsg = err.response?.data?.message || err.message || 'Không thể lưu xe';
+      alert(`❌ Lỗi: ${errorMsg}`);
     } finally {
       setSavingVehicle(false);
     }
@@ -396,7 +498,7 @@ function ManagerDashboard({ onNavigate }) {
     setCustomerModalMode('edit');
     setSelectedCustomer(customer);
     setCustomerFormData({
-      name: customer.name || '',
+      name: customer.fullName || customer.name || '',
       username: customer.username || '',
       email: customer.email || '',
       phone: customer.phone || '',
@@ -410,7 +512,7 @@ function ManagerDashboard({ onNavigate }) {
     setCustomerModalMode('view');
     setSelectedCustomer(customer);
     setCustomerFormData({
-      name: customer.name || '',
+      name: customer.fullName || customer.name || '',
       username: customer.username || '',
       email: customer.email || '',
       phone: customer.phone || '',
@@ -422,13 +524,29 @@ function ManagerDashboard({ onNavigate }) {
   // Lưu khách hàng (add/edit)
   const handleSaveCustomer = async () => {
     // Validation
-    if (!customerFormData.username.trim()) {
-      alert('⚠️ Vui lòng nhập tên đăng nhập!');
-      return;
-    }
     if (!customerFormData.email.trim() || !customerFormData.email.includes('@')) {
       alert('⚠️ Vui lòng nhập email hợp lệ!');
       return;
+    }
+    
+    // Validate email phải có @gmail.com
+    if (!customerFormData.email.toLowerCase().includes('@gmail.com')) {
+      alert('⚠️ Email phải là Gmail (@gmail.com)!');
+      return;
+    }
+    
+    if (!customerFormData.name.trim()) {
+      alert('⚠️ Vui lòng nhập họ tên!');
+      return;
+    }
+    
+    // Validate số điện thoại (nếu có)
+    if (customerFormData.phone.trim()) {
+      const phoneValidation = validateVietnamesePhone(customerFormData.phone.trim());
+      if (!phoneValidation.isValid) {
+        alert(`⚠️ ${phoneValidation.message}`);
+        return;
+      }
     }
 
     setSavingCustomer(true);
@@ -436,43 +554,93 @@ function ManagerDashboard({ onNavigate }) {
       if (customerModalMode === 'edit' && selectedCustomer) {
         // Cập nhật khách hàng
         console.log('🔄 Updating customer:', selectedCustomer.id, customerFormData);
-        const response = await API.updateUser(selectedCustomer.id, {
-          fullName: customerFormData.name, // Backend expects 'fullName' not 'name'
+        const updateData = {
+          fullName: customerFormData.name,
           email: customerFormData.email,
-          phone: customerFormData.phone
-          // Note: username and address không được hỗ trợ bởi backend API
-        });
+          phone: customerFormData.phone || '',
+          address: customerFormData.address || ''
+        };
+        
+        const response = await API.updateUser(selectedCustomer.id, updateData);
         console.log('✅ Update response:', response);
         
-        // Cập nhật state ngay lập tức thay vì fetch lại
-        setAllCustomers(prevCustomers => 
-          prevCustomers.map(c => 
-            c.id === selectedCustomer.id 
-              ? { ...c, ...customerFormData }
-              : c
-          )
-        );
-        
         alert('✅ Cập nhật khách hàng thành công!');
-      } else if (customerModalMode === 'add') {
-        // Tính năng thêm khách hàng - cần API endpoint
-        alert('⚠️ Chức năng thêm khách hàng chưa được hỗ trợ bởi backend!');
         setShowCustomerModal(false);
-        setSavingCustomer(false);
-        return;
+        
+        // Đợi 500ms để backend xử lý xong
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await fetchCustomers();
+        
+      } else if (customerModalMode === 'add') {
+        // Thêm khách hàng mới
+        console.log('➕ Creating new customer:', customerFormData);
+        
+        // Validate username
+        if (!customerFormData.username.trim()) {
+          alert('⚠️ Vui lòng nhập tên đăng nhập!');
+          setSavingCustomer(false);
+          return;
+        }
+        
+        const createData = {
+          username: customerFormData.username.trim(),
+          password: '123456', // ✅ Default password theo backend
+          fullName: customerFormData.name.trim(),
+          email: customerFormData.email.trim(),
+          phone: customerFormData.phone.trim() || '',
+          address: customerFormData.address.trim() || '',
+          role: 'customer'
+        };
+        
+        console.log('📤 Calling API.createCustomer with:', createData);
+        const response = await API.createCustomer(createData);
+        console.log('✅ Create response:', response);
+        
+        alert('✅ Thêm khách hàng thành công!\n\n📧 Thông tin đăng nhập:\n👤 Username: ' + createData.username + '\n🔑 Password: 123456\n\n⚠️ Vui lòng thông báo cho khách hàng!');
+        setShowCustomerModal(false);
+        
+        // Đợi 500ms để backend xử lý xong
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await fetchCustomers();
       }
-      
-      setShowCustomerModal(false);
-      // Fetch lại để đảm bảo đồng bộ với server
-      console.log('🔄 Force refresh customer list...');
-      
-      // Đợi 500ms để backend xử lý xong
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      await fetchCustomers();
     } catch (err) {
       console.error('❌ Error saving customer:', err);
-      alert(`❌ Lỗi: ${err.message || 'Không thể lưu khách hàng'}`);
+      console.error('❌ Error status:', err.response?.status);
+      console.error('❌ Error data:', err.response?.data);
+      
+      const status = err.response?.status;
+      const errorMsg = err.response?.data?.message || err.message || 'Không thể lưu khách hàng';
+      
+      // ✅ Xử lý lỗi 403/401 - Token hết hạn hoặc không hợp lệ
+      if (status === 403 || status === 401) {
+        const isTokenError = 
+          errorMsg.toLowerCase().includes('token') ||
+          errorMsg.toLowerCase().includes('expired') ||
+          errorMsg.toLowerCase().includes('invalid') ||
+          status === 401;
+        
+        if (isTokenError) {
+          alert('🔐 Phiên đăng nhập đã hết hạn!\n\nVui lòng đăng nhập lại.');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('role');
+          localStorage.removeItem('userId');
+          localStorage.removeItem('centerId');
+          localStorage.removeItem('fullName');
+          window.location.href = '#/login';
+          return;
+        } else {
+          alert('❌ Lỗi: Bạn không có quyền thực hiện thao tác này!\n\n' + errorMsg);
+        }
+      }
+      // Xử lý các loại lỗi cụ thể khác
+      else if (errorMsg.includes('username') && errorMsg.includes('exist')) {
+        alert('❌ Lỗi: Tên đăng nhập đã tồn tại!\nVui lòng chọn tên đăng nhập khác.');
+      } else if (errorMsg.includes('email') && errorMsg.includes('exist')) {
+        alert('❌ Lỗi: Email đã được sử dụng!\nVui lòng dùng email khác.');
+      } else {
+        alert(`❌ Lỗi: ${errorMsg}`);
+      }
     } finally {
       setSavingCustomer(false);
     }
@@ -480,17 +648,36 @@ function ManagerDashboard({ onNavigate }) {
 
   // Xóa khách hàng
   const handleDeleteCustomer = async (customerId) => {
-    if (!confirm('⚠️ Bạn có chắc muốn xóa khách hàng này?')) {
+    if (!confirm('⚠️ Bạn có chắc muốn xóa khách hàng này?\n\nLưu ý: Thao tác này không thể hoàn tác!')) {
       return;
     }
 
     try {
-      await API.deleteEmployee(customerId); // API dùng chung cho user
+      console.log('🗑️ Deleting customer:', customerId);
+      
+      // ⚠️ Backend cần có endpoint để xóa user
+      // Tạm thời sử dụng deleteEmployee (nếu có)
+      await API.deleteEmployee(customerId);
+      
       alert('✅ Đã xóa khách hàng thành công!');
-      fetchCustomers();
+      
+      // Cập nhật state local trước
+      setAllCustomers(prevCustomers => prevCustomers.filter(c => c.id !== customerId));
+      
+      // Sau đó fetch lại để đảm bảo sync
+      await fetchCustomers();
     } catch (err) {
       console.error('❌ Error deleting customer:', err);
-      alert(`❌ Lỗi: ${err.message || 'Không thể xóa khách hàng'}`);
+      const errorMsg = err.response?.data?.message || err.message || 'Không thể xóa khách hàng';
+      
+      // Kiểm tra nếu là lỗi 403 hoặc quyền
+      if (err.response?.status === 403) {
+        alert(`❌ Lỗi: Bạn không có quyền xóa khách hàng này!`);
+      } else if (errorMsg.includes('constraint') || errorMsg.includes('foreign key')) {
+        alert(`❌ Không thể xóa khách hàng này vì:\n- Khách hàng có lịch hẹn liên quan\n- Hoặc có dữ liệu phụ thuộc trong hệ thống`);
+      } else {
+        alert(`❌ Lỗi: ${errorMsg}`);
+      }
     }
   };
 
@@ -573,6 +760,70 @@ function ManagerDashboard({ onNavigate }) {
   const [newMessage, setNewMessage] = useState('');
 
   // Helper Functions
+  
+  // Validate Vietnamese phone number
+  const validateVietnamesePhone = (phone) => {
+    // Remove spaces and dashes
+    const cleanPhone = phone.replace(/[\s\-]/g, '');
+    
+    // Check if contains only digits
+    if (!/^\d+$/.test(cleanPhone)) {
+      return {
+        isValid: false,
+        message: 'Số điện thoại chỉ được chứa số!'
+      };
+    }
+    
+    // Đầu số Viettel (10 số)
+    const viettel10 = /^(032|033|034|035|036|037|038|039)\d{7}$/;
+    // Đầu số Viettel (11 số)
+    const viettel11 = /^(086|096|097|098)\d{7}$/;
+    
+    // Đầu số Vinaphone (10 số)
+    const vinaphone10 = /^(083|084|085|081|082|088)\d{7}$/;
+    // Đầu số Vinaphone (11 số)
+    const vinaphone11 = /^(0123|0124|0125|0127|0128|0129)\d{7}$/;
+    
+    // Đầu số Mobifone (10 số)
+    const mobifone10 = /^(070|079|077|076|078)\d{7}$/;
+    // Đầu số Mobifone (11 số)
+    const mobifone11 = /^(0120|0121|0122|0126|0128)\d{7}$/;
+    
+    // Đầu số Vietnamobile (10 số)
+    const vietnamobile10 = /^(056|058)\d{7}$/;
+    // Đầu số Vietnamobile (11 số)
+    const vietnamobile11 = /^(0188|0186)\d{7}$/;
+    
+    // Đầu số Gmobile (10 số)
+    const gmobile10 = /^(059)\d{7}$/;
+    // Đầu số Gmobile (11 số)
+    const gmobile11 = /^(0199)\d{7}$/;
+    
+    const isValid = viettel10.test(cleanPhone) || viettel11.test(cleanPhone) ||
+                    vinaphone10.test(cleanPhone) || vinaphone11.test(cleanPhone) ||
+                    mobifone10.test(cleanPhone) || mobifone11.test(cleanPhone) ||
+                    vietnamobile10.test(cleanPhone) || vietnamobile11.test(cleanPhone) ||
+                    gmobile10.test(cleanPhone) || gmobile11.test(cleanPhone);
+    
+    if (!isValid) {
+      return {
+        isValid: false,
+        message: 'Số điện thoại không đúng định dạng của các nhà mạng Việt Nam!\n\n' +
+                 'Vui lòng nhập số điện thoại hợp lệ của:\n' +
+                 '📱 Viettel: 032-039, 086, 096-098\n' +
+                 '📱 Vinaphone: 081-085, 088, 0123-0129\n' +
+                 '📱 Mobifone: 070, 076-079, 0120-0122, 0126, 0128\n' +
+                 '📱 Vietnamobile: 056, 058, 0186, 0188\n' +
+                 '📱 Gmobile: 059, 0199'
+      };
+    }
+    
+    return {
+      isValid: true,
+      message: 'Valid'
+    };
+  };
+  
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   };
@@ -646,8 +897,8 @@ function ManagerDashboard({ onNavigate }) {
               <FaUserTie />
             </div>
             <div className="manager-details">
-              <p className="manager-name">{fullName || 'Manager'}</p>
-              <p className="manager-role">Quản lý trung tâm</p>
+              <p className="manager-name">{displayName}</p>
+              <p className="manager-role">Manager - Quản lý trung tâm</p>
             </div>
           </div>
         </div>
@@ -657,71 +908,71 @@ function ManagerDashboard({ onNavigate }) {
       <div className="tab-navigation">
         <button 
           className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
-          onClick={() => setActiveTab('overview')}
+          onClick={() => handleTabChange('overview')}
         >
           <FaChartLine />
           Tổng quan
         </button>
         <button 
           className={`tab-btn ${activeTab === 'customers' ? 'active' : ''}`}
-          onClick={() => setActiveTab('customers')}
+          onClick={() => handleTabChange('customers')}
         >
           <FaUser />
           Khách hàng
         </button>
         <button 
           className={`tab-btn ${activeTab === 'vehicles' ? 'active' : ''}`}
-          onClick={() => setActiveTab('vehicles')}
+          onClick={() => handleTabChange('vehicles')}
         >
           <FaCar />
           Quản lý xe
         </button>
         <button 
           className={`tab-btn ${activeTab === 'appointments' ? 'active' : ''}`}
-          onClick={() => setActiveTab('appointments')}
+          onClick={() => handleTabChange('appointments')}
         >
           <FaCalendarAlt />
           Lịch hẹn & Dịch vụ
         </button>
         <button 
           className={`tab-btn ${activeTab === 'maintenance' ? 'active' : ''}`}
-          onClick={() => setActiveTab('maintenance')}
+          onClick={() => handleTabChange('maintenance')}
         >
           <FaTools />
           Quy trình Bảo dưỡng
         </button>
         <button 
           className={`tab-btn ${activeTab === 'parts' ? 'active' : ''}`}
-          onClick={() => setActiveTab('parts')}
+          onClick={() => handleTabChange('parts')}
         >
           <FaWarehouse />
           Phụ tùng
         </button>
         <button 
           className={`tab-btn ${activeTab === 'staff' ? 'active' : ''}`}
-          onClick={() => setActiveTab('staff')}
+          onClick={() => handleTabChange('staff')}
         >
           <FaUsers />
           Nhân sự
         </button>
         <button 
           className={`tab-btn ${activeTab === 'finance' ? 'active' : ''}`}
-          onClick={() => setActiveTab('finance')}
+          onClick={() => handleTabChange('finance')}
         >
           <FaMoneyBillWave />
           Tài chính & Báo cáo
         </button>
         <button 
           className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
-          onClick={() => setActiveTab('chat')}
+          onClick={() => handleTabChange('chat')}
         >
           <FaComments />
           Chat
         </button>
       </div>
 
-      {/* Content Area */}
-      <div className="dashboard-content">
+      {/* Content Area - KEY PROP để force re-render khi đổi tab */}
+      <div className="dashboard-content" key={activeTab}>
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="overview-section">
@@ -1195,13 +1446,13 @@ function ManagerDashboard({ onNavigate }) {
             {/* Danh sách xe đã đến bảo trì */}
             <div className="all-vehicles-section">
               <div className="section-header-with-stats">
-                <h3>🚗 Danh sách xe đã đến bảo trì</h3>
+                <h3>Danh sách xe đã đến bảo trì</h3>
                 <div className="quick-stats">
                   <span className="stat-item">
-                    👥 {allCustomers.length} khách hàng
+                    {allCustomers.length} khách hàng
                   </span>
                   <span className="stat-item">
-                    🚗 {vehicles.length} xe
+                    {vehicles.length} xe
                   </span>
                 </div>
               </div>
@@ -1221,7 +1472,7 @@ function ManagerDashboard({ onNavigate }) {
 
               {!loading && !error && vehicles.length === 0 && (
                 <div className="empty-message">
-                  <p>📭 Chưa có xe nào trong hệ thống</p>
+                  <p>Chưa có xe nào trong hệ thống</p>
                 </div>
               )}
 
@@ -1281,7 +1532,7 @@ function ManagerDashboard({ onNavigate }) {
                                 <button 
                                   className="btn-sm btn-edit" 
                                   title="Chỉnh sửa"
-                                  onClick={() => handleEditVehicle(vehicle)}
+                                  onClick={() => handleEditVehicle(vehicleData)}
                                 >
                                   <FaEdit /> Sửa
                                 </button>
@@ -1386,7 +1637,7 @@ function ManagerDashboard({ onNavigate }) {
 
             {!loadingAppointments && !appointmentsError && appointments.length === 0 && (
               <div className="empty-message">
-                <p>📭 Chưa có lịch hẹn nào trong hệ thống</p>
+                <p>Chưa có lịch hẹn nào trong hệ thống</p>
               </div>
             )}
 
@@ -1969,13 +2220,42 @@ function ManagerDashboard({ onNavigate }) {
                 </div>
               )}
 
-              {modalMode === 'view' && selectedVehicle?.owner && (
-                <div className="info-display">
-                  <strong>👤 Chủ xe:</strong> {selectedVehicle.owner.fullName || selectedVehicle.owner.name || selectedVehicle.owner.username}
-                  <br />
-                  <strong>📧 Email:</strong> {selectedVehicle.owner.email}
-                </div>
-              )}
+              {(modalMode === 'view' || modalMode === 'edit') && selectedVehicle && (() => {
+                const vehicle = selectedVehicle.vehicle || selectedVehicle;
+                const owner = selectedVehicle.owner || vehicle.owner;
+                return owner ? (
+                  <div className="info-display" style={{
+                    padding: '15px',
+                    backgroundColor: '#f5f5f5',
+                    borderRadius: '8px',
+                    marginBottom: '20px',
+                    border: '1px solid #ddd'
+                  }}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px'}}>
+                      <FaUser style={{color: '#1976d2'}} />
+                      <strong style={{fontSize: '16px'}}>Chủ xe:</strong>
+                      <span style={{fontSize: '16px', color: '#333'}}>
+                        {owner.fullName || owner.name || owner.username}
+                      </span>
+                    </div>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '30px'}}>
+                      <FaEnvelope style={{color: '#666', fontSize: '14px'}} />
+                      <span style={{fontSize: '14px', color: '#666'}}>{owner.email}</span>
+                    </div>
+                    {owner.phone && (
+                      <div style={{display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '30px', marginTop: '5px'}}>
+                        <FaPhone style={{color: '#666', fontSize: '14px'}} />
+                        <span style={{fontSize: '14px', color: '#666'}}>{owner.phone}</span>
+                      </div>
+                    )}
+                    {modalMode === 'edit' && (
+                      <small style={{display: 'block', marginTop: '10px', color: '#666', fontStyle: 'italic'}}>
+                        ℹ️ Không thể thay đổi chủ xe khi chỉnh sửa
+                      </small>
+                    )}
+                  </div>
+                ) : null;
+              })()}
 
               <div className="form-group">
                 <label>VIN <span className="required">*</span></label>
@@ -2064,12 +2344,12 @@ function ManagerDashboard({ onNavigate }) {
       {/* 🧑 Customer Modal */}
       {showCustomerModal && (
         <div className="modal-overlay" onClick={() => setShowCustomerModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content customer-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>
-                {customerModalMode === 'add' && '➕ Thêm khách hàng mới'}
-                {customerModalMode === 'edit' && '✏️ Chỉnh sửa khách hàng'}
-                {customerModalMode === 'view' && '👁️ Chi tiết khách hàng'}
+                {customerModalMode === 'add' && 'Thêm khách hàng mới'}
+                {customerModalMode === 'edit' && `Chỉnh sửa khách hàng ${selectedCustomer ? `#${selectedCustomer.id}` : ''}`}
+                {customerModalMode === 'view' && `Chi tiết khách hàng ${selectedCustomer ? `#${selectedCustomer.id}` : ''}`}
               </h2>
               <button className="close-btn" onClick={() => setShowCustomerModal(false)}>
                 <FaTimes />
@@ -2078,49 +2358,66 @@ function ManagerDashboard({ onNavigate }) {
 
             <form onSubmit={(e) => { e.preventDefault(); handleSaveCustomer(); }}>
               <div className="form-group">
-                <label>Họ tên</label>
+                <label>Họ tên <span className="required">*</span></label>
                 <input
                   type="text"
                   placeholder="VD: Nguyễn Văn A"
                   value={customerFormData.name}
                   onChange={(e) => setCustomerFormData({...customerFormData, name: e.target.value})}
+                  required
                   disabled={customerModalMode === 'view'}
                 />
               </div>
 
               <div className="form-group">
-                <label>Tên đăng nhập <span className="required">*</span></label>
+                <label>
+                  Tên đăng nhập 
+                  {customerModalMode === 'add' && <span className="required">*</span>}
+                  {customerModalMode === 'edit' && <span className="note"> (không thể thay đổi)</span>}
+                </label>
                 <input
                   type="text"
                   placeholder="VD: nguyenvana"
                   value={customerFormData.username}
                   onChange={(e) => setCustomerFormData({...customerFormData, username: e.target.value})}
-                  required
-                  disabled={customerModalMode === 'view'}
+                  required={customerModalMode === 'add'}
+                  disabled={customerModalMode !== 'add'}
                 />
+                {customerModalMode === 'add' && (
+                  <small className="help-text">Username sẽ được dùng để đăng nhập. Mật khẩu mặc định: 123456</small>
+                )}
               </div>
 
               <div className="form-group">
                 <label>Email <span className="required">*</span></label>
                 <input
                   type="email"
-                  placeholder="VD: nguyenvana@email.com"
+                  placeholder="VD: nguyenvana@gmail.com"
                   value={customerFormData.email}
                   onChange={(e) => setCustomerFormData({...customerFormData, email: e.target.value})}
                   required
                   disabled={customerModalMode === 'view'}
                 />
+                {customerModalMode !== 'view' && (
+                  <small className="help-text">Chỉ chấp nhận email @gmail.com</small>
+                )}
               </div>
 
               <div className="form-group">
                 <label>Số điện thoại</label>
                 <input
                   type="tel"
-                  placeholder="VD: 0901234567"
+                  placeholder="VD: 0901234567 (Viettel, Vinaphone, Mobifone...)"
                   value={customerFormData.phone}
                   onChange={(e) => setCustomerFormData({...customerFormData, phone: e.target.value})}
                   disabled={customerModalMode === 'view'}
                 />
+                {customerModalMode !== 'view' && (
+                  <small className="help-text">
+                    Nhập số điện thoại hợp lệ của các nhà mạng Việt Nam<br/>
+                    (Viettel: 032-039, 086, 096-098 | Vinaphone: 081-085, 088 | Mobifone: 070, 076-079)
+                  </small>
+                )}
               </div>
 
               <div className="form-group">
@@ -2161,4 +2458,3 @@ function ManagerDashboard({ onNavigate }) {
 }
 
 export default ManagerDashboard;
-

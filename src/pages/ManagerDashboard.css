@@ -1804,6 +1804,21 @@
   color: #f44336;
 }
 
+.form-group .note {
+  color: #666;
+  font-weight: 400;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.form-group .help-text {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+}
+
 .form-group input,
 .form-group select {
   width: 100%;

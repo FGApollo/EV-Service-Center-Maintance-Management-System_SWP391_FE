@@ -34,10 +34,11 @@ export const getProfile = async () => {
 };
 
 // Cập nhật thông tin user (✅ Cần token)
+// ✅ Theo OpenAPI mới: PUT /api/auth/update/{id}
 export const updateUser = async (id, data) => {
-  console.log('📤 API Request: PUT /api/update/' + id);
+  console.log('📤 API Request: PUT /api/auth/update/' + id);
   console.log('📤 Request Data:', data);
-  const res = await axiosClient.put(`/api/update/${id}`, data);
+  const res = await axiosClient.put(`/api/auth/update/${id}`, data);
   console.log('📥 API Response:', res.data);
   return res.data;
 };
@@ -88,6 +89,13 @@ export const deleteEmployee = async (id) => {
   return res.data;
 };
 
+// Tạo customer mới - Dùng register endpoint (❌ Không cần token - public API)
+export const createCustomer = async (data) => {
+  console.log('📤 Creating customer via register:', data);
+  const res = await axiosClient.post("/api/auth/register", data);
+  return res.data;
+};
+
 /* --------------------------------
    🚗 VEHICLES
 ---------------------------------- */
@@ -125,6 +133,15 @@ export const getVehicleById = async (id) => {
 // Thêm xe mới (✅)
 export const addVehicle = async (data) => {
   const res = await axiosClient.post("/api/vehicles", data);
+  return res.data;
+};
+
+// Cập nhật xe (✅)
+export const updateVehicle = async (id, data) => {
+  console.log('📤 API Request: PUT /api/vehicles/' + id);
+  console.log('📤 Request Data:', data);
+  const res = await axiosClient.put(`/api/vehicles/${id}`, data);
+  console.log('📥 API Response:', res.data);
   return res.data;
 };
 
@@ -660,63 +677,73 @@ export const getRevenue = async (startDate, endDate) => {
   return res.data;
 };
 
-// Báo cáo doanh thu theo tháng (✅ Cần token - Admin)
+// Báo cáo doanh thu theo tháng (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
 export const getRevenueReport = async () => {
-  const res = await axiosClient.get("/api/admin/reports/revenue");
+  const res = await axiosClient.get("/api/management/reports/revenue");
   return res.data;
 };
 
-// Doanh thu tháng hiện tại (✅ Cần token - Admin)
+// Doanh thu tháng hiện tại (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
 export const getRevenueCurrentMonth = async () => {
-  const res = await axiosClient.get("/api/admin/reports/revenue/current-month");
+  const res = await axiosClient.get("/api/management/reports/revenue/current-month");
   return res.data;
 };
 
-// Doanh thu theo dịch vụ (✅ Cần token - Admin)
+// Doanh thu theo dịch vụ (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
 export const getRevenueByService = async () => {
-  const res = await axiosClient.get("/api/admin/reports/revenue/service");
+  const res = await axiosClient.get("/api/management/reports/revenue/service");
   return res.data;
 };
 
-// Báo cáo lợi nhuận theo tháng (✅ Cần token - Admin)
+// Báo cáo lợi nhuận theo tháng (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
 export const getProfitReport = async () => {
-  const res = await axiosClient.get("/api/admin/reports/profit");
+  const res = await axiosClient.get("/api/management/reports/profit");
   return res.data;
 };
 
-// Chi phí tháng hiện tại (✅ Cần token - Admin)
+// Chi phí tháng hiện tại (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
 export const getCurrentMonthExpense = async () => {
-  const res = await axiosClient.get("/api/admin/reports/expense/current-month");
+  const res = await axiosClient.get("/api/management/reports/expense/current-month");
   return res.data;
 };
 
-// Top dịch vụ phổ biến (all time) (✅ Cần token - Admin)
+// Top dịch vụ phổ biến (all time) (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
 export const getTrendingServices = async () => {
-  const res = await axiosClient.get("/api/admin/reports/trending-services/alltime");
+  const res = await axiosClient.get("/api/management/reports/trending-services/alltime");
   return res.data;
 };
 
-// Top dịch vụ tháng trước (✅ Cần token - Admin)
+// Top dịch vụ tháng trước (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
 export const getTrendingServicesLastMonth = async () => {
-  const res = await axiosClient.get("/api/admin/reports/trending-services/last-month");
+  const res = await axiosClient.get("/api/management/reports/trending-services/last-month");
   return res.data;
 };
 
-// Top 5 parts được dùng nhiều nhất tháng trước (✅ Cần token - Admin)
+// Top 5 parts được dùng nhiều nhất tháng trước (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
 export const getTrendingParts = async () => {
-  const res = await axiosClient.get("/api/admin/reports/trending-parts");
+  const res = await axiosClient.get("/api/management/reports/trending-parts");
   return res.data;
 };
 
-// Báo cáo tồn kho phụ tùng (✅ Cần token - Admin)
+// Báo cáo tồn kho phụ tùng (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
 export const getPartStockReport = async () => {
-  const res = await axiosClient.get("/api/admin/reports/parts/stock-report");
+  const res = await axiosClient.get("/api/management/reports/parts/stock-report");
   return res.data;
 };
 
-// Thống kê phương thức thanh toán (✅ Cần token - Admin)
+// Thống kê phương thức thanh toán (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
 export const getPaymentMethods = async () => {
-  const res = await axiosClient.get("/api/admin/reports/payment-methods");
+  const res = await axiosClient.get("/api/management/reports/payment-methods");
   return res.data;
 };
 

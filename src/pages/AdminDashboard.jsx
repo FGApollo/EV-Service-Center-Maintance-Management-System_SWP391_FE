@@ -8,17 +8,42 @@ import {
   FaFileInvoiceDollar, FaCalendarWeek, FaUserTie, FaBriefcase, FaEye
 } from 'react-icons/fa';
 import * as API from '../api/index.js';
+import { getCurrentUser } from '../utils/centerFilter';
+import { ROLES } from '../constants/roles';
 
 function AdminDashboard({ onNavigate }) {
   console.log('AdminDashboard component loaded!', { onNavigate });
   
-  // Kiểm tra đăng nhập
+  // Lấy thông tin user
+  const currentUser = getCurrentUser();
+  const { role } = currentUser;
+  
+  // Kiểm tra đăng nhập & quyền admin
   useEffect(() => {
+    let hasShownAlert = false; // Flag để chỉ hiển thị alert 1 lần
+    
     const token = localStorage.getItem('token');
     if (!token) {
-      alert('Bạn cần đăng nhập để truy cập trang này!');
-      onNavigate && onNavigate('login');
+      if (!hasShownAlert) {
+        hasShownAlert = true;
+        alert('Bạn cần đăng nhập để truy cập trang này!');
+        onNavigate && onNavigate('login');
+      }
+      return;
     }
+    
+    // Kiểm tra role phải là ADMIN
+    // CHỈ accept role 'admin', không accept 'manager'
+    if (role?.toLowerCase() !== 'admin') {
+      if (!hasShownAlert) {
+        hasShownAlert = true;
+        alert('Bạn không có quyền truy cập trang này! Trang này chỉ dành cho Administrator.');
+        onNavigate && onNavigate('login');
+      }
+      return;
+    }
+    
+    console.log('✅ Admin authorized:', { role });
   }, []); // Fixed: remove onNavigate from deps to prevent infinite loop
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');

@@ -80,12 +80,14 @@ function Login({ onNavigate, onLogin }) {
           alert("🎉 Đăng nhập thành công!");
           if (onLogin) onLogin(userData);
           
-          // Redirect theo role
+          // Redirect theo role - Phân biệt rõ ràng Admin và Manager
           const role = userData.role?.toLowerCase();
           switch(role) {
+            case 'admin':
+              onNavigate("admin");
+              break;
             case 'manager':
-            case 'admin': // Backward compatibility
-              onNavigate("manager");
+              onNavigate("manager/overview"); // ✅ Navigate đến overview tab
               break;
             case 'staff':
               onNavigate("staff");

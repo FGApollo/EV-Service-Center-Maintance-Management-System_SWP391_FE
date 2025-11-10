@@ -266,6 +266,31 @@ export const getTrendingServices = async () => {
 };
 
 /**
+ * Lấy dịch vụ phổ biến tháng trước
+ * @returns {Promise<Array>}
+ */
+export const getTrendingServicesLastMonth = async () => {
+  return await API.getTrendingServicesLastMonth();
+};
+
+/**
+ * Lấy báo cáo lợi nhuận theo tháng
+ * @returns {Promise<Object>}
+ */
+export const getProfitReport = async () => {
+  const { centerId, role } = getCurrentUser();
+  
+  const report = await API.getProfitReport();
+  
+  if (role === ROLES.ADMIN) {
+    return report;
+  }
+  
+  // TODO: Filter report data theo center nếu backend chưa hỗ trợ
+  return report;
+};
+
+/**
  * Lấy top parts được dùng nhiều
  * @returns {Promise<Object>}
  */
@@ -375,6 +400,8 @@ export default {
   getRevenueCurrentMonth,
   getCurrentMonthExpense,
   getTrendingServices,
+  getTrendingServicesLastMonth, // ✅ Thêm
+  getProfitReport, // ✅ Thêm
   getTrendingParts,
   getPartStockReport,
   
