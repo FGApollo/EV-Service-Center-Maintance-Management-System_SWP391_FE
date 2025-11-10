@@ -1,11 +1,11 @@
-/* Admin Dashboard Container */
-.admin-dashboard {
+/* Manager Dashboard Container */
+.manager-dashboard {
   min-height: 100vh;
   background: #f5f7fa;
 }
 
 /* Header */
-.admin-header {
+.manager-header {
   background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
   padding: 20px 40px;
   display: flex;
@@ -20,7 +20,7 @@
   gap: 20px;
 }
 
-.admin-header h1 {
+.manager-header h1 {
   color: white;
   font-size: 32px;
   font-weight: 700;
@@ -53,7 +53,7 @@
   gap: 20px;
 }
 
-.admin-info {
+.manager-info {
   display: flex;
   align-items: center;
   gap: 15px;
@@ -63,7 +63,7 @@
   backdrop-filter: blur(10px);
 }
 
-.admin-avatar {
+.manager-avatar {
   width: 45px;
   height: 45px;
   border-radius: 50%;
@@ -75,17 +75,17 @@
   font-size: 20px;
 }
 
-.admin-details {
+.manager-details {
   color: white;
 }
 
-.admin-name {
+.manager-name {
   font-weight: 600;
   margin: 0;
   font-size: 14px;
 }
 
-.admin-role {
+.manager-role {
   font-size: 12px;
   margin: 0;
   opacity: 0.9;
@@ -1346,7 +1346,7 @@
 }
 
 @media (max-width: 768px) {
-  .admin-header {
+  .manager-header {
     padding: 15px 20px;
     flex-direction: column;
     gap: 15px;

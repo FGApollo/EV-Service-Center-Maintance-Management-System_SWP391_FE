@@ -618,7 +618,7 @@ function ManagerDashboard({ onNavigate }) {
     if (newMessage.trim() && activeChatCustomer) {
       const message = {
         id: chatMessages.length + 1,
-        sender: 'admin',
+        sender: 'manager',
         text: newMessage,
         time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
       };
@@ -628,9 +628,9 @@ function ManagerDashboard({ onNavigate }) {
   };
 
   return (
-    <div className="admin-dashboard manager-dashboard">
+    <div className="manager-dashboard">
       {/* Header */}
-      <div className="admin-header">
+      <div className="manager-header">
         <div className="header-left">
           <button className="back-btn" onClick={() => onNavigate('home')}>
             <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
@@ -641,13 +641,13 @@ function ManagerDashboard({ onNavigate }) {
           <h1>Manager Dashboard - Center #{centerId}</h1>
         </div>
         <div className="header-right">
-          <div className="admin-info">
-            <div className="admin-avatar">
+          <div className="manager-info">
+            <div className="manager-avatar">
               <FaUserTie />
             </div>
-            <div className="admin-details">
-              <p className="admin-name">{fullName || 'Manager'}</p>
-              <p className="admin-role">Quản lý trung tâm</p>
+            <div className="manager-details">
+              <p className="manager-name">{fullName || 'Manager'}</p>
+              <p className="manager-role">Quản lý trung tâm</p>
             </div>
           </div>
         </div>
@@ -1890,7 +1890,7 @@ function ManagerDashboard({ onNavigate }) {
                       {chatMessages.map(message => (
                         <div 
                           key={message.id}
-                          className={`message ${message.sender === 'admin' ? 'sent' : 'received'}`}
+                          className={`message ${message.sender === 'manager' ? 'sent' : 'received'}`}
                         >
                           <div className="message-bubble">
                             <p>{message.text}</p>
