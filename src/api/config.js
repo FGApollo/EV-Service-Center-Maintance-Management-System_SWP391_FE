@@ -1,7 +1,7 @@
 // 🔧 Cấu hình API URL cho từng môi trường
 
 // ⚠️ Sửa dòng này để chuyển môi trường nhanh:
-const ENV = "render"; // "local" | "render" | "vercel"  // ← Đổi thành "render" nếu backend chưa chạy local
+const ENV = "local"; // "local" | "render" | "vercel"  // ← Chuyển sang "local" để dùng backend local
 
 // 🖥️ Local backend (khi chạy Node/Express trên localhost)
 const LOCAL_API = "http://localhost:8080"; // ← Sửa port này nếu backend của bạn dùng port khác (thường là 8080, 3000, 5000...)

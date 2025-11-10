@@ -10,7 +10,8 @@ import MyCar from "./pages/MyCar.jsx";
 import StaffDashboard from "./pages/StaffDashboard.jsx";
 import TechnicianDashboard from "./pages/TechnicianDashboard.jsx";
 import Footer from "./components/Footer.jsx";
-import AdminDashboard from './pages/AdminDashboard.jsx';
+import AdminDashboard from './pages/AdminDashboard.jsx'; // Keep for backward compatibility
+import ManagerDashboard from './pages/ManagerDashboard.jsx'; // New Manager Dashboard
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -96,32 +97,41 @@ function App() {
       case 'technician':
         return <TechnicianDashboard onNavigate={setCurrentPage} />;
       case 'admin':
-        console.log('Rendering AdminDashboard...');
+        console.log('Rendering AdminDashboard (deprecated - use manager)...');
         return <AdminDashboard onNavigate={setCurrentPage} />;
+      case 'manager':
+        console.log('Rendering ManagerDashboard...');
+        return <ManagerDashboard onNavigate={setCurrentPage} />;
       case 'home':
       default:
         return <Home onNavigate={setCurrentPage} />;
     }
   };
 
+  // Check if current page should show Navbar and Footer
+  const shouldShowNavbar = !['manager', 'admin', 'staff', 'technician'].includes(currentPage);
+  const shouldShowFooter = !['manager', 'admin', 'staff', 'technician'].includes(currentPage);
+
   return (
     <div className="App">
-      <Navbar 
-        onNavigate={setCurrentPage} 
-        isLoggedIn={isLoggedIn} 
-        onLogout={() => { 
-          setIsLoggedIn(false); 
-          setUser(null); 
-          localStorage.removeItem('token'); 
-          localStorage.removeItem('user');
-          setCurrentPage('home');
-        }} 
-        user={user} 
-      />
+      {shouldShowNavbar && (
+        <Navbar 
+          onNavigate={setCurrentPage} 
+          isLoggedIn={isLoggedIn} 
+          onLogout={() => { 
+            setIsLoggedIn(false); 
+            setUser(null); 
+            localStorage.removeItem('token'); 
+            localStorage.removeItem('user');
+            setCurrentPage('home');
+          }} 
+          user={user} 
+        />
+      )}
       <main>
         {renderPage()}
       </main>
-      <Footer onNavigate={setCurrentPage} />
+      {shouldShowFooter && <Footer onNavigate={setCurrentPage} />}
     </div>
   );
 }

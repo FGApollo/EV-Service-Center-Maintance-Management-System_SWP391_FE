@@ -79,7 +79,25 @@ function Login({ onNavigate, onLogin }) {
           
           alert("🎉 Đăng nhập thành công!");
           if (onLogin) onLogin(userData);
-          onNavigate("home");
+          
+          // Redirect theo role
+          const role = userData.role?.toLowerCase();
+          switch(role) {
+            case 'manager':
+            case 'admin': // Backward compatibility
+              onNavigate("manager");
+              break;
+            case 'staff':
+              onNavigate("staff");
+              break;
+            case 'technician':
+              onNavigate("technician");
+              break;
+            case 'customer':
+            default:
+              onNavigate("home");
+              break;
+          }
         } else {
           alert("❌ Không nhận được token!");
         }
