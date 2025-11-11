@@ -882,8 +882,7 @@ function StaffDashboard({ onNavigate }) {
   const filteredParts = partsList.filter(part =>
     part.name.toLowerCase().includes(partsSearchQuery.toLowerCase()) ||
     part.partNumber.toLowerCase().includes(partsSearchQuery.toLowerCase()) ||
-    part.category.toLowerCase().includes(partsSearchQuery.toLowerCase()) ||
-    part.brand.toLowerCase().includes(partsSearchQuery.toLowerCase())
+    part.category.toLowerCase().includes(partsSearchQuery.toLowerCase())
   );
 
   const getStockStatusColor = (status) => {
@@ -2427,7 +2426,7 @@ function StaffDashboard({ onNavigate }) {
                                 <FaCar />
                               </div>
                               <div className="car-info-mini">
-                                <h4>{car.model || `${car.brand || ''} ${car.model || ''}`.trim() || 'Xe'}</h4>
+                                <h4>{car.model || 'Xe'}</h4>
                                 <p>Năm: {car.year || 'N/A'}</p>
                                 <p>Biển số: {car.licensePlate || 'Chưa có'}</p>
                                 <p>VIN: {car.vin || 'Chưa có'}</p>
@@ -2452,7 +2451,7 @@ function StaffDashboard({ onNavigate }) {
 
                     {selectedCar && (
                       <div className="details-section">
-                        <h3>Lịch sử bảo trì - {selectedCar.model || selectedCar.brand || 'Xe'}</h3>
+                        <h3>Lịch sử bảo trì - {selectedCar.model || 'Xe'}</h3>
                         <div className="service-history-table">
                           {(selectedCar.maintenanceServices || selectedCar.serviceHistory) && 
                            (selectedCar.maintenanceServices || selectedCar.serviceHistory).length > 0 ? (
@@ -2532,7 +2531,7 @@ function StaffDashboard({ onNavigate }) {
                         <FaCar />
                       </div>
                       <div>
-                        <h3>{car.model || `${car.brand || ''} ${car.model || ''}`.trim() || 'Xe'}</h3>
+                        <h3>{car.model || 'Xe'}</h3>
                         <p className="car-year">Năm {car.year || 'N/A'}</p>
                       </div>
                     </div>
@@ -2740,7 +2739,7 @@ function StaffDashboard({ onNavigate }) {
                       // Lấy thông tin xe từ cache
                       const vehicle = vehiclesCache[appointment.vehicleId];
                       const vehicleDisplay = vehicle && !vehicle.error
-                        ? `${vehicle.model || vehicle.brand || ''}`
+                        ? `${vehicle.model || ''}`
                         : (appointment.carInfo || appointment.car_info || `Xe #${appointment.vehicleId || 'N/A'}`);
 
                       const licensePlate = vehicle?.licensePlate || appointment.licensePlate || appointment.license_plate;
@@ -2978,7 +2977,7 @@ function StaffDashboard({ onNavigate }) {
                                 if (vehicle && !vehicle.error) {
                                   return (
                                     <div>
-                                      <div>{vehicle.model || `${vehicle.brand || ''}`}</div>
+                                      <div>{vehicle.model || 'N/A'}</div>
                                       {vehicle.licensePlate && (
                                         <div style={{ fontSize: '0.9em', color: '#666' }}>
                                           Biển số: {vehicle.licensePlate}
@@ -3889,7 +3888,7 @@ function StaffDashboard({ onNavigate }) {
                         </span>
                       </div>
                       <p className="part-code">{part.partNumber}</p>
-                      <p className="part-category">{part.category} • {part.brand}</p>
+                      <p className="part-category">{part.category || part.description || 'N/A'}</p>
                       <div className="part-stock-info">
                         <span>Tồn kho: <strong>{part.stock}</strong></span>
                         <span className="part-price">{part.price.toLocaleString('vi-VN')} đ</span>
@@ -3938,8 +3937,8 @@ function StaffDashboard({ onNavigate }) {
                             <path d="M18,15H16V17H18M18,11H16V13H18M20,19H12V17H14V15H12V13H14V11H12V9H20M10,7H8V5H10M10,11H8V9H10M10,15H8V13H10M10,19H8V17H10M6,7H4V5H6M6,11H4V9H6M6,15H4V13H6M6,19H4V17H6M12,7V3H2V21H22V7H12Z"/>
                           </svg>
                           <div>
-                            <span className="label">Hãng</span>
-                            <span className="value">{selectedPart.brand}</span>
+                            <span className="label">Mô tả</span>
+                            <span className="value">{selectedPart.description || 'N/A'}</span>
                           </div>
                         </div>
                         <div className="info-item">

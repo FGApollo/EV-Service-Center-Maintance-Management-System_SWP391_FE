@@ -5,20 +5,18 @@ import { createAppointment, createPayment, getVehicles, getVehicleByVin } from '
 function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
-    // Step 1: Vehicle Info
+    // Step 1: Vehicle Info (thông tin xe)
     licensePlate: prefilledVehicle?.licensePlate || prefilledVehicle?.vin || '',
-    vehicleModel: prefilledVehicle ? [prefilledVehicle.brand, prefilledVehicle.model].filter(Boolean).join(' ') : '',
-    // Step 2: Service Center (Chi nhánh)
-    serviceCenterId: null,  // ID chi nhánh được chọn
-    
-    // Step 3: Services
+    vehicleModel: prefilledVehicle?.model || '',
+    mileage: '', // Số km đã chạy
+    // Step 2: Service Center (Chi nhánh) (thông tin chi nhánh)
+    serviceCenterId: null,  // ID chi nhánh được chọn    
+    // Step 3: Services (thông tin dịch vụ)
     selectedServices: [],
-    
-    // Step 4: Schedule
+    // Step 4: Schedule (thông tin lịch hẹn)
     selectedDate: null,
-    selectedTime: '',
-    
-    // Step 5: Personal Info
+    selectedTime: '',   
+    // Step 5: Personal Info (thông tin khách hàng)
     firstName: '',
     lastName: '',
     email: '',
@@ -170,14 +168,10 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
   // Cập nhật formData khi có thông tin xe được truyền vào
   useEffect(() => {
     if (prefilledVehicle) {
-      const vehicleName = [prefilledVehicle.brand, prefilledVehicle.model]
-        .filter(Boolean)
-        .join(' ');
-      
       setFormData(prev => ({
         ...prev,
         licensePlate: prefilledVehicle.licensePlate || prefilledVehicle.vin || '',
-        vehicleModel: vehicleName
+        vehicleModel: prefilledVehicle.model || ''
       }));
       setSelectedVehicleInfo(prefilledVehicle);
     }
@@ -193,12 +187,9 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
           const vehicle = await getVehicleByVin(vin);
           if (vehicle) {
             setSelectedVehicleInfo(vehicle);
-            const vehicleName = [vehicle.brand, vehicle.model]
-              .filter(Boolean)
-              .join(' ');
             setFormData(prev => ({
               ...prev,
-              vehicleModel: vehicleName
+              vehicleModel: vehicle.model || ''
             }));
           }
         } catch (err) {
@@ -222,14 +213,10 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
 
   // Handler để chọn xe từ dropdown
   const handleSelectVehicle = (vehicle) => {
-    const vehicleName = [vehicle.brand, vehicle.model]
-      .filter(Boolean)
-      .join(' ');
-    
     setFormData(prev => ({
       ...prev,
       licensePlate: vehicle.licensePlate || vehicle.vin,
-      vehicleModel: vehicleName
+      vehicleModel: vehicle.model || ''
     }));
     setSelectedVehicleInfo(vehicle);
     setShowVehicleDropdown(false);
@@ -668,6 +655,50 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
     return value.charAt(0).toUpperCase() + value.slice(1);
   };
 
+  // Hàm để lấy khuyến nghị gói dịch vụ dựa trên số km
+  const getServiceRecommendation = () => {
+    const mileage = parseInt(formData.mileage);
+    if (!mileage || isNaN(mileage) || mileage <= 0) return null;
+
+    if (mileage <= 5000) {
+      return {
+        serviceId: 1,
+        title: '💡 Khuyến nghị cho xe của bạn',
+        message: `Với số km hiện tại (<strong>${mileage.toLocaleString()} km</strong>), chúng tôi khuyến nghị bạn nên chọn <strong>Gói Cơ bản</strong>. Gói này phù hợp cho xe mới hoặc xe chạy ít km, bao gồm các kiểm tra cơ bản và bảo dưỡng định kỳ.`,
+        color: '#10b981'
+      };
+    } else if (mileage > 5000 && mileage < 10000) {
+      return {
+        serviceId: 1,
+        title: '💡 Khuyến nghị cho xe của bạn',
+        message: `Với số km hiện tại (<strong>${mileage.toLocaleString()} km</strong>), xe của bạn vẫn trong tình trạng tốt. Bạn có thể chọn <strong>Gói Cơ bản</strong> để duy trì hiệu suất hoạt động.`,
+        color: '#10b981'
+      };
+    } else if (mileage >= 10000 && mileage <= 15000) {
+      return {
+        serviceId: 2,
+        title: '💡 Khuyến nghị cho xe của bạn',
+        message: `Với số km hiện tại (<strong>${mileage.toLocaleString()} km</strong>), chúng tôi khuyến nghị bạn nên chọn <strong>Gói Tiêu chuẩn</strong>. Gói này cung cấp mức độ bảo dưỡng cân bằng, phù hợp cho hầu hết các xe đang sử dụng thường xuyên.`,
+        color: '#3b82f6'
+      };
+    } else if (mileage >= 15000 && mileage <= 20000) {
+      return {
+        serviceId: 3,
+        title: '💡 Khuyến nghị cho xe của bạn',
+        message: `Với số km hiện tại (<strong>${mileage.toLocaleString()} km</strong>), chúng tôi khuyến nghị bạn nên chọn <strong>Gói Cao cấp</strong>. Gói này cung cấp bảo dưỡng toàn diện, bao gồm kiểm tra chi tiết và hiệu chỉnh hệ thống quan trọng.`,
+        color: '#f59e0b'
+      };
+    } else if (mileage > 20000) {
+      return {
+        serviceId: 3,
+        title: '💡 Khuyến nghị cho xe của bạn',
+        message: `Với số km hiện tại (<strong>${mileage.toLocaleString()} km</strong>), xe của bạn đã chạy khá nhiều. Chúng tôi <strong>đặc biệt khuyến nghị Gói Cao cấp</strong> để đảm bảo xe được kiểm tra và bảo dưỡng toàn diện nhất.`,
+        color: '#f59e0b'
+      };
+    }
+    return null;
+  };
+
   const renderStep1 = () => (
     <div className="booking-step-content">
       <div className="form-section">
@@ -692,6 +723,7 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
                 Đang tìm...
               </span>
             )}
+            
             
             {/* Dropdown hiển thị danh sách xe của user */}
             {showVehicleDropdown && myVehicles.length > 0 && (
@@ -725,7 +757,7 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
                     onMouseLeave={(e) => e.target.style.background = 'white'}
                   >
                     <div style={{ fontWeight: '500', marginBottom: '4px' }}>
-                      {[vehicle.brand, vehicle.model].filter(Boolean).join(' ') || 'Xe'}
+                      {vehicle.model || 'Xe'}
                     </div>
                     <div style={{ fontSize: '12px', color: '#666' }}>
                       {vehicle.licensePlate || vehicle.vin} • Năm {vehicle.year}
@@ -734,7 +766,20 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
                 ))}
               </div>
             )}
-          </div>  
+          </div>
+          
+          <div className="form-group full-width">
+            <label>Số km đã chạy</label>
+            <input
+              type="number"
+              className="form-input"
+              placeholder="Nhập số km đã chạy (ví dụ: 5000)"
+              value={formData.mileage}
+              onChange={(e) => handleInputChange('mileage', e.target.value)}
+              min="0"
+              step="1000"
+            />
+          </div>
         </div>
       </div>
 
@@ -748,9 +793,7 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
           <div className="sidebar-item">
             <div className="sidebar-item-content">
               <h4 style={{ fontSize: '18px', marginBottom: '12px' }}>
-                {[selectedVehicleInfo.brand, selectedVehicleInfo.model]
-                  .filter(Boolean)
-                  .join(' ') || 'Thông tin xe'}
+                {selectedVehicleInfo.model || 'Thông tin xe'}
               </h4>
               <div style={{ display: 'grid', gap: '8px', fontSize: '14px' }}>
                 <p style={{ margin: 0 }}>
@@ -848,9 +891,39 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
 
   const renderStep3 = () => {
     const maintenanceServices = services.filter(s => s.category === 'Bảo dưỡng');
+    const recommendation = getServiceRecommendation();
 
     return (
       <div className="booking-step-content">
+        {/* Hiển thị khuyến nghị dựa trên số km */}
+        {recommendation && (
+          <div className="form-section" style={{ 
+            background: `linear-gradient(135deg, ${recommendation.color}15 0%, ${recommendation.color}05 100%)`,
+            border: `2px solid ${recommendation.color}`,
+            borderRadius: '12px',
+            padding: '20px',
+            marginBottom: '24px'
+          }}>
+            <h3 style={{ 
+              marginBottom: '12px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px',
+              color: recommendation.color,
+              fontSize: '18px',
+              fontWeight: '600'
+            }}>
+              {recommendation.title}
+            </h3>
+            <p style={{ 
+              margin: 0, 
+              fontSize: '15px', 
+              lineHeight: '1.6',
+              color: '#374151'
+            }} dangerouslySetInnerHTML={{ __html: recommendation.message }} />
+          </div>
+        )}
+
         <div className="form-section">
           <h2>
             <span className="form-section-icon">🔧</span>
@@ -1118,12 +1191,15 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
               <div className="sidebar-item-content">
                 <h4>
                   {selectedVehicleInfo 
-                    ? [selectedVehicleInfo.brand, selectedVehicleInfo.model]
-                        .filter(Boolean)
-                        .join(' ') || 'Thông tin xe'
+                    ? selectedVehicleInfo.model || 'Thông tin xe'
                     : formData.vehicleModel || 'Thông tin xe'}
                 </h4>
                 <p>{formData.licensePlate}</p>
+                {formData.mileage && (
+                  <p style={{ fontSize: '14px', color: '#666', margin: '4px 0 0' }}>
+                    Số km: {parseInt(formData.mileage).toLocaleString()} km
+                  </p>
+                )}
               </div>
               {currentStep > 1 && (
                 <button 

@@ -4,18 +4,18 @@ import { FaClock, FaTools, FaCheckCircle, FaUser, FaCar, FaCalendarAlt, FaPhone,
 import { getAppointmentsForStaff, startAppointment, completeAppointment, getVehicleById, getAppointmentDetailWithTechs } from '../api';
 
 function TechnicianDashboard({ onNavigate }) {
-  const [appointments, setAppointments] = useState([]);
-  const [selectedMaintenance, setSelectedMaintenance] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [vehiclesCache, setVehiclesCache] = useState({});
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'accepted', 'in_progress', 'completed'
-  const [checklistStates, setChecklistStates] = useState({}); // Track checklist status for each appointment
+  const [appointments, setAppointments] = useState([]); //appointments là state để lưu trữ danh sách lịch hẹn
+  const [selectedMaintenance, setSelectedMaintenance] = useState(null); //selectedMaintenance là state để lưu trữ lịch hẹn được chọn
+  const [loading, setLoading] = useState(false); //loading là state để kiểm tra xem form đang loading hay không
+  const [error, setError] = useState(null); //error là state để lưu trữ lỗi
+  const [vehiclesCache, setVehiclesCache] = useState({}); //vehiclesCache là state để lưu trữ thông tin xe
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'accepted', 'in_progress', 'completed' - statusFilter là state để lưu trữ trạng thái lọc lịch hẹn
+  const [checklistStates, setChecklistStates] = useState({}); //checklistStates là state để lưu trữ trạng thái checklist cho mỗi lịch hẹn
 
   // Lấy thông tin technician từ localStorage
   const [technicianCenterId, setTechnicianCenterId] = useState(null);
 
-  // Helper function để normalize status (hỗ trợ cả lowercase và uppercase)
+  // Helper function để normalize status (hỗ trợ cả lowercase và uppercase) // vì hay bị lỗi trạng thái nên phải normalize, bên BE ghi hoa và thường liên tục nên phải normalize
   const normalizeStatus = (status) => {
     if (!status) return '';
     return String(status).toLowerCase();
@@ -254,7 +254,7 @@ function TechnicianDashboard({ onNavigate }) {
       setSelectedMaintenance(getAppointmentWithChecklist(appointment));
     }
   };
-
+// chuyển tiếng Anh sang tiếng Việt cho trạng thái và chuyển đổi các trạng thái
   const getStatusColor = (status) => {
     const normalized = normalizeStatus(status);
     switch(normalized) {
@@ -484,7 +484,7 @@ function TechnicianDashboard({ onNavigate }) {
                   const appointmentId = appointment.id || appointment.appointmentId;
                   const vehicle = vehiclesCache[appointment.vehicleId];
                   const carInfo = vehicle && !vehicle.error
-                    ? `${vehicle.model || vehicle.brand || ''} - ${vehicle.licensePlate || ''}`.trim()
+                    ? `${vehicle.model || ''} - ${vehicle.licensePlate || ''}`.trim()
                     : (appointment.carInfo || appointment.car_info || `Xe #${appointment.vehicleId || 'N/A'}`);
                   
                   return (
@@ -578,7 +578,7 @@ function TechnicianDashboard({ onNavigate }) {
                             // Priority 3: vehiclesCache
                             const vehicle = vehiclesCache[selectedMaintenance.vehicleId];
                             if (vehicle && !vehicle.error) {
-                              return `${vehicle.model || vehicle.brand || ''} - ${vehicle.licensePlate || ''}`.trim();
+                              return `${vehicle.model || ''} - ${vehicle.licensePlate || ''}`.trim();
                             }
                             // Fallback
                             return `Xe #${selectedMaintenance.vehicleId || 'N/A'}`;

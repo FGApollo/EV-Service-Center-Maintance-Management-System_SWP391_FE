@@ -69,7 +69,7 @@ function MyCar({ onNavigate, onNavigateWithVehicle }) {
               <div key={car.id} className="car-card">
                 <div className="car-image">
                   {car.image ? (
-                    <img src={car.image} alt={`${car.brand} ${car.model}`} />
+                    <img src={car.image} alt={car.model || 'Vehicle'} />
                   ) : (
                     <div className="car-placeholder">
                       <svg viewBox="0 0 24 24" fill="currentColor" width="80" height="80">
@@ -80,7 +80,7 @@ function MyCar({ onNavigate, onNavigateWithVehicle }) {
                 </div>
                 
                 <div className="car-info">
-                  <h3>{car.brand} {car.model}</h3>
+                  <h3>{car.model || 'Vehicle'}</h3>
                   <div className="car-details">
                     <div className="detail-item">
                       <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">

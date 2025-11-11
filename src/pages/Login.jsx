@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import "./Login.css";
-import { login, register } from "../api"; // ✅ import từ API thật
+import { login, register } from "../api"; //API
 
 function Login({ onNavigate, onLogin }) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState({ //formData là state để lưu trữ dữ liệu từ form
     fullName: "",
     phone: "",
     email: "",
@@ -12,10 +12,10 @@ function Login({ onNavigate, onLogin }) {
     rememberMe: false,
   });
 
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false); //isSignUp là state để kiểm tra xem người dùng đang đăng ký hay đăng nhập
+  const [loading, setLoading] = useState(false); //loading là state để kiểm tra xem form đang loading hay không
 
-  // ✅ Xử lý thay đổi input
+  // Xử lý thay đổi input
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -24,14 +24,14 @@ function Login({ onNavigate, onLogin }) {
     }));
   };
 
-  // ✅ Xử lý submit form (đăng nhập / đăng ký thật)
+  // Xử lý submit form (đăng nhập / đăng ký thật)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
       if (isSignUp) {
-        // ----- 🟩 ĐĂNG KÝ -----
+        // ----- ĐĂNG KÝ -----
         if (formData.password !== formData.confirmPassword) {
           alert("❌ Mật khẩu xác nhận không khớp!");
           setLoading(false);
@@ -50,7 +50,7 @@ function Login({ onNavigate, onLogin }) {
         alert("Đăng ký thành công! Hãy đăng nhập.");
         setIsSignUp(false);
       } else {
-        // ----- 🟦 ĐĂNG NHẬP -----
+        // ----- ĐĂNG NHẬP -----
         const credentials = {
           email: formData.email,
           password: formData.password,
@@ -60,9 +60,9 @@ function Login({ onNavigate, onLogin }) {
         console.log("✅ Đăng nhập thành công:", res);
 
         if (res.token) {
-          // Xử lý dữ liệu user từ backend (có thể trong res.user hoặc ở top level)
-          const userInfo = res.user || res;
-          const userData = {
+          // Xử lý dữ liệu user từ backend (có thể trong res.user hoặc ở top level) - res.user là dữ liệu user từ backend
+          const userInfo = res.user || res; //userInfo là dữ liệu user từ backend
+          const userData = { //userData là dữ liệu user từ backend (lưu vào localStorage)
             user_id: userInfo.user_id || userInfo.id || userInfo.userId,
             fullName: userInfo.fullName || '',
             email: userInfo.email || credentials.email,
@@ -73,20 +73,20 @@ function Login({ onNavigate, onLogin }) {
             center_id: userInfo.center_id || userInfo.centerId || null
           };
           
-          console.log("💾 Lưu user data vào localStorage:", userData);
+          console.log("Lưu user data vào localStorage:", userData);
           try { localStorage.setItem('user', JSON.stringify(userData)); } catch (e) {
             console.error("Lỗi lưu localStorage:", e);
           }
           
-          alert("🎉 Đăng nhập thành công!");
+          alert("Đăng nhập thành công!");
           if (onLogin) onLogin(userData);
           onNavigate("home");
         } else {
-          alert("❌ Không nhận được token!");
+          alert("Không nhận được token!");
         }
       }
     } catch (error) {
-      console.error("❌ Lỗi khi gọi API:", error.response?.data || error.message);
+      console.error("Lỗi khi gọi API:", error.response?.data || error.message);
       alert("Lỗi khi gọi API, xem console để biết thêm chi tiết!");
     } finally {
       setLoading(false);
@@ -107,7 +107,7 @@ function Login({ onNavigate, onLogin }) {
 
   return (
     <div className="login-container">
-      {/* 🔙 Back to Home */}
+      {/* Back to Home */}
       <button
         className="back-to-home-btn"
         onClick={() => onNavigate("home")}
@@ -119,12 +119,12 @@ function Login({ onNavigate, onLogin }) {
         <span>Trang chủ</span>
       </button>
 
-      {/* 🌆 Background */}
+      {/* Background */}
       <div className="login-background">
         <div className="login-bg-overlay"></div>
       </div>
 
-      {/* 📋 Form */}
+      {/* Form Login */}
       <div className="login-form-container">
         <div className="login-form-wrapper">
           <div className="login-logo">
@@ -249,7 +249,7 @@ function Login({ onNavigate, onLogin }) {
           </div>
 
           <div className="login-footer">
-            <p>© 2025 CarCare. Tất cả quyền được bảo lưu.</p>
+            <p>© 2025 CarCare.</p>
           </div>
         </div>
       </div>
