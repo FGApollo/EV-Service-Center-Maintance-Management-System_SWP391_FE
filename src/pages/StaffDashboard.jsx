@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './StaffDashboard.css';
 import { FaUser, FaCar, FaComments, FaSearch, FaPlus, FaHistory, FaClock, FaPhone, FaEnvelope, FaMapMarkerAlt, FaCalendarAlt, FaTools, FaCheckCircle, FaTimes, FaEdit, FaUserCog, FaMoneyBillWave } from 'react-icons/fa';
 import { getCustomersByRole, getAppointmentsForStaff, getAppointmentById, getAppointmentDetailWithTechs, getCompletedAppointmentById, acceptAppointment, cancelAppointment, startAppointment, completeAppointment, getVehicleById, getTechnicians, assignTechnician, createAppointment, getInProgressAppointments, getAppointmentsByStatus } from '../api';
@@ -145,6 +145,102 @@ function StaffDashboard({ onNavigate }) {
     if (!status) return '';
     return String(status).toLowerCase();
   };
+
+  const getCustomerJoinDate = (customer) => {
+    if (!customer) return null;
+    const candidateFields = [
+      'joinDate',
+      'joinedAt',
+      'createdAt',
+      'created_at',
+      'createAt',
+      'create_at',
+      'createdDate',
+      'created_date',
+      'registerDate',
+      'registeredAt'
+    ];
+    for (const field of candidateFields) {
+      const value = customer[field];
+      if (!value) continue;
+      const parsed = new Date(value);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed;
+      }
+    }
+    return null;
+  };
+
+  const getAppointmentDateTime = (appointment) => {
+    if (!appointment) return null;
+    const candidateFields = [
+      'appointmentDateTime',
+      'appointmentDatetime',
+      'appointmentDate',
+      'appointment_date',
+      'appointmentdatetime',
+      'appointment_datetime',
+      'scheduledAt',
+      'scheduled_at',
+      'dateTime',
+      'datetime'
+    ];
+
+    const tryParse = (rawValue) => {
+      if (!rawValue) return null;
+      let value = rawValue;
+
+      if (typeof value === 'number') {
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+
+      if (typeof value === 'string') {
+        let parsed = new Date(value);
+        if (!Number.isNaN(parsed.getTime())) {
+          return parsed;
+        }
+
+        if (value.includes(' ')) {
+          const isoLike = value.replace(' ', 'T');
+          parsed = new Date(isoLike);
+          if (!Number.isNaN(parsed.getTime())) {
+            return parsed;
+          }
+          const isoWithZ = `${isoLike}${isoLike.endsWith('Z') ? '' : 'Z'}`;
+          parsed = new Date(isoWithZ);
+          if (!Number.isNaN(parsed.getTime())) {
+            return parsed;
+          }
+        }
+      }
+
+      return null;
+    };
+
+    for (const field of candidateFields) {
+      const parsed = tryParse(appointment[field]);
+      if (parsed) return parsed;
+    }
+
+    const dateField = appointment.date || appointment.appointmentDay || appointment.appointment_day;
+    const timeField = appointment.time || appointment.appointmentTime || appointment.appointment_time;
+
+    if (dateField) {
+      const combined = timeField ? `${dateField} ${timeField}` : dateField;
+      const parsed = tryParse(combined);
+      if (parsed) {
+        return parsed;
+      }
+    }
+
+    return null;
+  };
+
+  const selectedAppointmentDateTime = useMemo(
+    () => getAppointmentDateTime(selectedAppointment),
+    [selectedAppointment]
+  );
 
   // Fetch appointments khi component mount hoặc khi tab appointments được chọn
   useEffect(() => {
@@ -2305,9 +2401,12 @@ function StaffDashboard({ onNavigate }) {
                           <div>
                             <span className="label">Ngày tham gia</span>
                             <span className="value">
-                              {selectedCustomer.joinDate || selectedCustomer.createdAt 
-                                ? new Date(selectedCustomer.joinDate || selectedCustomer.createdAt).toLocaleDateString('vi-VN')
-                                : 'Chưa có thông tin'}
+                              {(() => {
+                                const joinDate = getCustomerJoinDate(selectedCustomer);
+                                return joinDate
+                                  ? joinDate.toLocaleDateString('vi-VN')
+                                  : 'Chưa có thông tin';
+                              })()}
                             </span>
                           </div>
                         </div>
@@ -2627,8 +2726,9 @@ function StaffDashboard({ onNavigate }) {
                   ) : (
                     appointments.map(appointment => {
                       const appointmentId = appointment.id || appointment.appointmentId;
-                      const appointmentDate = appointment.appointmentDate 
-                        ? new Date(appointment.appointmentDate).toLocaleString('vi-VN', {
+                      const appointmentDateTime = getAppointmentDateTime(appointment);
+                      const appointmentDate = appointmentDateTime 
+                        ? appointmentDateTime.toLocaleString('vi-VN', {
                             year: 'numeric',
                             month: '2-digit',
                             day: '2-digit',
@@ -2640,8 +2740,11 @@ function StaffDashboard({ onNavigate }) {
                       // Lấy thông tin xe từ cache
                       const vehicle = vehiclesCache[appointment.vehicleId];
                       const vehicleDisplay = vehicle && !vehicle.error
-                        ? `${vehicle.model || vehicle.brand || ''} ${vehicle.licensePlate ? `- ${vehicle.licensePlate}` : ''}`.trim()
+                        ? `${vehicle.model || vehicle.brand || ''}`
                         : (appointment.carInfo || appointment.car_info || `Xe #${appointment.vehicleId || 'N/A'}`);
+
+                      const licensePlate = vehicle?.licensePlate || appointment.licensePlate || appointment.license_plate;
+                      const vin = vehicle?.vin || appointment.vin;
                       
                       return (
                         <div 
@@ -2651,7 +2754,7 @@ function StaffDashboard({ onNavigate }) {
                         >
                           <div className="appointment-header">
                             <h4>
-                              {appointment.fullName || 
+                              #{appointmentId} • {appointment.fullName || 
                                appointment.customerName || 
                                appointment.customer_name || 
                                `Khách hàng #${appointment.customerId || 'N/A'}`}
@@ -2660,9 +2763,16 @@ function StaffDashboard({ onNavigate }) {
                               {getStatusText(appointment.status)}
                             </span>
                           </div>
-                          <p className="car-info">
-                            {vehicleDisplay}
-                          </p>
+                          <div className="car-info">
+                            <div style={{ fontWeight: 600 }}>
+                              {vehicleDisplay} • ID xe: {appointment.vehicleId || (vehicle && vehicle.id) || 'N/A'}
+                            </div>
+                            <div style={{ fontSize: '13px', color: '#4b5563', marginTop: '2px' }}>
+                              {licensePlate ? `Biển số: ${licensePlate}` : 'Biển số: N/A'}
+                              <br />
+                              {vin ? `VIN: ${vin}` : 'VIN: N/A'}
+                            </div>
+                          </div>
                           <p className="service-type">
                             {appointment.serviceType || 
                              appointment.service || 
@@ -2917,9 +3027,9 @@ function StaffDashboard({ onNavigate }) {
                           <div>
                             <span className="label">Ngày hẹn</span>
                             <span className="value">
-                              {selectedAppointment.appointmentDate 
-                                ? new Date(selectedAppointment.appointmentDate).toLocaleDateString('vi-VN')
-                                : selectedAppointment.date || 'N/A'}
+                              {selectedAppointmentDateTime
+                                ? selectedAppointmentDateTime.toLocaleDateString('vi-VN')
+                                : (selectedAppointment.date || 'N/A')}
                             </span>
                           </div>
                         </div>
@@ -2928,12 +3038,9 @@ function StaffDashboard({ onNavigate }) {
                           <div>
                             <span className="label">Giờ hẹn</span>
                             <span className="value">
-                              {selectedAppointment.appointmentDate 
-                                ? new Date(selectedAppointment.appointmentDate).toLocaleTimeString('vi-VN', {
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  })
-                                : selectedAppointment.time || 'N/A'}
+                              {selectedAppointmentDateTime
+                                ? selectedAppointmentDateTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                                : (selectedAppointment.time || 'N/A')}
                             </span>
                           </div>
                         </div>

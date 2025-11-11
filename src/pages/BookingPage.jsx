@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './BookingPage.css';
-import { createAppointment, getVehicles, getVehicleByVin } from '../api';
+import { createAppointment, createPayment, getVehicles, getVehicleByVin } from '../api';
 
 function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
   const [currentStep, setCurrentStep] = useState(1);
@@ -8,8 +8,6 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
     // Step 1: Vehicle Info
     licensePlate: prefilledVehicle?.licensePlate || prefilledVehicle?.vin || '',
     vehicleModel: prefilledVehicle ? [prefilledVehicle.brand, prefilledVehicle.model].filter(Boolean).join(' ') : '',
-    mileage: prefilledVehicle?.mileage || '',
-    
     // Step 2: Service Center (Chi nhánh)
     serviceCenterId: null,  // ID chi nhánh được chọn
     
@@ -33,6 +31,111 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
   const [selectedVehicleInfo, setSelectedVehicleInfo] = useState(prefilledVehicle || null);
   const [vehicleLoading, setVehicleLoading] = useState(false);
   const [showVehicleDropdown, setShowVehicleDropdown] = useState(false);
+  const [clientIp, setClientIp] = useState('127.0.0.1');
+  const [expandedServices, setExpandedServices] = useState([]);
+  const [today] = useState(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date;
+  });
+  const [calendarMonth, setCalendarMonth] = useState(() => ({
+    month: today.getMonth(),
+    year: today.getFullYear()
+  }));
+  // Pre-fetch client IP for payment gateway (fallback: 127.0.0.1)
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchClientIp = async () => {
+      try {
+        const response = await fetch('https://api.ipify.org?format=json');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch client IP: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data?.ip && isMounted) {
+          setClientIp(data.ip);
+        }
+      } catch (error) {
+        console.warn('⚠️ Không thể lấy địa chỉ IP client, sử dụng mặc định 127.0.0.1', error);
+      }
+    };
+
+    fetchClientIp();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const maxBookingDate = useMemo(() => {
+    const limit = new Date(today);
+    limit.setMonth(limit.getMonth() + 2);
+    limit.setHours(0, 0, 0, 0);
+    return limit;
+  }, [today]);
+
+  const isSameDay = (dateA, dateB) => {
+    if (!dateA || !dateB) return false;
+    return (
+      dateA.getFullYear() === dateB.getFullYear() &&
+      dateA.getMonth() === dateB.getMonth() &&
+      dateA.getDate() === dateB.getDate()
+    );
+  };
+
+  const isDateBefore = (dateA, dateB) => dateA.getTime() < dateB.getTime();
+  const isDateAfter = (dateA, dateB) => dateA.getTime() > dateB.getTime();
+
+  const isTimeSlotInPast = (time, date) => {
+    if (!date || !time) return false;
+    const [hours, minutes] = time.split(':').map(Number);
+    const slotDate = new Date(date);
+    slotDate.setHours(hours, minutes, 0, 0);
+    return slotDate.getTime() <= Date.now();
+  };
+
+  const handleDateSelection = (date) => {
+    if (!date) return;
+    setFormData(prev => {
+      const shouldResetTime = prev.selectedTime && isTimeSlotInPast(prev.selectedTime, date);
+      return {
+        ...prev,
+        selectedDate: date,
+        selectedTime: shouldResetTime ? '' : prev.selectedTime
+      };
+    });
+  };
+
+  const handlePrevMonth = () => {
+    setCalendarMonth(prev => {
+      const prevMonthStart = new Date(prev.year, prev.month, 1);
+      prevMonthStart.setMonth(prevMonthStart.getMonth() - 1);
+      const prevMonthEnd = new Date(prevMonthStart.getFullYear(), prevMonthStart.getMonth() + 1, 0);
+      prevMonthEnd.setHours(0, 0, 0, 0);
+      if (isDateBefore(prevMonthEnd, today)) {
+        return prev;
+      }
+      return {
+        month: prevMonthStart.getMonth(),
+        year: prevMonthStart.getFullYear()
+      };
+    });
+  };
+
+  const handleNextMonth = () => {
+    setCalendarMonth(prev => {
+      const nextMonthStart = new Date(prev.year, prev.month, 1);
+      nextMonthStart.setMonth(nextMonthStart.getMonth() + 1);
+      if (isDateAfter(nextMonthStart, maxBookingDate)) {
+        return prev;
+      }
+      return {
+        month: nextMonthStart.getMonth(),
+        year: nextMonthStart.getFullYear()
+      };
+    });
+  };
 
   // Fetch danh sách xe của user khi component mount
   useEffect(() => {
@@ -74,8 +177,7 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
       setFormData(prev => ({
         ...prev,
         licensePlate: prefilledVehicle.licensePlate || prefilledVehicle.vin || '',
-        vehicleModel: vehicleName,
-        mileage: prefilledVehicle.mileage || ''
+        vehicleModel: vehicleName
       }));
       setSelectedVehicleInfo(prefilledVehicle);
     }
@@ -96,8 +198,7 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
               .join(' ');
             setFormData(prev => ({
               ...prev,
-              vehicleModel: vehicleName,
-              mileage: vehicle.mileage || prev.mileage
+              vehicleModel: vehicleName
             }));
           }
         } catch (err) {
@@ -128,8 +229,7 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
     setFormData(prev => ({
       ...prev,
       licensePlate: vehicle.licensePlate || vehicle.vin,
-      vehicleModel: vehicleName,
-      mileage: vehicle.mileage || ''
+      vehicleModel: vehicleName
     }));
     setSelectedVehicleInfo(vehicle);
     setShowVehicleDropdown(false);
@@ -140,43 +240,51 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
   const services = [
     {
       id: 1,
-      name: 'Bảo dưỡng hệ thống thắng - xe EQ',
+      name: 'Gói Cơ bản (Basic Maintenance)',
       category: 'Bảo dưỡng',
-      icon: '🔧',
-      price: '2,500,000 VNĐ',
-      description: 'Kiểm tra và bảo dưỡng hệ thống thắng chuyên dụng cho xe điện'
+      icon: '🛠️',
+      priceText: '2.000.000 VNĐ',
+      priceValue: 2000000,
+      summary: 'Mục tiêu: Kiểm tra nhanh, tiết kiệm chi phí. Tần suất: 3-6 tháng/lần hoặc mỗi 5.000 km. Thời gian: 60-90 phút.',
+      details: [
+        'Kiểm tra tổng quát hệ thống điện, đèn, còi, phanh, lốp',
+        'Kiểm tra và vệ sinh lọc gió, lọc điều hòa',
+        'Kiểm tra mức pin, cổng sạc, quạt làm mát',
+        'Rửa xe và vệ sinh khoang máy'
+      ]
     },
     {
-      id: 2, 
-      name: 'BẢO DƯỠNG A - Dòng xe EQ',
+      id: 2,
+      name: 'Gói Tiêu chuẩn (Standard Maintenance)',
       category: 'Bảo dưỡng',
       icon: '⚡',
-      price: '3,200,000 VNĐ',
-      description: 'Bảo dưỡng toàn diện cơ bản cho xe điện EQ'
+      priceText: '3.200.000 VNĐ',
+      priceValue: 3200000,
+      summary: 'Mục tiêu: Cân bằng chi phí và hiệu quả, phù hợp đa số khách hàng. Tần suất: 6-12 tháng/lần hoặc mỗi 10.000 km. Thời gian: 2-3 giờ.',
+      details: [
+        'Toàn bộ nội dung gói cơ bản',
+        'Thay dầu phanh, dung dịch làm mát',
+        'Kiểm tra cân bằng bánh xe, cảm biến, hệ thống treo',
+        'Cập nhật phần mềm điều khiển, kiểm tra ECU',
+        'Kiểm tra chi tiết hệ thống pin, log lỗi sạc/xả'
+      ]
     },
     {
       id: 3,
-      name: 'Bảo Dưỡng B - Dòng xe EQ',
+      name: 'Gói Cao cấp (Premium / Full Maintenance)',
       category: 'Bảo dưỡng',
-      icon: '🔋',
-      price: '4,500,000 VNĐ',
-      description: 'Bảo dưỡng nâng cao với kiểm tra hệ thống pin và động cơ điện'
-    },
-    {
-      id: 4,
-      name: 'Thay cao su gạt mưa xe EQ',
-      category: 'Bảo dưỡng',
-      icon: '🌧️',
-      price: '850,000 VNĐ',
-      description: 'Thay thế gạt mưa chính hãng'
-    },
-    {
-      id: 5,
-      name: 'Công việc khác cho xe EQ',
-      category: 'Các chào giá khác',
-      icon: '⚙️',
-      price: 'Liên hệ',
-      description: 'Dịch vụ tùy chỉnh theo yêu cầu'
+      icon: '✨',
+      priceText: '4.500.000 VNĐ',
+      priceValue: 4500000,
+      summary: 'Mục tiêu: Bảo dưỡng toàn diện cho xe hoạt động thường xuyên hoặc xe cao cấp. Tần suất: 12 tháng/lần hoặc mỗi 20.000 km. Thời gian: 4-6 giờ.',
+      details: [
+        'Toàn bộ nội dung gói tiêu chuẩn',
+        'Thay mới dầu hộp số (nếu có), lọc gió, nước rửa kính, vệ sinh khoang động cơ',
+        'Kiểm tra, hiệu chỉnh hệ thống pin (balance cell, test công suất)',
+        'Kiểm tra và cân chỉnh hệ thống lái, treo, phanh ABS',
+        'Chẩn đoán lỗi chi tiết bằng máy OBD-II chuyên dụng',
+        'Đánh bóng thân xe, vệ sinh nội thất toàn bộ'
+      ]
     }
   ];
 
@@ -201,6 +309,16 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
     }
   ];
 
+  const formatCurrency = (value) => {
+    if (!value || Number.isNaN(value)) {
+      return '0 ₫';
+    }
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(value);
+  };
+
   const timeSlots = [
     '08:00', '08:30', '09:00', '09:30',
     '10:00', '10:30', '11:00', '11:30',
@@ -222,6 +340,14 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
         ? prev.selectedServices.filter(id => id !== serviceId)
         : [...prev.selectedServices, serviceId]
     }));
+  };
+
+  const toggleServiceDetails = (serviceId) => {
+    setExpandedServices(prev => (
+      prev.includes(serviceId)
+        ? prev.filter(id => id !== serviceId)
+        : [...prev, serviceId]
+    ));
   };
 
   const nextStep = () => {
@@ -264,17 +390,34 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
 
       // Chuẩn bị dữ liệu theo format API backend
       // Kết hợp date và time thành ISO string
-      const appointmentDateTime = new Date(
-        `${formData.selectedDate ? 
-          `2025-10-${formData.selectedDate}` : 
-          new Date().toISOString().split('T')[0]} ${formData.selectedTime || '09:00'}`
-      ).toISOString();
+      const selectedDateObj = formData.selectedDate instanceof Date
+        ? new Date(formData.selectedDate)
+        : new Date();
+      const timeString = formData.selectedTime || '09:00';
+      const [hours, minutes] = timeString.split(':').map(Number);
+      selectedDateObj.setHours(hours, minutes, 0, 0);
+
+      if (selectedDateObj.getTime() <= Date.now()) {
+        alert('⚠️ Thời gian đã chọn đã qua. Vui lòng chọn thời gian khác.');
+        return;
+      }
+
+      const appointmentDateTime = selectedDateObj.toISOString();
+      const createdAt = new Date().toISOString();
+
+      const selectedServiceDetails = services.filter(service =>
+        formData.selectedServices.includes(service.id)
+      );
+      const totalSelectedPrice = selectedServiceDetails.reduce((sum, service) => (
+        sum + (service.priceValue || 0)
+      ), 0);
 
       const appointmentData = {
         vehicleId: selectedVehicleInfo?.id || 0,  // ID xe từ database
         serviceCenterId: formData.serviceCenterId,  // ID trung tâm dịch vụ đã chọn
         appointmentDate: appointmentDateTime,  // ISO datetime string
-        serviceTypeIds: formData.selectedServices  // Array các ID dịch vụ (numbers)
+        serviceTypeIds: formData.selectedServices,  // Array các ID dịch vụ (numbers)
+        createdAt  // Thời điểm tạo lịch hẹn
       };
 
       // Validation
@@ -316,6 +459,7 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
       
       // ✅ Invoice đã được tạo tự động bởi backend khi đặt lịch
       const appointmentId = response.appointmentId || response.id;
+      const invoiceId = response.invoiceId || (response.invoices && response.invoices[0]?.id);
       
       // Navigate sang trang thanh toán với thông tin appointment và invoice từ response
       const paymentData = {
@@ -325,13 +469,40 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
         vehicleModel: formData.vehicleModel,
         serviceCenterId: formData.serviceCenterId,
         serviceTypes: formData.selectedServices,
+        createdAt,
+        totalAmount: totalSelectedPrice,
+        selectedServices: selectedServiceDetails,
         // ✅ Invoice info từ API response (đã tích hợp trong API đặt lịch)
-        invoiceId: response.invoiceId || (response.invoices && response.invoices[0]?.id),
+        invoiceId: invoiceId,
         invoices: response.invoices || [],
         ...response
       };
       
       console.log('📤 Chuyển sang thanh toán:', paymentData);
+
+      let paymentUrl = response.paymentUrl || response.paymentLink || response.url;
+
+      if (!paymentUrl && invoiceId) {
+        try {
+          console.log('💳 Đang tạo giao dịch thanh toán cho invoice:', invoiceId);
+          const paymentResponse = await createPayment({
+            invoiceId,
+            method: 'online',
+            clientIp
+          });
+          console.log('✅ Payment API response:', paymentResponse);
+          paymentUrl = paymentResponse.paymentUrl || paymentResponse.url || paymentResponse.redirectUrl;
+        } catch (paymentError) {
+          console.error('❌ Không thể tạo thanh toán tự động:', paymentError);
+          alert('⚠️ Đặt lịch thành công nhưng chưa tạo được liên kết thanh toán tự động. Vui lòng thử lại trên trang thanh toán.');
+        }
+      }
+
+      if (paymentUrl) {
+        console.log('🔗 Redirecting to payment URL:', paymentUrl);
+        window.location.href = paymentUrl;
+        return;
+      }
       
       if (onNavigateToPayment) {
         onNavigateToPayment(paymentData);
@@ -439,26 +610,62 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
   };
 
   // Generate calendar days
+  const calendarLabel = useMemo(() => {
+    return `tháng ${calendarMonth.month + 1} năm ${calendarMonth.year}`;
+  }, [calendarMonth]);
+
+  const canGoPrevMonth = useMemo(() => {
+    const prevMonthStart = new Date(calendarMonth.year, calendarMonth.month, 1);
+    prevMonthStart.setMonth(prevMonthStart.getMonth() - 1);
+    const prevMonthEnd = new Date(prevMonthStart.getFullYear(), prevMonthStart.getMonth() + 1, 0);
+    prevMonthEnd.setHours(0, 0, 0, 0);
+    return !isDateBefore(prevMonthEnd, today);
+  }, [calendarMonth, today]);
+
+  const canGoNextMonth = useMemo(() => {
+    const nextDate = new Date(calendarMonth.year, calendarMonth.month, 1);
+    nextDate.setMonth(nextDate.getMonth() + 1);
+    return !isDateAfter(nextDate, maxBookingDate);
+  }, [calendarMonth, maxBookingDate]);
+
   const generateCalendarDays = () => {
     const days = [];
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
+    const { month, year } = calendarMonth;
     
-    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const firstDayOfMonth = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const offset = (firstDayOfMonth.getDay() + 6) % 7; // Monday-first
     
-    // Empty cells for days before month starts
-    for (let i = 0; i < firstDay; i++) {
+    for (let i = 0; i < offset; i++) {
       days.push(null);
     }
     
-    // Days of the month
     for (let day = 1; day <= daysInMonth; day++) {
-      days.push(day);
+      const date = new Date(year, month, day);
+      date.setHours(0, 0, 0, 0);
+      days.push({ day, date });
+    }
+    
+    while (days.length % 7 !== 0) {
+      days.push(null);
     }
     
     return days;
+  };
+
+  const dateFormatter = useMemo(() => (
+    new Intl.DateTimeFormat('vi-VN', {
+      weekday: 'long',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    })
+  ), []);
+
+  const formatDateLabel = (date) => {
+    if (!date) return '';
+    const value = dateFormatter.format(date);
+    return value.charAt(0).toUpperCase() + value.slice(1);
   };
 
   const renderStep1 = () => (
@@ -528,18 +735,6 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
               </div>
             )}
           </div>  
-          
-          <div className="form-group full-width">
-            <label>Quãng đường đi</label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="Nhập số km"
-              value={formData.mileage}
-              onChange={(e) => handleInputChange('mileage', e.target.value)}
-            />
-            <span className="form-helper-text">Không bắt buộc</span>
-          </div>
         </div>
       </div>
 
@@ -651,66 +846,63 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
     </div>
   );
 
-  const renderStep3 = () => (
-    <div className="booking-step-content">
-      <div className="form-section">
-        <h2>
-          <span className="form-section-icon">🔧</span>
-          Bảo dưỡng
-        </h2>
-        <div className="selection-grid">
-            {services.filter(s => s.category === 'Bảo dưỡng').map(service => (
-              <div 
-                key={service.id}
-              className={`selection-card ${formData.selectedServices.includes(service.id) ? 'selected' : ''}`}
-                onClick={() => handleServiceToggle(service.id)}
-              >
-              <div className="selection-card-header">
-                <span className="selection-card-icon">{service.icon}</span>
-                    <input
-                      type="checkbox"
-                  className="selection-checkbox"
-                      checked={formData.selectedServices.includes(service.id)}
-                  onChange={() => {}}
-                />
-              </div>
-              <h3>{service.name}</h3>
-              <div className="selection-card-price">{service.price}</div>
-              <button className="selection-card-details" onClick={(e) => e.stopPropagation()}>
-                Chi tiết
-              </button>
-              </div>
-            ))}
-          </div>
-        </div>
+  const renderStep3 = () => {
+    const maintenanceServices = services.filter(s => s.category === 'Bảo dưỡng');
 
-      <div className="form-section">
-        <h2>
-          <span className="form-section-icon">💬</span>
-          Các chào giá khác
-        </h2>
-        <div className="selection-grid">
-          {services.filter(s => s.category === 'Các chào giá khác').map(service => (
-              <div 
-                key={service.id}
-              className={`selection-card ${formData.selectedServices.includes(service.id) ? 'selected' : ''}`}
-                onClick={() => handleServiceToggle(service.id)}
-              >
-              <div className="selection-card-header">
-                <span className="selection-card-icon">{service.icon}</span>
+    return (
+      <div className="booking-step-content">
+        <div className="form-section">
+          <h2>
+            <span className="form-section-icon">🔧</span>
+            Bảo dưỡng
+          </h2>
+          <div className="selection-grid">
+            {maintenanceServices.map(service => {
+              const isSelected = formData.selectedServices.includes(service.id);
+              const isExpanded = expandedServices.includes(service.id);
+
+              return (
+                <div
+                  key={service.id}
+                  className={`selection-card ${isSelected ? 'selected' : ''}`}
+                  onClick={() => handleServiceToggle(service.id)}
+                >
+                  <div className="selection-card-header">
+                    <span className="selection-card-icon">{service.icon}</span>
                     <input
                       type="checkbox"
-                  className="selection-checkbox"
-                      checked={formData.selectedServices.includes(service.id)}
-                  onChange={() => {}}
-                />
-              </div>
-              <h3>{service.name}</h3>
-              <button className="selection-card-details" onClick={(e) => e.stopPropagation()}>
-                Chi tiết
-              </button>
-              </div>
-            ))}
+                      className="selection-checkbox"
+                      checked={isSelected}
+                      readOnly
+                    />
+                  </div>
+                  <h3>{service.name}</h3>
+                  <div className="selection-card-price">
+                    {service.priceText || formatCurrency(service.priceValue)}
+                  </div>
+                  {service.summary && (
+                    <p className="service-summary">{service.summary}</p>
+                  )}
+                  {service.details && isExpanded && (
+                    <ul className="service-details-list">
+                      {service.details.map((detail, idx) => (
+                        <li key={idx}>{detail}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <button
+                    className="selection-card-details"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleServiceDetails(service.id);
+                    }}
+                  >
+                    {isExpanded ? 'Ẩn chi tiết' : 'Chi tiết'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <div className="form-section" style={{ marginTop: '2rem', background: '#f9fafb' }}>
@@ -726,8 +918,8 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderStep4 = () => (
     <div className="booking-step-content">
@@ -737,20 +929,24 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
           Cả Văn Dịch Vụ
         </h2>
         
-        <div className="form-group">
-          <label>Không ưa thích</label>
-          <select className="form-select">
-            <option>Không ưa thích</option>
-          </select>
-          <span className="form-helper-text">Không bắt buộc</span>
-        </div>
-
         <div className="calendar-section">
           <div className="calendar-header">
-            <h3>tháng 10 năm 2025</h3>
+            <h3 style={{ textTransform: 'capitalize' }}>{calendarLabel}</h3>
             <div className="calendar-nav-btns">
-              <button className="calendar-nav-btn">‹</button>
-              <button className="calendar-nav-btn">›</button>
+              <button 
+                className="calendar-nav-btn"
+                onClick={handlePrevMonth}
+                disabled={!canGoPrevMonth}
+              >
+                ‹
+              </button>
+              <button 
+                className="calendar-nav-btn"
+                onClick={handleNextMonth}
+                disabled={!canGoNextMonth}
+              >
+                ›
+              </button>
             </div>
           </div>
           
@@ -766,35 +962,49 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
             </div>
 
             <div className="calendar-days">
-              {generateCalendarDays().map((day, index) => (
-              <button
-                  key={index}
-                  className={`calendar-day ${!day ? 'disabled' : ''} ${
-                    formData.selectedDate === day ? 'selected' : ''
-                  } ${day && day >= new Date().getDate() ? 'available' : ''}`}
-                  onClick={() => day && handleInputChange('selectedDate', day)}
-                  disabled={!day || day < new Date().getDate()}
-                >
-                  {day || ''}
-              </button>
-            ))}
+              {generateCalendarDays().map((item, index) => {
+                if (!item) {
+                  return <div key={`empty-${index}`} className="calendar-day empty" />;
+                }
+
+                const { day, date } = item;
+                const isBeforeToday = isDateBefore(date, today);
+                const isAfterLimit = isDateAfter(date, maxBookingDate);
+                const selectable = !isBeforeToday && !isAfterLimit;
+                const isSelected = formData.selectedDate && isSameDay(formData.selectedDate, date);
+
+                return (
+                  <button
+                    key={date.toISOString()}
+                    className={`calendar-day ${selectable ? 'available' : 'disabled'} ${isSelected ? 'selected' : ''}`}
+                    onClick={() => selectable && handleDateSelection(date)}
+                    disabled={!selectable}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
 
         {formData.selectedDate && (
           <div className="time-slots-section">
-            <h4>Không thời gian khả dụng</h4>
+            <h4>Khung thời gian khả dụng</h4>
             <div className="time-slots-grid">
-              {timeSlots.map(time => (
-                <button
-                  key={time}
-                  className={`time-slot ${formData.selectedTime === time ? 'selected' : ''}`}
-                  onClick={() => handleInputChange('selectedTime', time)}
-                >
-                  {time}
-                </button>
-              ))}
+              {timeSlots.map(time => {
+                const isDisabled = isTimeSlotInPast(time, formData.selectedDate);
+                return (
+                  <button
+                    key={time}
+                    className={`time-slot ${formData.selectedTime === time ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
+                    onClick={() => !isDisabled && handleInputChange('selectedTime', time)}
+                    disabled={isDisabled}
+                  >
+                    {time}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -885,6 +1095,9 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
     const selectedServicesData = services.filter(s => 
       formData.selectedServices.includes(s.id)
     );
+    const totalPrice = selectedServicesData.reduce((sum, service) => (
+      sum + (service.priceValue || 0)
+    ), 0);
 
     return (
       <div className="booking-right-sidebar">
@@ -957,6 +1170,9 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
               <div key={service.id} className="sidebar-item">
                 <div className="sidebar-item-content">
                   <h4>{service.name}</h4>
+                  <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#4b5563' }}>
+                    {service.priceText || formatCurrency(service.priceValue)}
+                  </p>
                 </div>
                 {currentStep > 3 && (
                   <button 
@@ -978,7 +1194,7 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
             <h3>Ngày và giờ</h3>
             <div className="sidebar-item">
               <div className="sidebar-item-content">
-                <h4>Thứ Sáu, {formData.selectedDate} thg 10 2025, {formData.selectedTime}</h4>
+                <h4>{`${formatDateLabel(formData.selectedDate)}, ${formData.selectedTime}`}</h4>
               </div>
               {currentStep > 4 && (
                 <button 
@@ -1003,8 +1219,10 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
         {selectedServicesData.length > 0 && (
           <div className="sidebar-total">
             <h3>Tổng cộng</h3>
-            <div className="sidebar-total-price">Giá theo yêu cầu</div>
-            <p>Chỉ phí bổ sung có thể được áp dụng. Thành toán sẽ chỉ được thực hiện sau khi bạn chấp thuận với Đối tác Mercedes-Benz của bạn.</p>
+            <div className="sidebar-total-price">
+              {formatCurrency(totalPrice)}
+            </div>
+            <p>Chi phí tạm tính dựa trên các gói dịch vụ đã chọn. Các chi phí bổ sung (nếu có) sẽ được thông báo trước khi thanh toán.</p>
         </div>
         )}
     </div>
