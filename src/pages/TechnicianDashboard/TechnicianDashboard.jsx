@@ -3,9 +3,15 @@ import './TechnicianDashboard.css';
 import { 
   FaClock, FaCheckCircle, FaTools, FaCheck, 
   FaCalendarAlt, FaUser, FaCar, FaPhone,
-  FaSpinner, FaSearch, FaClipboardList
+  FaSpinner, FaSearch, FaClipboardList, FaPlus, FaTimesCircle
 } from 'react-icons/fa';
-import { getAppointmentsForStaff, startAppointment, completeAppointment } from '../../api';
+import { 
+  getAppointmentsForStaff,
+  startAppointment, 
+  completeAppointment,
+  createMaintenanceRecord,
+  markAppointmentAsDone
+} from '../../api';
 
 function TechnicianDashboard() {
   const [activeStatus, setActiveStatus] = useState('all');
@@ -16,6 +22,29 @@ function TechnicianDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [isEditingCondition, setIsEditingCondition] = useState(false);
+  const [vehicleCondition, setVehicleCondition] = useState({
+    exterior: '',
+    interior: '',
+    battery: '',
+    tires: ''
+  });
+  
+  // Maintenance Record State
+  const [maintenanceRecord, setMaintenanceRecord] = useState({
+    vehicleCondition: '',
+    checklist: '',
+    remarks: '',
+    partsUsed: [],
+    staffIds: []
+  });
+  
+  // Part being added
+  const [newPart, setNewPart] = useState({
+    partId: '',
+    quantityUsed: '',
+    unitCost: ''
+  });
 
   // Định nghĩa các trạng thái
   const statusTabs = [
@@ -59,7 +88,22 @@ function TechnicianDashboard() {
       setError(null);
       console.log('🔄 [Technician] Đang tải danh sách phiếu dịch vụ...');
       
-      const data = await getAppointmentsForStaff(activeStatus === 'all' ? null : activeStatus);
+      // Debug: Kiểm tra user info
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        try {
+          const userData = JSON.parse(userStr);
+          console.log('👤 [Technician] User data:', userData);
+          console.log('👤 [Technician] User ID:', userData.user_id || userData.id || userData.userId);
+          console.log('👤 [Technician] Role:', userData.role);
+        } catch (e) {
+          console.error('❌ Lỗi parse user data:', e);
+        }
+      } else {
+        console.error('❌ Không tìm thấy user trong localStorage');
+      }
+      
+      const data = await getAppointmentsForStaff();
       console.log('📦 [Technician] Dữ liệu từ API:', data);
       
       if (!Array.isArray(data)) {
@@ -69,22 +113,31 @@ function TechnicianDashboard() {
         return;
       }
       
-      // Map data (giả sử API trả về format tương tự Staff)
+      // Debug: Xem item đầu tiên
+      if (data.length > 0) {
+        console.log('🔍 Sample appointment:', data[0]);
+        console.log('🔍 Available fields:', Object.keys(data[0]));
+      }
+      
+      // Map data từ API mới
       const mappedData = data.map(item => ({
-        id: item.appointmentId || item.id,
+        id: item.appointmentId,
         customerId: item.customerId,
-        customerName: item.fullName || item.customerName,
+        customerName: item.customerName,
         phone: item.phone,
         email: item.email,
-        vehicleId: item.vehicleId,
-        vehicleModel: item.vehicleName || item.vehicleModel,
-        licensePlate: item.vehicleLicensePlate || item.licensePlate,
-        appointmentDate: item.appoimentDate || item.appointmentDate,
+        vehicleId: item.vehicle?.id,
+        vehicleModel: item.vehicleModel,
+        vehicleVin: item.vehicle?.vin,
+        licensePlate: item.vehicle?.licensePlate,
+        appointmentDate: item.appointmentDate,
         status: (item.status || '').toLowerCase(),
-        services: item.serviceType ? item.serviceType.split(',').map(s => s.trim()) : [],
-        cost: item.cost || 0,
+        services: item.serviceNames || [],
+        cost: item.total || 0,
         notes: item.note || '',
-        checkList: item.checkList || []
+        checkList: item.checkList || [],
+        serviceCenterName: item.serviceCenterName,
+        assignedTechs: item.users || []
       }));
       
       setAllAppointmentsData(mappedData);
@@ -99,7 +152,25 @@ function TechnicianDashboard() {
       
     } catch (err) {
       console.error('❌ Lỗi khi tải danh sách:', err);
-      setError(err.response?.data?.message || 'Không thể tải danh sách phiếu dịch vụ');
+      
+      let errorMsg = 'Không thể tải danh sách phiếu dịch vụ';
+      
+      // Nếu là error từ validation user ID
+      if (err.message && !err.response) {
+        errorMsg = err.message;
+      } else if (err.response?.status === 500) {
+        errorMsg = 'Lỗi server (500). Vui lòng liên hệ admin.';
+      } else if (err.response?.status === 401) {
+        errorMsg = 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.';
+      } else if (err.response?.status === 403) {
+        errorMsg = 'Bạn không có quyền truy cập.';
+      } else if (err.response?.status === 404) {
+        errorMsg = 'Không tìm thấy thông tin technician này.';
+      } else if (err.response?.data?.message) {
+        errorMsg = err.response.data.message;
+      }
+      
+      setError(errorMsg);
       setAppointments([]);
       setAllAppointmentsData([]);
     } finally {
@@ -128,27 +199,146 @@ function TechnicianDashboard() {
   };
 
   const handleCompleteWork = async (appointmentId) => {
-    if (!window.confirm('Xác nhận hoàn thành công việc này?')) {
+    if (!window.confirm('Xác nhận hoàn thành công việc này?\n\n⚠️ Lưu ý: Hãy đảm bảo bạn đã lưu thông tin bảo dưỡng (bấm nút "Lưu thông tin bảo dưỡng") trước khi hoàn thành.')) {
       return;
     }
     
     try {
       setActionLoading(true);
-      console.log('✔️ [Technician] Hoàn thành phiếu #', appointmentId);
+      console.log('✔️ [Technician] Hoàn thành appointment #', appointmentId);
       
-      await completeAppointment(appointmentId);
+      // Gọi API PUT /api/appointments/{id}/done với data rỗng
+      await markAppointmentAsDone(appointmentId);
       
-      console.log('✅ Đã hoàn thành');
+      console.log('✅ Appointment completed (done)');
       alert('✅ Công việc đã hoàn thành!');
       
+      // Refresh list
       await fetchAppointments();
       
     } catch (err) {
       console.error('❌ Lỗi khi hoàn thành:', err);
+      console.error('❌ Error response:', err.response?.data);
       alert(err.response?.data?.message || 'Không thể hoàn thành công việc');
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleSaveCondition = async () => {
+    try {
+      // Validate required fields
+      if (!maintenanceRecord.vehicleCondition.trim()) {
+        alert('⚠️ Vui lòng nhập tình trạng xe');
+        return;
+      }
+      
+      if (!maintenanceRecord.checklist.trim()) {
+        alert('⚠️ Vui lòng nhập checklist');
+        return;
+      }
+      
+      // Get current technician ID from localStorage
+      let staffIds = [];
+      
+      // Cách 1: Lấy từ assigned technicians nếu có
+      if (selectedAppointment.assignedTechs && selectedAppointment.assignedTechs.length > 0) {
+        staffIds = selectedAppointment.assignedTechs.map(tech => tech.id);
+        console.log('📋 Using assigned techs:', staffIds);
+      } else {
+        // Cách 2: Lấy ID technician đang đăng nhập
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          try {
+            const userData = JSON.parse(userStr);
+            const userId = userData.user_id || userData.id || userData.userId;
+            if (userId) {
+              staffIds = [userId];
+              console.log('👤 Using current technician ID:', userId);
+            }
+          } catch (e) {
+            console.error('❌ Lỗi parse user data:', e);
+          }
+        }
+      }
+      
+      if (staffIds.length === 0) {
+        alert('⚠️ Không tìm thấy thông tin technician. Vui lòng đăng nhập lại.');
+        return;
+      }
+      
+      const recordData = {
+        vehicleCondition: maintenanceRecord.vehicleCondition,
+        checklist: maintenanceRecord.checklist,
+        remarks: maintenanceRecord.remarks || '',
+        partsUsed: maintenanceRecord.partsUsed.map(part => ({
+          partId: parseInt(part.partId),
+          quantityUsed: parseInt(part.quantityUsed),
+          unitCost: parseFloat(part.unitCost)
+        })),
+        staffIds: staffIds
+      };
+      
+      console.log('💾 Saving maintenance record:', recordData);
+      console.log('👥 Staff IDs:', staffIds);
+      
+      setActionLoading(true);
+      const response = await createMaintenanceRecord(selectedAppointment.id, recordData);
+      
+      console.log('✅ Maintenance record saved:', response);
+      alert('✅ Đã lưu thông tin bảo dưỡng thành công!');
+      setIsEditingCondition(false);
+      
+    } catch (err) {
+      console.error('❌ Lỗi khi lưu maintenance record:', err);
+      console.error('❌ Error response:', err.response?.data);
+      alert(err.response?.data?.message || 'Không thể lưu thông tin bảo dưỡng');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCancelEditCondition = () => {
+    setIsEditingCondition(false);
+    // Reset về giá trị ban đầu
+    setMaintenanceRecord({
+      vehicleCondition: '',
+      checklist: '',
+      remarks: '',
+      partsUsed: [],
+      staffIds: []
+    });
+    setNewPart({
+      partId: '',
+      quantityUsed: '',
+      unitCost: ''
+    });
+  };
+  
+  const handleAddPart = () => {
+    if (!newPart.partId || !newPart.quantityUsed || !newPart.unitCost) {
+      alert('⚠️ Vui lòng điền đầy đủ thông tin linh kiện');
+      return;
+    }
+    
+    setMaintenanceRecord({
+      ...maintenanceRecord,
+      partsUsed: [...maintenanceRecord.partsUsed, { ...newPart }]
+    });
+    
+    // Reset form
+    setNewPart({
+      partId: '',
+      quantityUsed: '',
+      unitCost: ''
+    });
+  };
+  
+  const handleRemovePart = (index) => {
+    setMaintenanceRecord({
+      ...maintenanceRecord,
+      partsUsed: maintenanceRecord.partsUsed.filter((_, i) => i !== index)
+    });
   };
 
   // Lọc theo search
@@ -353,6 +543,21 @@ function TechnicianDashboard() {
                 </div>
               </div>
 
+              {/* Dịch vụ yêu cầu */}
+              {selectedAppointment.services && selectedAppointment.services.length > 0 && (
+                <div className="detail-section">
+                  <h3>Dịch vụ yêu cầu</h3>
+                  <div className="services-list-tech">
+                    {selectedAppointment.services.map((service, index) => (
+                      <div key={index} className="service-item-tech">
+                        <FaTools style={{ color: '#667eea' }} />
+                        <span>{service}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* VIN Number */}
               {selectedAppointment.vehicleVin && (
                 <div className="detail-section">
@@ -378,28 +583,162 @@ function TechnicianDashboard() {
                 </div>
               )}
 
-              {/* Tình trạng xe */}
-              <div className="detail-section">
-                <h3>Tình trạng xe</h3>
-                <div className="vehicle-condition">
-                  <div className="condition-row">
-                    <span className="condition-label">Ngoại thất:</span>
-                    <span className="condition-status">Đang kiểm tra</span>
+              {/* Thông tin bảo dưỡng */}
+              {isEditingCondition && (
+                <div className="detail-section maintenance-form">
+                  <h3>📝 Thông tin bảo dưỡng</h3>
+                  
+                  {/* Vehicle Condition */}
+                  <div className="form-group">
+                    <label className="form-label">
+                      <span className="required">*</span> Tình trạng xe:
+                    </label>
+                    <textarea
+                      className="form-textarea"
+                      placeholder="Mô tả chi tiết tình trạng xe (ngoại thất, nội thất, pin, lốp...)"
+                      rows="4"
+                      value={maintenanceRecord.vehicleCondition}
+                      onChange={(e) => setMaintenanceRecord({
+                        ...maintenanceRecord,
+                        vehicleCondition: e.target.value
+                      })}
+                    />
                   </div>
-                  <div className="condition-row">
-                    <span className="condition-label">Nội thất:</span>
-                    <span className="condition-status">Đang kiểm tra</span>
+
+                  {/* Checklist */}
+                  <div className="form-group">
+                    <label className="form-label">
+                      <span className="required">*</span> Checklist thực hiện:
+                    </label>
+                    <textarea
+                      className="form-textarea"
+                      placeholder="Danh sách các công việc đã thực hiện (mỗi mục 1 dòng)"
+                      rows="4"
+                      value={maintenanceRecord.checklist}
+                      onChange={(e) => setMaintenanceRecord({
+                        ...maintenanceRecord,
+                        checklist: e.target.value
+                      })}
+                    />
                   </div>
-                  <div className="condition-row">
-                    <span className="condition-label">Pin:</span>
-                    <span className="condition-status">Đang kiểm tra</span>
+
+                  {/* Remarks */}
+                  <div className="form-group">
+                    <label className="form-label">Ghi chú thêm:</label>
+                    <textarea
+                      className="form-textarea"
+                      placeholder="Ghi chú hoặc lưu ý đặc biệt..."
+                      rows="3"
+                      value={maintenanceRecord.remarks}
+                      onChange={(e) => setMaintenanceRecord({
+                        ...maintenanceRecord,
+                        remarks: e.target.value
+                      })}
+                    />
                   </div>
-                  <div className="condition-row">
-                    <span className="condition-label">Lốp xe:</span>
-                    <span className="condition-status">Đang kiểm tra</span>
+
+                  {/* Parts Used */}
+                  <div className="form-group parts-section">
+                    <label className="form-label">Linh kiện đã sử dụng:</label>
+                    
+                    {/* List of added parts */}
+                    {maintenanceRecord.partsUsed.length > 0 && (
+                      <div className="parts-list">
+                        {maintenanceRecord.partsUsed.map((part, index) => (
+                          <div key={index} className="part-item">
+                            <div className="part-info">
+                              <span className="part-id">ID: {part.partId}</span>
+                              <span className="part-qty">SL: {part.quantityUsed}</span>
+                              <span className="part-cost">{parseFloat(part.unitCost).toLocaleString('vi-VN')} VNĐ</span>
+                            </div>
+                            <button 
+                              className="btn-remove-part"
+                              onClick={() => handleRemovePart(index)}
+                              type="button"
+                            >
+                              <FaTimesCircle />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add new part form */}
+                    <div className="add-part-form">
+                      <input
+                        type="number"
+                        className="form-input"
+                        placeholder="ID Linh kiện"
+                        value={newPart.partId}
+                        onChange={(e) => setNewPart({...newPart, partId: e.target.value})}
+                      />
+                      <input
+                        type="number"
+                        className="form-input"
+                        placeholder="Số lượng"
+                        value={newPart.quantityUsed}
+                        onChange={(e) => setNewPart({...newPart, quantityUsed: e.target.value})}
+                      />
+                      <input
+                        type="number"
+                        className="form-input"
+                        placeholder="Đơn giá (VNĐ)"
+                        value={newPart.unitCost}
+                        onChange={(e) => setNewPart({...newPart, unitCost: e.target.value})}
+                      />
+                      <button 
+                        className="btn-add-part"
+                        onClick={handleAddPart}
+                        type="button"
+                      >
+                        <FaPlus /> Thêm
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Staff Info (Read-only) */}
+                  {selectedAppointment.assignedTechs && selectedAppointment.assignedTechs.length > 0 && (
+                    <div className="form-group">
+                      <label className="form-label">Kỹ thuật viên thực hiện:</label>
+                      <div className="staff-chips">
+                        {selectedAppointment.assignedTechs.map((tech) => (
+                          <span key={tech.id} className="staff-chip">
+                            {tech.fullName} (ID: {tech.id})
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Save/Cancel Buttons */}
+                  <div className="condition-edit-actions">
+                    <button 
+                      className="btn-save-condition"
+                      onClick={handleSaveCondition}
+                      disabled={actionLoading}
+                    >
+                      {actionLoading ? (
+                        <>
+                          <FaSpinner className="spinner" />
+                          Đang lưu...
+                        </>
+                      ) : (
+                        <>
+                          <FaCheckCircle />
+                          Lưu thông tin bảo dưỡng
+                        </>
+                      )}
+                    </button>
+                    <button 
+                      className="btn-cancel-condition"
+                      onClick={handleCancelEditCondition}
+                      disabled={actionLoading}
+                    >
+                      Hủy
+                    </button>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Ghi chú */}
               {selectedAppointment.notes && (
@@ -411,11 +750,23 @@ function TechnicianDashboard() {
                 </div>
               )}
 
-              {/* Cập nhật tình trạng xe */}
-              {selectedAppointment.status === 'in_progress' && (
+              {/* Tổng chi phí */}
+              {selectedAppointment.cost > 0 && (
                 <div className="detail-section">
-                  <h3>Cập nhật tình trạng xe</h3>
-                  <button className="btn-update-status">
+                  <div className="cost-box">
+                    <span className="cost-label">Tổng chi phí:</span>
+                    <span className="cost-value">{selectedAppointment.cost.toLocaleString('vi-VN')} VNĐ</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Nút Cập nhật tình trạng xe */}
+              {selectedAppointment.status === 'in_progress' && !isEditingCondition && (
+                <div className="detail-section">
+                  <button 
+                    className="btn-update-status"
+                    onClick={() => setIsEditingCondition(true)}
+                  >
                     <FaClipboardList />
                     Cập nhật tình trạng xe
                   </button>
@@ -438,7 +789,7 @@ function TechnicianDashboard() {
                     ) : (
                       <>
                         <FaTools />
-                        Công việc đã hoàn thành
+                        Bắt đầu làm việc
                       </>
                     )}
                   </button>
@@ -457,7 +808,7 @@ function TechnicianDashboard() {
                     ) : (
                       <>
                         <FaCheckCircle />
-                        Công việc đã hoàn thành
+                        Hoàn thành công việc
                       </>
                     )}
                   </button>
