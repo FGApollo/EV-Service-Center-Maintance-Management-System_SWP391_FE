@@ -10,7 +10,7 @@ import MyCar from "./pages/MyCar.jsx";
 import StaffDashboard from "./pages/StaffDashboard.jsx";
 import TechnicianDashboard from "./pages/TechnicianDashboard.jsx";
 import Footer from "./components/Footer.jsx";
-import AdminDashboard from './pages/AdminDashboard.jsx';
+import AdminDashboard from './pages/AdminDashboard/index.jsx';
 import ManagerDashboard from './pages/ManagerDashboard.jsx';
 
 function App() {

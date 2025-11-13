@@ -7,7 +7,7 @@ import Profile from './pages/Profile.jsx';
 import MyCar from './pages/MyCar.jsx';
 import StaffDashboard from './pages/StaffDashboard.jsx';
 import TechnicianDashboard from './pages/TechnicianDashboard.jsx';
-import AdminDashboard from './pages/AdminDashboard.jsx';
+import AdminDashboard from './pages/AdminDashboard/index.jsx'; // ✅ Updated path
 import ManagerDashboard from './pages/ManagerDashboard.jsx';
 
 // Định nghĩa routes

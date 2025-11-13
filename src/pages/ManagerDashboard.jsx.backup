@@ -1,0 +1,4 @@
+// BACKUP FILE - Original ManagerDashboard.jsx before refactoring cleanup
+// Created: 2025-11-11
+// This file is kept for reference in case we need to restore any functionality
+// The new clean version removes all unused state and functions that were moved to components
