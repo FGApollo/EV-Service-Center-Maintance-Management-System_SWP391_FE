@@ -1,0 +1,14 @@
+.vehicle-management {
+  padding: 30px;
+}
+
+.vehicle-management h2 {
+  font-size: 24px;
+  color: #2d3748;
+  margin-bottom: 20px;
+}
+
+.vehicle-management p {
+  color: #718096;
+}
+

@@ -7,7 +7,7 @@ import PaymentGatewayPage from "./pages/PaymentGatewayPage.jsx";
 import PaymentReturnPage from "./pages/PaymentReturnPage.jsx";
 import Profile from "./pages/Profile.jsx";
 import MyCar from "./pages/MyCar.jsx";
-import StaffDashboard from "./pages/StaffDashboard.jsx";
+import StaffDashboard from "./pages/StaffDashboard";
 import TechnicianDashboard from "./pages/TechnicianDashboard.jsx";
 import Footer from "./components/Footer.jsx";
 
@@ -97,8 +97,25 @@ function App() {
     };
 
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    // Listen for global logout events dispatched by axios client
+    const handleAppLogout = (e) => {
+      console.warn('App received logout event:', e?.detail);
+      // Clear auth and redirect to login page
+      try {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      } catch (err) {}
+      setIsLoggedIn(false);
+      setUser(null);
+      navigate('login', { replace: true });
+    };
+    window.addEventListener('app:logout', handleAppLogout);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('app:logout', handleAppLogout);
+    };
   }, []);
+
 
   // Check URL params để detect payment return
   useEffect(() => {

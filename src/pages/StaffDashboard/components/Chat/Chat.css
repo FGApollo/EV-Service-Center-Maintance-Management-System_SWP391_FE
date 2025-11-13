@@ -1,0 +1,14 @@
+.chat {
+  padding: 30px;
+}
+
+.chat h2 {
+  font-size: 24px;
+  color: #2d3748;
+  margin-bottom: 20px;
+}
+
+.chat p {
+  color: #718096;
+}
+
