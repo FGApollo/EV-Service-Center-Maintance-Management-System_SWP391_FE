@@ -605,6 +605,133 @@
   transform: translateY(-2px);
 }
 
+/* Technicians Section */
+.technicians-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #667eea;
+  gap: 12px;
+}
+
+.technicians-loading .spinner {
+  font-size: 32px;
+  animation: spin 1s linear infinite;
+}
+
+.technicians-loading p {
+  color: #718096;
+  font-size: 14px;
+  margin: 0;
+}
+
+.technicians-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.technician-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  padding: 18px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  border-radius: 12px;
+  border: 2px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.technician-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.15);
+  border-color: #667eea;
+}
+
+.technician-avatar {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 22px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.technician-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.technician-info h4 {
+  font-size: 16px;
+  color: #2d3748;
+  margin: 0;
+  font-weight: 700;
+}
+
+.tech-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #4a5568;
+}
+
+.tech-detail-row svg {
+  color: #667eea;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.tech-role-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  width: fit-content;
+  margin-top: 4px;
+}
+
+.no-technicians {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 20px;
+  text-align: center;
+  color: #cbd5e0;
+  background: #f7fafc;
+  border-radius: 12px;
+  border: 2px dashed #e2e8f0;
+}
+
+.no-technicians svg {
+  margin-bottom: 15px;
+  color: #cbd5e0;
+}
+
+.no-technicians p {
+  color: #a0aec0;
+  font-size: 14px;
+  margin: 0;
+  font-weight: 500;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .appointment-content {
@@ -644,5 +771,9 @@
 
   .detail-actions {
     flex-direction: column;
+  }
+
+  .technicians-list {
+    grid-template-columns: 1fr;
   }
 }

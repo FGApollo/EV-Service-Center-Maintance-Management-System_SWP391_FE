@@ -10,7 +10,8 @@ import {
   acceptAppointment, 
   cancelAppointment,
   startAppointmentProgress,
-  completeAppointmentDone
+  completeAppointmentDone,
+  getAppointmentStatus
 } from '../../../../api';
 import AssignTechnicianModal from './AssignTechnicianModal';
 
@@ -22,6 +23,8 @@ function AppointmentManagement() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [appointmentDetail, setAppointmentDetail] = useState(null); // Chi tiết appointment với thông tin kỹ thuật viên
+  const [detailLoading, setDetailLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
 
@@ -76,6 +79,34 @@ function AppointmentManagement() {
     fetchAppointments();
   }, [activeStatus]);
 
+  // Fetch chi tiết appointment khi chọn appointment (để lấy thông tin kỹ thuật viên)
+  useEffect(() => {
+    if (selectedAppointment && ['accepted', 'in_progress', 'completed'].includes(selectedAppointment.status)) {
+      fetchAppointmentDetail(selectedAppointment.id);
+    } else {
+      setAppointmentDetail(null);
+    }
+  }, [selectedAppointment]);
+
+  const fetchAppointmentDetail = async (appointmentId) => {
+    try {
+      setDetailLoading(true);
+      console.log('🔍 Đang tải chi tiết appointment #', appointmentId);
+      
+      const data = await getAppointmentStatus(appointmentId);
+      console.log('📦 Chi tiết appointment:', data);
+      
+      setAppointmentDetail(data);
+      
+    } catch (err) {
+      console.error('❌ Lỗi khi tải chi tiết appointment:', err);
+      // Không hiển thị error cho user vì đây là tính năng bổ sung
+      setAppointmentDetail(null);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
   const fetchAppointments = async () => {
     try {
       setLoading(true);
@@ -105,25 +136,39 @@ function AppointmentManagement() {
         return;
       }
       
+      // Debug: Xem item đầu tiên để biết API trả về field gì
+      if (data.length > 0) {
+        console.log('🔍 Sample appointment data:', data[0]);
+        console.log('🔍 Available fields:', Object.keys(data[0]));
+      }
+      
       // Map data từ API sang format component
-      let mappedData = data.map(item => ({
-        id: item.appointmentId,
-        customerId: item.customerId,
-        customerName: item.fullName,
-        phone: item.phone,
-        email: item.email,
-        vehicleId: item.vehicleId,
-        vehicleModel: item.vehicleName,
-        vehicleVin: item.vehicleVin,
-        licensePlate: item.vehicleLicensePlate,
-        appointmentDate: item.appoimentDate, // Note: API có typo "appoimentDate"
-        status: item.status.toLowerCase(), // Normalize status to lowercase
-        services: item.serviceType ? item.serviceType.split(',').map(s => s.trim()) : [],
-        cost: item.cost,
-        createAt: item.createAt,
-        centerId: item.centerId,
-        notes: '' // API không có field này
-      }));
+      let mappedData = data.map(item => {
+        const mappedId = item.appointmentId || item.id || item.appointment_id;
+        
+        if (!mappedId) {
+          console.warn('⚠️ Appointment without ID found:', item);
+        }
+        
+        return {
+          id: mappedId,
+          customerId: item.customerId,
+          customerName: item.fullName,
+          phone: item.phone,
+          email: item.email,
+          vehicleId: item.vehicleId,
+          vehicleModel: item.vehicleName,
+          vehicleVin: item.vehicleVin,
+          licensePlate: item.vehicleLicensePlate,
+          appointmentDate: item.appoimentDate, // Note: API có typo "appoimentDate"
+          status: item.status.toLowerCase(), // Normalize status to lowercase
+          services: item.serviceType ? item.serviceType.split(',').map(s => s.trim()) : [],
+          cost: item.cost,
+          createAt: item.createAt,
+          centerId: item.centerId,
+          notes: '' // API không có field này
+        };
+      });
       
       // ✅ FILTER theo centerId của staff
       if (staffCenterId !== null && staffCenterId !== undefined) {
@@ -350,7 +395,11 @@ function AppointmentManagement() {
                   <div
                     key={appointment.id}
                     className={`appointment-item ${selectedAppointment?.id === appointment.id ? 'active' : ''}`}
-                    onClick={() => setSelectedAppointment(appointment)}
+                    onClick={() => {
+                      console.log('🖱️ Selected appointment:', appointment);
+                      console.log('📋 Appointment ID:', appointment.id);
+                      setSelectedAppointment(appointment);
+                    }}
                   >
                     <div className="appointment-item-header">
                       <div className="appointment-icon" style={{ background: appointmentStatus.color }}>
@@ -509,6 +558,52 @@ function AppointmentManagement() {
                 )}
               </div>
 
+              {/* Thông tin kỹ thuật viên - chỉ hiển thị cho accepted, in_progress, completed */}
+              {['accepted', 'in_progress', 'completed'].includes(selectedAppointment.status) && (
+                <div className="detail-section">
+                  <h3>Kỹ thuật viên được giao</h3>
+                  {detailLoading ? (
+                    <div className="technicians-loading">
+                      <FaSpinner className="spinner" />
+                      <p>Đang tải thông tin kỹ thuật viên...</p>
+                    </div>
+                  ) : appointmentDetail && appointmentDetail.users && appointmentDetail.users.length > 0 ? (
+                    <div className="technicians-list">
+                      {appointmentDetail.users.map((tech, index) => (
+                        <div key={tech.id || index} className="technician-card">
+                          <div className="technician-avatar">
+                            <FaUser />
+                          </div>
+                          <div className="technician-info">
+                            <h4>{tech.fullName}</h4>
+                            <div className="tech-detail-row">
+                              <FaPhone />
+                              <span>{tech.phone || 'Chưa có số điện thoại'}</span>
+                            </div>
+                            {tech.email && (
+                              <div className="tech-detail-row">
+                                <FaEnvelope />
+                                <span>{tech.email}</span>
+                              </div>
+                            )}
+                            {tech.role && (
+                              <div className="tech-role-badge">
+                                {tech.role}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="no-technicians">
+                      <FaUserPlus size={40} />
+                      <p>Chưa có kỹ thuật viên được giao</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {activeStatus !== 'all' && (
                 <div className="detail-actions">
                   {activeStatus === 'pending' && (
@@ -535,7 +630,14 @@ function AppointmentManagement() {
                     <>
                       <button 
                         className="btn-assign"
-                        onClick={() => setShowAssignModal(true)}
+                        onClick={() => {
+                          if (!selectedAppointment?.id) {
+                            alert('Lỗi: Không tìm thấy ID lịch hẹn. Vui lòng chọn lại lịch hẹn.');
+                            return;
+                          }
+                          console.log('🔍 Opening modal for appointment ID:', selectedAppointment.id);
+                          setShowAssignModal(true);
+                        }}
                         disabled={actionLoading}
                       >
                         <FaUserPlus />
@@ -552,14 +654,31 @@ function AppointmentManagement() {
                     </>
                   )}
                   {activeStatus === 'in_progress' && (
-                    <button 
-                      className="btn-complete"
-                      onClick={() => handleCompleteAppointment(selectedAppointment.id)}
-                      disabled={actionLoading}
-                    >
-                      {actionLoading ? <FaSpinner className="spinner" /> : <FaCheck />}
-                      {actionLoading ? 'Đang xử lý...' : 'Hoàn thành'}
-                    </button>
+                    <>
+                      <button 
+                        className="btn-assign"
+                        onClick={() => {
+                          if (!selectedAppointment?.id) {
+                            alert('Lỗi: Không tìm thấy ID lịch hẹn. Vui lòng chọn lại lịch hẹn.');
+                            return;
+                          }
+                          console.log('🔍 Opening edit modal for appointment ID:', selectedAppointment.id);
+                          setShowAssignModal(true);
+                        }}
+                        disabled={actionLoading}
+                      >
+                        <FaUserPlus />
+                        Chỉnh sửa Technician
+                      </button>
+                      <button 
+                        className="btn-complete"
+                        onClick={() => handleCompleteAppointment(selectedAppointment.id)}
+                        disabled={actionLoading}
+                      >
+                        {actionLoading ? <FaSpinner className="spinner" /> : <FaCheck />}
+                        {actionLoading ? 'Đang xử lý...' : 'Hoàn thành'}
+                      </button>
+                    </>
                   )}
                 </div>
               )}
@@ -581,6 +700,7 @@ function AppointmentManagement() {
         onClose={() => setShowAssignModal(false)}
         appointmentId={selectedAppointment?.id}
         onAssign={handleAssignTechnicians}
+        existingTechnicians={appointmentDetail?.users || []}
       />
     </div>
   );

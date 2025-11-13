@@ -3,7 +3,7 @@ import { FaTimes, FaUser, FaUserPlus, FaSpinner, FaIdBadge, FaClipboardList, FaC
 import './AssignTechnicianModal.css';
 import { getAllTechnicians, assignTechniciansToAppointment } from '../../../../api';
 
-function AssignTechnicianModal({ isOpen, onClose, appointmentId, onAssign }) {
+function AssignTechnicianModal({ isOpen, onClose, appointmentId, onAssign, existingTechnicians = [] }) {
   const [technicians, setTechnicians] = useState([]);
   const [selectedTechIds, setSelectedTechIds] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -12,9 +12,16 @@ function AssignTechnicianModal({ isOpen, onClose, appointmentId, onAssign }) {
   useEffect(() => {
     if (isOpen) {
       fetchTechnicians();
-      setSelectedTechIds([]);
+      
+      // Pre-select technicians đã được giao trước đó
+      const existingIds = existingTechnicians.map(tech => tech.id);
+      setSelectedTechIds(existingIds);
+      
+      if (existingIds.length > 0) {
+        console.log('✅ Pre-selected technicians:', existingIds);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, existingTechnicians]);
 
   const fetchTechnicians = async () => {
     try {
@@ -93,26 +100,28 @@ function AssignTechnicianModal({ isOpen, onClose, appointmentId, onAssign }) {
       return;
     }
 
+    const isEditing = existingTechnicians.length > 0;
+
     try {
       setAssigning(true);
-      console.log('🔧 Đang giao việc cho technicians:', selectedTechIds);
+      console.log(`🔧 ${isEditing ? 'Đang cập nhật' : 'Đang giao việc cho'} technicians:`, selectedTechIds);
       console.log('📋 Appointment ID:', appointmentId);
       
       // Gọi API thực tế để giao việc
       await assignTechniciansToAppointment(appointmentId, selectedTechIds, '');
       
-      console.log('✅ Đã giao việc thành công');
-      alert(`✅ Đã giao việc cho ${selectedTechIds.length} kỹ thuật viên thành công!`);
+      console.log(`✅ Đã ${isEditing ? 'cập nhật' : 'giao việc'} thành công`);
+      alert(`✅ Đã ${isEditing ? 'cập nhật' : 'giao việc cho'} ${selectedTechIds.length} kỹ thuật viên thành công!`);
       
       // Callback để reload data
       onAssign(selectedTechIds);
       handleClose();
       
     } catch (error) {
-      console.error('❌ Lỗi khi giao việc:', error);
+      console.error(`❌ Lỗi khi ${isEditing ? 'cập nhật' : 'giao việc'}:`, error);
       
       // Xử lý error messages chi tiết
-      let errorMessage = 'Không thể giao việc. Vui lòng thử lại.';
+      let errorMessage = `Không thể ${isEditing ? 'cập nhật' : 'giao việc'}. Vui lòng thử lại.`;
       
       if (error.response?.status === 401) {
         errorMessage = 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.';
@@ -135,6 +144,8 @@ function AssignTechnicianModal({ isOpen, onClose, appointmentId, onAssign }) {
 
   if (!isOpen) return null;
 
+  const isEditing = existingTechnicians.length > 0;
+
   return (
     <div className="modal-overlay" onClick={handleClose}>
       <div className="modal-content assign-tech-modal" onClick={(e) => e.stopPropagation()}>
@@ -144,8 +155,11 @@ function AssignTechnicianModal({ isOpen, onClose, appointmentId, onAssign }) {
               <FaUserPlus />
             </div>
             <div>
-              <h2>Giao việc cho Kỹ thuật viên</h2>
-              <p className="modal-subtitle">Lịch hẹn #{appointmentId}</p>
+              <h2>{isEditing ? 'Chỉnh sửa Kỹ thuật viên' : 'Giao việc cho Kỹ thuật viên'}</h2>
+              <p className="modal-subtitle">
+                Lịch hẹn #{appointmentId}
+                {isEditing && <span style={{ color: '#48bb78', marginLeft: '8px' }}>• Đã giao {existingTechnicians.length} người</span>}
+              </p>
             </div>
           </div>
           <button className="modal-close-btn" onClick={handleClose}>
@@ -278,12 +292,12 @@ function AssignTechnicianModal({ isOpen, onClose, appointmentId, onAssign }) {
             {assigning ? (
               <>
                 <FaSpinner className="spinner" />
-                Đang giao việc...
+                {isEditing ? 'Đang cập nhật...' : 'Đang giao việc...'}
               </>
             ) : (
               <>
                 <FaUserPlus />
-                Giao việc ({selectedTechIds.length})
+                {isEditing ? `Cập nhật (${selectedTechIds.length})` : `Giao việc (${selectedTechIds.length})`}
               </>
             )}
           </button>

@@ -158,6 +158,12 @@ export const getAppointmentDetailWithTechs = async (appointmentId) => {
   return res.data;
 };
 
+// Staff: Lấy chi tiết appointment với thông tin kỹ thuật viên (✅ Cần token)
+export const getAppointmentStatus = async (appointmentId) => {
+  const res = await axiosClient.get(`/api/appointments/status/${appointmentId}`);
+  return res.data;
+};
+
 // Technician: Bắt đầu appointment (✅ Cần token)
 export const startAppointment = async (appointmentId) => {
   const res = await axiosClient.post(`/api/technician/appointments/${appointmentId}/start`);
@@ -182,11 +188,39 @@ export const getAllTechnicians = async () => {
 
 // Giao việc cho technicians (✅ Cần token)
 export const assignTechniciansToAppointment = async (appointmentId, staffIds, notes = '') => {
-  const res = await axiosClient.put(`/assignments/${appointmentId}/staff`, {
-    notes,
-    staffIds
+  // Quick sanity check: ensure we have a token before calling protected endpoint
+  const token = localStorage.getItem('token');
+  if (!token) {
+    console.error('🔐 No auth token found in localStorage - aborting assignTechniciansToAppointment');
+    try {
+      window.dispatchEvent(new CustomEvent('app:logout', { detail: { reason: 'no_token', status: 0 } }));
+    } catch (e) {}
+    throw new Error('No authentication token');
+  }
+
+  console.log('🔧 assignTechniciansToAppointment called:', {
+    appointmentId,
+    staffIds,
+    notes
   });
-  return res.data;
+
+  try {
+    const res = await axiosClient.put(`/api/assignments/${appointmentId}/staff`, {
+      notes,
+      staffIds
+    });
+    console.log('✅ Assignment successful:', res.data);
+    return res.data;
+  } catch (error) {
+    console.error('❌ Assignment error:');
+    console.error('  📍 Status:', error.response?.status);
+    console.error('  📝 Message:', error.response?.data?.message || error.message);
+    console.error('  📦 Response:', error.response?.data);
+    console.error('  🔗 URL:', error.config?.url);
+    console.error('  📤 Request data:', error.config?.data);
+    console.error('  🔁 Response headers:', error.response?.headers);
+    throw error;
+  }
 };
 
 /* --------------------------------
