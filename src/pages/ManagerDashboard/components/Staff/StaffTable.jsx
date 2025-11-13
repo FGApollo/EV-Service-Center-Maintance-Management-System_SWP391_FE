@@ -87,7 +87,7 @@ export const StaffTable = ({
                     color: staff.role?.toUpperCase() === 'TECHNICIAN' ? '#2e7d32' : '#1565c0'
                   }}
                 >
-                  {staff.role?.toUpperCase() === 'TECHNICIAN' ? '🔧 Kỹ thuật viên' : '👔 Nhân viên'}
+                  {staff.role?.toUpperCase() === 'TECHNICIAN' ? 'Kỹ thuật viên' : 'Nhân viên'}
                 </span>
               </td>
               

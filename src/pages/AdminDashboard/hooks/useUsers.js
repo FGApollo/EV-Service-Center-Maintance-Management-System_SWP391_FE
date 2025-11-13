@@ -6,23 +6,58 @@ export const useUsers = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Fetch all users
+  // Fetch all users by role
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('🔄 [Admin Users] Fetching users...');
+      console.log('🔄 [Admin Users] Fetching all users by role...');
 
-      const data = await API.getAllCustomers();
-      setUsers(data || []);
+      // Fetch all roles in parallel
+      const results = await Promise.allSettled([
+        API.getAllUsersByRole('manager').catch(() => []),
+        API.getAllUsersByRole('customer').catch(() => []),
+        API.getAllUsersByRole('staff').catch(() => []),
+        API.getAllUsersByRole('technician').catch(() => [])
+      ]);
+
+      const [
+        managersResult,
+        customersResult,
+        staffResult,
+        techniciansResult
+      ] = results;
+
+      // Combine all users from all roles
+      const managers = managersResult.status === 'fulfilled' ? managersResult.value : [];
+      const customers = customersResult.status === 'fulfilled' ? customersResult.value : [];
+      const staff = staffResult.status === 'fulfilled' ? staffResult.value : [];
+      const technicians = techniciansResult.status === 'fulfilled' ? techniciansResult.value : [];
+
+      const allUsers = [
+        ...managers,
+        ...customers,
+        ...staff,
+        ...technicians
+      ];
+
+      setUsers(allUsers);
       
-      console.log('✅ [Admin Users] Loaded users:', data?.length);
+      console.log('✅ [Admin Users] Loaded users:', {
+        total: allUsers.length,
+        managers: managers.length,
+        customers: customers.length,
+        staff: staff.length,
+        technicians: technicians.length
+      });
       setLoading(false);
-      return data;
+      return allUsers;
     } catch (err) {
       console.error('❌ [Admin Users] Error fetching users:', err);
-      setError(err.message || 'Failed to fetch users');
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to fetch users';
+      setError(errorMsg);
       setLoading(false);
+      setUsers([]);
       return [];
     }
   }, []);

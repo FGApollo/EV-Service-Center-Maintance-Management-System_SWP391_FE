@@ -26,48 +26,67 @@ export const useOverview = () => {
       setError(null);
       console.log('🔄 [Admin Overview] Fetching overview data...');
 
-      // Fetch data in parallel
+      // Fetch all data in parallel
       const results = await Promise.allSettled([
-        API.getAllCustomers().catch(() => []),
-        API.getVehicles().catch(() => []),
+        // Fetch users by role
+        API.getAllUsersByRole('manager').catch(() => []),
+        API.getAllUsersByRole('customer').catch(() => []),
+        API.getAllUsersByRole('staff').catch(() => []),
+        API.getAllUsersByRole('technician').catch(() => []),
+        // Fetch vehicles, appointments, centers
+        API.getAllVehicles().catch(() => []),
         API.getAllAppointments().catch(() => []),
+        API.getAllCenters().catch(() => []),
+        // Fetch financial data
         API.getRevenueCurrentMonth().catch(() => ({ thisMonth: 0, lastMonth: 0, percentChange: 0 })),
         API.getCurrentMonthExpense().catch(() => 0)
       ]);
 
       const [
+        managersResult,
         customersResult,
+        staffResult,
+        techniciansResult,
         vehiclesResult,
         appointmentsResult,
+        centersResult,
         revenueResult,
         expenseResult
       ] = results;
 
+      // Extract data from results
+      const managers = managersResult.status === 'fulfilled' ? managersResult.value : [];
       const customers = customersResult.status === 'fulfilled' ? customersResult.value : [];
+      const staff = staffResult.status === 'fulfilled' ? staffResult.value : [];
+      const technicians = techniciansResult.status === 'fulfilled' ? techniciansResult.value : [];
       const vehicles = vehiclesResult.status === 'fulfilled' ? vehiclesResult.value : [];
       const appointments = appointmentsResult.status === 'fulfilled' ? appointmentsResult.value : [];
+      const centers = centersResult.status === 'fulfilled' ? centersResult.value : [];
       const revenue = revenueResult.status === 'fulfilled' ? revenueResult.value : { thisMonth: 0, lastMonth: 0, percentChange: 0 };
       const expense = expenseResult.status === 'fulfilled' ? expenseResult.value : 0;
 
-      // Count users by role
-      const staff = customers.filter(u => u.role === 'STAFF').length;
-      const managers = customers.filter(u => u.role === 'MANAGER').length;
-      const technicians = customers.filter(u => u.role === 'TECHNICIAN').length;
-      const customersOnly = customers.filter(u => u.role === 'CUSTOMER').length;
+      // Count appointments by status (case-insensitive)
+      const pending = appointments.filter(a => 
+        a.status?.toUpperCase() === 'PENDING'
+      ).length;
+      const completed = appointments.filter(a => 
+        a.status?.toUpperCase() === 'COMPLETED' || 
+        a.status?.toUpperCase() === 'DONE'
+      ).length;
 
-      // Count appointments by status
-      const pending = appointments.filter(a => a.status === 'PENDING' || a.status === 'pending').length;
-      const completed = appointments.filter(a => a.status === 'COMPLETED' || a.status === 'completed' || a.status === 'DONE' || a.status === 'done').length;
-
+      // Calculate profit
       const profit = (revenue.thisMonth || 0) - (expense || 0);
 
+      // Calculate total users
+      const totalUsers = managers.length + customers.length + staff.length + technicians.length;
+
       setOverviewData({
-        totalUsers: customers.length,
-        totalStaff: staff,
-        totalManagers: managers,
-        totalTechnicians: technicians,
-        totalCustomers: customersOnly,
-        totalCenters: 0, // TODO: Add API for centers
+        totalUsers: totalUsers,
+        totalStaff: staff.length,
+        totalManagers: managers.length,
+        totalTechnicians: technicians.length,
+        totalCustomers: customers.length,
+        totalCenters: centers.length,
         totalVehicles: vehicles.length,
         totalAppointments: appointments.length,
         pendingAppointments: pending,
@@ -77,10 +96,20 @@ export const useOverview = () => {
       });
 
       setLoading(false);
-      console.log('✅ [Admin Overview] Data loaded');
+      console.log('✅ [Admin Overview] Data loaded:', {
+        totalUsers,
+        managers: managers.length,
+        customers: customers.length,
+        staff: staff.length,
+        technicians: technicians.length,
+        vehicles: vehicles.length,
+        appointments: appointments.length,
+        centers: centers.length
+      });
     } catch (err) {
       console.error('❌ [Admin Overview] Error:', err);
-      setError(err.message || 'Failed to load overview data');
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to load overview data';
+      setError(errorMsg);
       setLoading(false);
     }
   }, []);

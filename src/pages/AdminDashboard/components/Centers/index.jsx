@@ -8,48 +8,73 @@ export const CentersTab = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('add');
   const [selectedCenter, setSelectedCenter] = useState(null);
-  const [formData, setFormData] = useState({ name: '', address: '', manager: '', phone: '', status: 'ACTIVE' });
+  const [formData, setFormData] = useState({ name: '', address: '', email: '', phone: '' });
 
   useEffect(() => { fetchCenters(); }, [fetchCenters]);
 
   // Filter centers
   const filteredCenters = centers.filter(center => {
+    const name = (center.name || '').toLowerCase();
+    const address = (center.address || '').toLowerCase();
+    const email = (center.email || '').toLowerCase();
+    const phone = (center.phone || '').toLowerCase();
+    const query = searchQuery.toLowerCase();
+    
     return (
-      center.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      center.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      center.manager.toLowerCase().includes(searchQuery.toLowerCase())
+      name.includes(query) ||
+      address.includes(query) ||
+      email.includes(query) ||
+      phone.includes(query)
     );
   });
 
   const handleAddCenter = () => {
     setModalMode('add');
     setSelectedCenter(null);
-    setFormData({ name: '', address: '', manager: '', phone: '', status: 'ACTIVE' });
+    setFormData({ name: '', address: '', email: '', phone: '' });
     setShowModal(true);
   };
 
   const handleEditCenter = (center) => {
     setModalMode('edit');
     setSelectedCenter(center);
-    setFormData({ ...center });
+    setFormData({
+      name: center.name || '',
+      address: center.address || '',
+      email: center.email || '',
+      phone: center.phone || ''
+    });
     setShowModal(true);
   };
 
   const handleDeleteCenter = async (center) => {
     if (!window.confirm(`Bạn có chắc muốn xóa trung tâm "${center.name}"?`)) return;
-    const result = await deleteCenter(center.id);
+    const centerId = center.centerId || center.id;
+    if (!centerId) {
+      alert('❌ Không tìm thấy ID của trung tâm!');
+      return;
+    }
+    const result = await deleteCenter(centerId);
     if (result.success) alert('✅ Xóa trung tâm thành công!');
     else alert(`❌ Lỗi: ${result.error}`);
   };
 
   const handleSaveCenter = async () => {
-    if (!formData.name.trim() || !formData.address.trim() || !formData.manager.trim() || !formData.phone.trim()) {
+    if (!formData.name?.trim() || !formData.address?.trim() || !formData.email?.trim() || !formData.phone?.trim()) {
       alert('Vui lòng điền đầy đủ thông tin!');
       return;
     }
     let result;
-    if (modalMode === 'add') result = await addCenter(formData);
-    else result = await updateCenter(selectedCenter.id, formData);
+    if (modalMode === 'add') {
+      result = await addCenter(formData);
+    } else {
+      const centerId = selectedCenter?.centerId || selectedCenter?.id;
+      if (!centerId) {
+        alert('❌ Không tìm thấy ID của trung tâm!');
+        return;
+      }
+      result = await updateCenter(centerId, formData);
+    }
     if (result.success) {
       alert('✅ Lưu trung tâm thành công!');
       setShowModal(false);
@@ -90,31 +115,30 @@ export const CentersTab = () => {
                 <th style={{padding: '16px'}}>STT</th>
                 <th style={{padding: '16px'}}>Tên trung tâm</th>
                 <th style={{padding: '16px'}}>Địa chỉ</th>
-                <th style={{padding: '16px'}}>Quản lý</th>
+                <th style={{padding: '16px'}}>Email</th>
                 <th style={{padding: '16px'}}>Số điện thoại</th>
-                <th style={{padding: '16px'}}>Trạng thái</th>
                 <th style={{padding: '16px', textAlign: 'center'}}>Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {filteredCenters.map((center, idx) => (
-                <tr key={center.id} style={{borderBottom: '1px solid #f3f4f6'}}>
-                  <td style={{padding: '16px'}}>{idx + 1}</td>
-                  <td style={{padding: '16px'}}><strong>{center.name}</strong></td>
-                  <td style={{padding: '16px'}}>{center.address}</td>
-                  <td style={{padding: '16px'}}>{center.manager}</td>
-                  <td style={{padding: '16px'}}>{center.phone}</td>
-                  <td style={{padding: '16px'}}>
-                    <span style={{padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: center.status === 'ACTIVE' ? '#d1fae5' : '#fee2e2', color: center.status === 'ACTIVE' ? '#065f46' : '#991b1b'}}>{center.status}</span>
-                  </td>
-                  <td style={{padding: '16px', textAlign: 'center'}}>
-                    <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
-                      <button onClick={() => handleEditCenter(center)} style={{padding: '8px 12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'}} title="Chỉnh sửa"><FaEdit /> Sửa</button>
-                      <button onClick={() => handleDeleteCenter(center)} style={{padding: '8px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'}} title="Xóa"><FaTrash /> Xóa</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filteredCenters.map((center, idx) => {
+                const centerId = center.centerId || center.id;
+                return (
+                  <tr key={centerId || idx} style={{borderBottom: '1px solid #f3f4f6'}}>
+                    <td style={{padding: '16px'}}>{idx + 1}</td>
+                    <td style={{padding: '16px'}}><strong>{center.name || 'N/A'}</strong></td>
+                    <td style={{padding: '16px'}}>{center.address || 'N/A'}</td>
+                    <td style={{padding: '16px'}}>{center.email || 'N/A'}</td>
+                    <td style={{padding: '16px'}}>{center.phone || 'N/A'}</td>
+                    <td style={{padding: '16px', textAlign: 'center'}}>
+                      <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
+                        <button onClick={() => handleEditCenter(center)} style={{padding: '8px 12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'}} title="Chỉnh sửa"><FaEdit /> Sửa</button>
+                        <button onClick={() => handleDeleteCenter(center)} style={{padding: '8px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'}} title="Xóa"><FaTrash /> Xóa</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -133,19 +157,12 @@ export const CentersTab = () => {
               <input type="text" value={formData.address} onChange={e => setFormData(f => ({ ...f, address: e.target.value }))} />
             </div>
             <div className="form-group">
-              <label>Quản lý</label>
-              <input type="text" value={formData.manager} onChange={e => setFormData(f => ({ ...f, manager: e.target.value }))} />
+              <label>Email <span style={{color: 'red'}}>*</span></label>
+              <input type="email" value={formData.email} onChange={e => setFormData(f => ({ ...f, email: e.target.value }))} placeholder="center@example.com" />
             </div>
             <div className="form-group">
-              <label>Số điện thoại</label>
-              <input type="text" value={formData.phone} onChange={e => setFormData(f => ({ ...f, phone: e.target.value }))} />
-            </div>
-            <div className="form-group">
-              <label>Trạng thái</label>
-              <select value={formData.status} onChange={e => setFormData(f => ({ ...f, status: e.target.value }))}>
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-              </select>
+              <label>Số điện thoại <span style={{color: 'red'}}>*</span></label>
+              <input type="text" value={formData.phone} onChange={e => setFormData(f => ({ ...f, phone: e.target.value }))} placeholder="0123456789" />
             </div>
             <div style={{display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px'}}>
               <button type="button" onClick={() => setShowModal(false)} style={{padding: '12px 24px', background: '#e5e7eb', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600'}}>Hủy</button>

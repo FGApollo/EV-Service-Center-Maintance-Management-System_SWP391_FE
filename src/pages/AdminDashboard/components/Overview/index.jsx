@@ -122,7 +122,7 @@ export const OverviewTab = () => {
   return (
     <div className="overview-section">
       <div className="section-header" style={{marginBottom: '24px'}}>
-        <h2>📊 Tổng quan hệ thống</h2>
+        <h2>Tổng quan hệ thống</h2>
         <p style={{color: '#666', marginTop: '8px'}}>Thống kê toàn bộ hệ thống quản lý trung tâm bảo dưỡng EV</p>
       </div>
 
@@ -178,7 +178,7 @@ export const OverviewTab = () => {
           borderRadius: '12px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
         }}>
-          <h3 style={{marginTop: 0, marginBottom: '16px'}}>📈 So sánh doanh thu</h3>
+          <h3 style={{marginTop: 0, marginBottom: '16px'}}>So sánh doanh thu</h3>
           <div style={{display: 'flex', gap: '32px', alignItems: 'center'}}>
             <div>
               <p style={{color: '#666', marginBottom: '4px'}}>Tháng trước</p>

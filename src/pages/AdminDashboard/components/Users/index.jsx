@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { FaUsers, FaPlus, FaEdit, FaTrash, FaSearch, FaUserTie, FaUserCog, FaWrench, FaUser } from 'react-icons/fa';
 import { useUsers } from '../../hooks/useUsers';
 import { UserModal } from './UserModal';
+import { AccordionSection } from './Accordion';
+import './Users.css';
 
 export const UsersTab = () => {
   const { users, loading, error, fetchUsers, addEmployee, updateUser, deleteUser } = useUsers();
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterRole, setFilterRole] = useState('ALL');
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit'
   const [selectedUser, setSelectedUser] = useState(null);
@@ -15,25 +16,55 @@ export const UsersTab = () => {
     fetchUsers();
   }, [fetchUsers]);
 
-  // Filter users
-  const filteredUsers = users.filter(user => {
-    const matchSearch = 
-      (user.fullName?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-      (user.email?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-      (user.phoneNumber?.toLowerCase() || '').includes(searchQuery.toLowerCase());
+  // Filter users by search query
+  const filteredBySearch = users.filter(user => {
+    const name = (user.fullName || '').toLowerCase();
+    const email = (user.email || '').toLowerCase();
+    const phone = (user.phone || user.phoneNumber || '').toLowerCase();
+    const query = searchQuery.toLowerCase();
     
-    const matchRole = filterRole === 'ALL' || user.role === filterRole;
-    
-    return matchSearch && matchRole;
+    return (
+      name.includes(query) ||
+      email.includes(query) ||
+      phone.includes(query)
+    );
   });
 
-  // Group users by role
+  // Group users by role (after search filter)
   const usersByRole = {
-    MANAGER: filteredUsers.filter(u => u.role === 'MANAGER'),
-    STAFF: filteredUsers.filter(u => u.role === 'STAFF'),
-    TECHNICIAN: filteredUsers.filter(u => u.role === 'TECHNICIAN'),
-    CUSTOMER: filteredUsers.filter(u => u.role === 'CUSTOMER')
+    MANAGER: filteredBySearch.filter(u => u.role?.toUpperCase() === 'MANAGER'),
+    STAFF: filteredBySearch.filter(u => u.role?.toUpperCase() === 'STAFF'),
+    TECHNICIAN: filteredBySearch.filter(u => u.role?.toUpperCase() === 'TECHNICIAN'),
+    CUSTOMER: filteredBySearch.filter(u => u.role?.toUpperCase() === 'CUSTOMER')
   };
+
+  // Role configuration
+  const roleConfig = [
+    {
+      key: 'CUSTOMER',
+      label: 'Khách hàng',
+      icon: <FaUser />,
+      users: usersByRole.CUSTOMER
+    },
+    {
+      key: 'TECHNICIAN',
+      label: 'Kỹ thuật viên',
+      icon: <FaWrench />,
+      users: usersByRole.TECHNICIAN
+    },
+    {
+      key: 'MANAGER',
+      label: 'Quản lý',
+      icon: <FaUserTie />,
+      users: usersByRole.MANAGER
+    },
+    {
+      key: 'STAFF',
+      label: 'Nhân viên',
+      icon: <FaUserCog />,
+      users: usersByRole.STAFF
+    }
+  ];
 
   const handleAddUser = () => {
     setModalMode('add');
@@ -139,156 +170,127 @@ export const UsersTab = () => {
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="filters-bar" style={{display: 'flex', gap: '16px', marginBottom: '24px'}}>
-        <div style={{flex: 1, position: 'relative'}}>
-          <FaSearch style={{position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#999'}} />
+      {/* Search Bar */}
+      <div className="filters-bar">
+        <div className="search-box">
+          <FaSearch />
           <input
             type="text"
             placeholder="Tìm kiếm theo tên, email, số điện thoại..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '12px 12px 12px 40px',
-              border: '1px solid #e5e7eb',
-              borderRadius: '8px',
-              fontSize: '14px'
-            }}
           />
         </div>
-        <select
-          value={filterRole}
-          onChange={(e) => setFilterRole(e.target.value)}
-          style={{
-            padding: '12px 16px',
-            border: '1px solid #e5e7eb',
-            borderRadius: '8px',
-            fontSize: '14px',
-            cursor: 'pointer',
-            minWidth: '150px'
-          }}
-        >
-          <option value="ALL">Tất cả vai trò</option>
-          <option value="MANAGER">Quản lý ({usersByRole.MANAGER.length})</option>
-          <option value="STAFF">Nhân viên ({usersByRole.STAFF.length})</option>
-          <option value="TECHNICIAN">Kỹ thuật viên ({usersByRole.TECHNICIAN.length})</option>
-          <option value="CUSTOMER">Khách hàng ({usersByRole.CUSTOMER.length})</option>
-        </select>
       </div>
 
       {/* Error Display */}
       {error && (
-        <div style={{padding: '16px', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', marginBottom: '16px'}}>
+        <div className="error-message" style={{padding: '16px', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', marginBottom: '16px'}}>
           ❌ {error}
         </div>
       )}
 
-      {/* Users Table */}
-      <div className="users-table" style={{background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', overflow: 'hidden'}}>
-        {filteredUsers.length === 0 ? (
-          <div style={{padding: '60px 20px', textAlign: 'center', color: '#999'}}>
-            <FaUsers size={48} style={{marginBottom: '16px', opacity: 0.3}} />
-            <p>Không tìm thấy người dùng nào</p>
-          </div>
-        ) : (
-          <table style={{width: '100%', borderCollapse: 'collapse'}}>
-            <thead style={{background: '#f9fafb', borderBottom: '2px solid #e5e7eb'}}>
-              <tr>
-                <th style={{padding: '16px', textAlign: 'left', fontWeight: '600'}}>STT</th>
-                <th style={{padding: '16px', textAlign: 'left', fontWeight: '600'}}>Họ tên</th>
-                <th style={{padding: '16px', textAlign: 'left', fontWeight: '600'}}>Email</th>
-                <th style={{padding: '16px', textAlign: 'left', fontWeight: '600'}}>Số điện thoại</th>
-                <th style={{padding: '16px', textAlign: 'left', fontWeight: '600'}}>Vai trò</th>
-                <th style={{padding: '16px', textAlign: 'left', fontWeight: '600'}}>Trạng thái</th>
-                <th style={{padding: '16px', textAlign: 'center', fontWeight: '600'}}>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.map((user, index) => {
-                const roleColors = getRoleBadgeColor(user.role);
-                return (
-                  <tr key={user.id} style={{borderBottom: '1px solid #f3f4f6'}}>
-                    <td style={{padding: '16px'}}>{index + 1}</td>
-                    <td style={{padding: '16px'}}>
-                      <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                        {getRoleIcon(user.role)}
-                        <strong>{user.fullName || 'N/A'}</strong>
-                      </div>
-                    </td>
-                    <td style={{padding: '16px', color: '#666'}}>{user.email || 'N/A'}</td>
-                    <td style={{padding: '16px', color: '#666'}}>{user.phoneNumber || 'N/A'}</td>
-                    <td style={{padding: '16px'}}>
-                      <span style={{
-                        padding: '4px 12px',
-                        borderRadius: '12px',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        background: roleColors.bg,
-                        color: roleColors.color
-                      }}>
-                        {user.role || 'N/A'}
-                      </span>
-                    </td>
-                    <td style={{padding: '16px'}}>
-                      <span style={{
-                        padding: '4px 12px',
-                        borderRadius: '12px',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        background: user.status === 'ACTIVE' ? '#d1fae5' : '#fee2e2',
-                        color: user.status === 'ACTIVE' ? '#065f46' : '#991b1b'
-                      }}>
-                        {user.status || 'ACTIVE'}
-                      </span>
-                    </td>
-                    <td style={{padding: '16px', textAlign: 'center'}}>
-                      <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
-                        <button
-                          onClick={() => handleEditUser(user)}
-                          style={{
-                            padding: '8px 12px',
-                            background: '#3b82f6',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                          title="Chỉnh sửa"
-                        >
-                          <FaEdit /> Sửa
-                        </button>
-                        {user.role !== 'CUSTOMER' && (
-                          <button
-                            onClick={() => handleDeleteUser(user)}
-                            style={{
-                              padding: '8px 12px',
-                              background: '#ef4444',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '6px',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}
-                            title="Xóa"
-                          >
-                            <FaTrash /> Xóa
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {/* Users by Role - Accordion Sections */}
+      {filteredBySearch.length === 0 ? (
+        <div className="empty-message" style={{padding: '60px 20px', textAlign: 'center', background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)'}}>
+          <FaUsers size={48} style={{marginBottom: '16px', opacity: 0.3, color: '#999'}} />
+          <p style={{color: '#999', fontSize: '16px'}}>Không tìm thấy người dùng nào</p>
+        </div>
+      ) : (
+        <div className="users-accordion-container">
+          {roleConfig.map((roleGroup) => (
+            <AccordionSection
+              key={roleGroup.key}
+              title={roleGroup.label}
+              icon={roleGroup.icon}
+              role={roleGroup.key}
+              count={roleGroup.users.length}
+              defaultOpen={true}
+            >
+              {roleGroup.users.length === 0 ? (
+                <div className="empty-role-message" style={{
+                  padding: '40px 20px',
+                  textAlign: 'center',
+                  color: '#999',
+                  fontSize: '14px'
+                }}>
+                  <p>Chưa có {roleGroup.label.toLowerCase()} nào trong hệ thống</p>
+                </div>
+              ) : (
+                <div className="users-table-container">
+                  <table className="users-table">
+                    <thead>
+                      <tr>
+                        <th>STT</th>
+                        <th>Họ tên</th>
+                        <th>Email</th>
+                        <th>Số điện thoại</th>
+                        <th>Vai trò</th>
+                        <th>Trạng thái</th>
+                        <th style={{textAlign: 'center'}}>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {roleGroup.users.map((user, index) => {
+                        const roleColors = getRoleBadgeColor(user.role);
+                        return (
+                          <tr key={user.id}>
+                            <td>{index + 1}</td>
+                            <td>
+                              <div className="user-name-cell">
+                                {getRoleIcon(user.role)}
+                                <strong>{user.fullName || 'N/A'}</strong>
+                              </div>
+                            </td>
+                            <td>{user.email || 'N/A'}</td>
+                            <td>{user.phone || user.phoneNumber || 'N/A'}</td>
+                            <td>
+                              <span className="role-badge" style={{
+                                background: roleColors.bg,
+                                color: roleColors.color
+                              }}>
+                                {user.role || 'N/A'}
+                              </span>
+                            </td>
+                            <td>
+                              <span className="status-badge" style={{
+                                background: user.status === 'ACTIVE' ? '#d1fae5' : '#fee2e2',
+                                color: user.status === 'ACTIVE' ? '#065f46' : '#991b1b'
+                              }}>
+                                {user.status || 'ACTIVE'}
+                              </span>
+                            </td>
+                            <td style={{textAlign: 'center'}}>
+                              <div className="action-buttons">
+                                <button
+                                  className="btn-edit"
+                                  onClick={() => handleEditUser(user)}
+                                  title="Chỉnh sửa"
+                                >
+                                  <FaEdit /> Sửa
+                                </button>
+                                {user.role?.toUpperCase() !== 'CUSTOMER' && (
+                                  <button
+                                    className="btn-delete"
+                                    onClick={() => handleDeleteUser(user)}
+                                    title="Xóa"
+                                  >
+                                    <FaTrash /> Xóa
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </AccordionSection>
+          ))}
+        </div>
+      )}
 
       {/* User Modal */}
       {showModal && (

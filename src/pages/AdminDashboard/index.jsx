@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './AdminDashboard.css';
 import { 
-  FaChartLine, FaUsers, FaWarehouse, FaTools, FaSignOutAlt
+  FaChartLine, FaUsers, FaWarehouse, FaCog, FaSignOutAlt
 } from 'react-icons/fa';
 import { getCurrentUser } from '../../utils/centerFilter';
 import { ROLES } from '../../constants/roles';
@@ -10,6 +10,7 @@ import { ROLES } from '../../constants/roles';
 import { OverviewTab } from './components/Overview';
 import { UsersTab } from './components/Users';
 import { CentersTab } from './components/Centers';
+import { PartsTab } from './components/Parts';
 
 function AdminDashboard({ onNavigate }) {
   console.log('AdminDashboard component loaded!', { onNavigate });
@@ -55,8 +56,8 @@ function AdminDashboard({ onNavigate }) {
   const tabs = [
     { id: 'overview', label: 'Tổng quan', icon: FaChartLine },
     { id: 'users', label: 'Quản lý người dùng', icon: FaUsers },
-    { id: 'centers', label: 'Trung tâm', icon: FaWarehouse },
-    { id: 'maintenance', label: 'Quy trình bảo dưỡng', icon: FaTools }
+    { id: 'centers', label: 'Quản lý trung tâm', icon: FaWarehouse },
+    { id: 'parts', label: 'Phụ tùng & Gói bảo dưỡng', icon: FaCog }
   ];
 
   // Render active tab content
@@ -68,14 +69,8 @@ function AdminDashboard({ onNavigate }) {
         return <UsersTab />;
       case 'centers':
         return <CentersTab />;
-      case 'maintenance':
-        return (
-          <div style={{padding: '60px 20px', textAlign: 'center'}}>
-            <FaTools size={64} style={{color: '#ccc', marginBottom: '20px'}} />
-            <h3>Quy trình bảo dưỡng</h3>
-            <p style={{color: '#666'}}>Chức năng đang phát triển...</p>
-          </div>
-        );
+      case 'parts':
+        return <PartsTab />;
       default:
         return <OverviewTab />;
     }
@@ -84,27 +79,29 @@ function AdminDashboard({ onNavigate }) {
   return (
     <div className="admin-dashboard">
       {/* Header */}
-      <div className="dashboard-header">
+      <div className="admin-header">
         <div className="header-left">
-          <h1>🔧 Admin Dashboard - Hệ thống quản lý</h1>
-          <p>Chào mừng, <strong>{fullName || 'Administrator'}</strong></p>
+          <h1>🔧 Admin Dashboard</h1>
+          <p style={{color: 'rgba(255,255,255,0.9)', margin: '4px 0 0', fontSize: '14px'}}>
+            Chào mừng, <strong>{fullName || 'Administrator'}</strong>
+          </p>
         </div>
         <div className="header-right">
-          <button onClick={handleLogout} className="logout-button">
+          <button onClick={handleLogout} className="back-btn">
             <FaSignOutAlt /> Đăng xuất
           </button>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="dashboard-nav">
+      <div className="tab-navigation">
         {tabs.map(tab => {
           const Icon = tab.icon;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`nav-tab ${activeTab === tab.id ? 'active' : ''}`}
+              className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
             >
               <Icon /> {tab.label}
             </button>

@@ -86,6 +86,16 @@ export const getAllTechnicians = async () => {
   return res.data;
 };
 
+// Lấy tất cả users theo role (✅ Cần token - Admin)
+// API: GET /api/users/all/{role}
+export const getAllUsersByRole = async (role) => {
+  console.log('📤 API Request: GET /api/users/all/' + role);
+  const res = await axiosClient.get(`/api/users/all/${role}`);
+  console.log('📥 API Response:', res.data);
+  console.log('📊 Total users with role', role + ':', res.data?.length || 0);
+  return res.data || [];
+};
+
 // Tạo employee mới (Admin/Staff) (✅ Cần token)
 export const createEmployee = async (role, data) => {
   const res = await axiosClient.post("/api/users/employees", data, {
@@ -172,6 +182,36 @@ export const getVehiclesMaintained = async () => {
 export const getLatestAppointment = async (vehicleId) => {
   const res = await axiosClient.get(`/api/vehicles/${vehicleId}/appointments/latest_time`);
   return res.data;
+};
+
+// Lấy tất cả vehicles (✅ Cần token - Admin)
+// API: GET /api/vehicles/all
+export const getAllVehicles = async () => {
+  try {
+    console.log('📤 API Request: GET /api/vehicles/all');
+    const res = await axiosClient.get("/api/vehicles/all");
+    console.log('📥 API Response:', res.data);
+    console.log('📊 Total vehicles:', res.data?.length || 0);
+    return Array.isArray(res.data) ? res.data : [];
+  } catch (err) {
+    console.error('❌ [getAllVehicles] Error:', err);
+    // If 500 error, try fallback to maintained vehicles
+    if (err.response?.status === 500 || err.response?.status === 404) {
+      console.log(`⚠️ /api/vehicles/all returned ${err.response?.status}, trying /api/vehicles/maintained`);
+      try {
+        const res = await axiosClient.get("/api/vehicles/maintained");
+        console.log('📥 API Response (maintained):', res.data);
+        console.log('📊 Total vehicles:', res.data?.length || 0);
+        return Array.isArray(res.data) ? res.data : [];
+      } catch (fallbackErr) {
+        console.error('❌ Fallback API also failed:', fallbackErr);
+        // Return empty array instead of throwing
+        return [];
+      }
+    }
+    // For other errors, return empty array
+    return [];
+  }
 };
 
 /* --------------------------------
@@ -857,6 +897,55 @@ export const getPaymentMethods = async () => {
 // Chạy scheduler manually (test) (✅ Cần token)
 export const runReminderScheduler = async () => {
   const res = await axiosClient.get("/api/auth/reminder/run");
+  return res.data;
+};
+
+/* --------------------------------
+   🧹 TIỆN ÍCH
+---------------------------------- */
+
+/* --------------------------------
+   🏢 SERVICE CENTER APIs (Admin)
+---------------------------------- */
+
+// Lấy tất cả centers (✅ Cần token - Admin)
+// API: GET /api/center
+export const getAllCenters = async () => {
+  console.log('📤 API Request: GET /api/center');
+  const res = await axiosClient.get("/api/center");
+  console.log('📥 API Response:', res.data);
+  console.log('📊 Total centers:', res.data?.length || 0);
+  return res.data || [];
+};
+
+// Tạo center mới (✅ Cần token - Admin)
+// API: POST /api/center
+// Body: CenterDTO { name, address, phone, email }
+export const createCenter = async (centerData) => {
+  console.log('📤 API Request: POST /api/center');
+  console.log('📤 Request Data:', centerData);
+  const res = await axiosClient.post("/api/center", centerData);
+  console.log('📥 API Response:', res.data);
+  return res.data;
+};
+
+// Cập nhật center (✅ Cần token - Admin)
+// API: PUT /api/center/{id}
+// Body: CenterDTO { name, address, phone, email }
+export const updateCenter = async (id, centerData) => {
+  console.log('📤 API Request: PUT /api/center/' + id);
+  console.log('📤 Request Data:', centerData);
+  const res = await axiosClient.put(`/api/center/${id}`, centerData);
+  console.log('📥 API Response:', res.data);
+  return res.data;
+};
+
+// Xóa center (✅ Cần token - Admin)
+// API: DELETE /api/center/{id}
+export const deleteCenter = async (id) => {
+  console.log('📤 API Request: DELETE /api/center/' + id);
+  const res = await axiosClient.delete(`/api/center/${id}`);
+  console.log('📥 API Response:', res.data);
   return res.data;
 };
 
