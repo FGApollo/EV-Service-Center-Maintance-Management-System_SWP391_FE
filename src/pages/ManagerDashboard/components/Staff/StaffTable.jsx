@@ -1,15 +1,13 @@
 import React from 'react';
-import { FaUserTie, FaEdit, FaTimes } from 'react-icons/fa';
+import { FaUserTie } from 'react-icons/fa';
 
 /**
- * StaffTable Component
- * Displays staff list in table format with actions
+ * StaffTable Component (Read-Only)
+ * Displays staff list in table format without action buttons
  */
 export const StaffTable = ({ 
   staffList, 
-  searchQuery, 
-  onEdit, 
-  onDelete 
+  searchQuery
 }) => {
   // Filter staff based on search query
   const filteredStaff = staffList.filter(staff => {
@@ -44,74 +42,71 @@ export const StaffTable = ({
 
   return (
     <div className="staff-table">
-      <table>
+      <table style={{width: '100%', borderCollapse: 'collapse'}}>
         <thead>
-          <tr>
-            <th>STT</th>
-            <th>Họ tên</th>
-            <th>Email</th>
-            <th>Số điện thoại</th>
-            <th>Vai trò</th>
-            <th>Trạng thái</th>
-            <th>Ngày tạo</th>
-            <th>Hành động</th>
+          <tr style={{backgroundColor: '#f5f5f5', borderBottom: '2px solid #ddd'}}>
+            <th style={{padding: '12px', textAlign: 'left', fontWeight: '600', color: '#333'}}>STT</th>
+            <th style={{padding: '12px', textAlign: 'left', fontWeight: '600', color: '#333'}}>Họ tên</th>
+            <th style={{padding: '12px', textAlign: 'left', fontWeight: '600', color: '#333'}}>Email</th>
+            <th style={{padding: '12px', textAlign: 'left', fontWeight: '600', color: '#333'}}>Số điện thoại</th>
+            <th style={{padding: '12px', textAlign: 'left', fontWeight: '600', color: '#333'}}>Vai trò</th>
+            <th style={{padding: '12px', textAlign: 'left', fontWeight: '600', color: '#333'}}>Trạng thái</th>
+            <th style={{padding: '12px', textAlign: 'left', fontWeight: '600', color: '#333'}}>Ngày tạo</th>
           </tr>
         </thead>
         <tbody>
           {filteredStaff.map((staff, index) => (
-            <tr key={staff.id}>
-              <td>{index + 1}</td>
+            <tr key={staff.id} style={{borderBottom: '1px solid #eee', backgroundColor: index % 2 === 0 ? '#fff' : '#f9f9f9'}}>
+              <td style={{padding: '12px'}}>{index + 1}</td>
               
-              <td>
-                <div className="staff-name" style={{
+              <td style={{padding: '12px'}}>
+                <div style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px'
                 }}>
                   <FaUserTie style={{
-                    color: staff.role === 'TECHNICIAN' ? '#4caf50' : '#2196f3'
+                    color: staff.role?.toUpperCase() === 'TECHNICIAN' ? '#4caf50' : '#2196f3'
                   }} />
                   <strong>{staff.fullName || staff.name || 'N/A'}</strong>
                 </div>
               </td>
               
-              <td>{staff.email || 'N/A'}</td>
+              <td style={{padding: '12px'}}>{staff.email || 'N/A'}</td>
               
-              <td>{staff.phone || 'N/A'}</td>
+              <td style={{padding: '12px'}}>{staff.phone || 'N/A'}</td>
               
-              <td>
+              <td style={{padding: '12px'}}>
                 <span 
-                  className={`role-badge ${staff.role?.toLowerCase()}`}
                   style={{
                     padding: '4px 12px',
                     borderRadius: '12px',
                     fontSize: '0.85em',
                     fontWeight: '500',
-                    backgroundColor: staff.role === 'TECHNICIAN' ? '#e8f5e9' : '#e3f2fd',
-                    color: staff.role === 'TECHNICIAN' ? '#2e7d32' : '#1565c0'
+                    backgroundColor: staff.role?.toUpperCase() === 'TECHNICIAN' ? '#e8f5e9' : '#e3f2fd',
+                    color: staff.role?.toUpperCase() === 'TECHNICIAN' ? '#2e7d32' : '#1565c0'
                   }}
                 >
-                  {staff.role === 'TECHNICIAN' ? '🔧 Kỹ thuật viên' : '👔 Nhân viên'}
+                  {staff.role?.toUpperCase() === 'TECHNICIAN' ? '🔧 Kỹ thuật viên' : '👔 Nhân viên'}
                 </span>
               </td>
               
-              <td>
+              <td style={{padding: '12px'}}>
                 <span 
-                  className={`status-badge ${staff.status?.toLowerCase() || 'active'}`}
                   style={{
                     padding: '4px 12px',
                     borderRadius: '12px',
                     fontSize: '0.85em',
                     fontWeight: '500',
-                    backgroundColor: '#e8f5e9',
-                    color: '#2e7d32'
+                    backgroundColor: (staff.status?.toUpperCase() === 'ACTIVE' || !staff.status) ? '#e8f5e9' : '#ffebee',
+                    color: (staff.status?.toUpperCase() === 'ACTIVE' || !staff.status) ? '#2e7d32' : '#c62828'
                   }}
                 >
-                  {staff.status || 'ACTIVE'}
+                  {staff.status?.toUpperCase() === 'ACTIVE' ? 'active' : (staff.status?.toLowerCase() || 'active')}
                 </span>
               </td>
               
-              <td>
+              <td style={{padding: '12px'}}>
                 {staff.create_at 
                   ? new Date(staff.create_at).toLocaleDateString('vi-VN', {
                       year: 'numeric',
@@ -120,51 +115,6 @@ export const StaffTable = ({
                     })
                   : 'N/A'
                 }
-              </td>
-              
-              <td>
-                <div className="action-buttons-small" style={{
-                  display: 'flex',
-                  gap: '8px',
-                  justifyContent: 'center'
-                }}>
-                  <button 
-                    className="btn-edit" 
-                    title="Chỉnh sửa"
-                    onClick={() => onEdit(staff)}
-                    style={{
-                      padding: '6px 12px',
-                      backgroundColor: '#2196f3',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    <FaEdit />
-                  </button>
-                  <button 
-                    className="btn-delete" 
-                    title="Xóa"
-                    onClick={() => onDelete(staff)}
-                    style={{
-                      padding: '6px 12px',
-                      backgroundColor: '#f44336',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    <FaTimes />
-                  </button>
-                </div>
               </td>
             </tr>
           ))}

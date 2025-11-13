@@ -10,25 +10,102 @@ const formatCurrency = (value) => {
 };
 
 export const FinanceTab = () => {
-  const { financeData, loading, error } = useFinance();
+  const { financeData, loading, error, refetch } = useFinance();
 
   if (loading) {
     return (
       <div className="finance-section">
         <div className="loading-message" style={{padding: '60px 20px', textAlign: 'center'}}>
-          <p>⏳ Đang tải dữ liệu tài chính...</p>
+          <div className="spinner" style={{
+            width: '40px',
+            height: '40px',
+            border: '4px solid #f3f3f3',
+            borderTop: '4px solid #667eea',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 20px'
+          }}></div>
+          <p style={{fontSize: '16px', color: '#666'}}>⏳ Đang tải dữ liệu tài chính...</p>
         </div>
       </div>
     );
   }
 
   if (error) {
+    const isTokenError = error.toLowerCase().includes('token') || error.toLowerCase().includes('hết hạn');
+    
     return (
       <div className="finance-section">
-        <div className="error-message" style={{padding: '60px 20px', textAlign: 'center', color: '#ef4444'}}>
-          <FaMoneyBillWave size={60} style={{color: '#fca5a5', marginBottom: '20px'}} />
-          <h3>Lỗi tải dữ liệu tài chính</h3>
-          <p>{error}</p>
+        <div className="error-message" style={{
+          padding: '60px 40px',
+          textAlign: 'center',
+          background: 'white',
+          borderRadius: '12px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          maxWidth: '600px',
+          margin: '0 auto'
+        }}>
+          <FaMoneyBillWave 
+            size={60} 
+            style={{
+              color: '#fca5a5',
+              marginBottom: '20px',
+              opacity: 0.6
+            }} 
+          />
+          <h3 style={{
+            margin: '0 0 12px',
+            fontSize: '20px',
+            fontWeight: '600',
+            color: '#ef4444'
+          }}>
+            Lỗi tải dữ liệu tài chính
+          </h3>
+          <p style={{
+            margin: '0 0 24px',
+            fontSize: '14px',
+            color: '#666',
+            lineHeight: '1.6'
+          }}>
+            {error}
+          </p>
+          {!isTokenError && (
+            <button
+              onClick={refetch}
+              style={{
+                padding: '12px 24px',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+              }}
+              onMouseOver={(e) => {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+              }}
+              onMouseOut={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
+              }}
+            >
+              🔄 Thử lại
+            </button>
+          )}
+          {isTokenError && (
+            <p style={{
+              marginTop: '16px',
+              fontSize: '12px',
+              color: '#999',
+              fontStyle: 'italic'
+            }}>
+              Đang chuyển hướng đến trang đăng nhập...
+            </p>
+          )}
         </div>
       </div>
     );

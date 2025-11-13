@@ -4,7 +4,8 @@
 const ENV = "local"; // "local" | "render" | "vercel"  // ← Chuyển sang "local" để dùng backend local
 
 // 🖥️ Local backend (khi chạy Node/Express trên localhost)
-const LOCAL_API = "http://localhost:8080"; // ← Sửa port này nếu backend của bạn dùng port khác (thường là 8080, 3000, 5000...)
+// Sử dụng relative path để Vite proxy xử lý (tránh CORS)
+const LOCAL_API = ""; // Empty string = relative path, Vite proxy sẽ forward đến http://localhost:8080
 
 // ☁️ Backend Render (deploy online)
 const RENDER_API = "https://ev-service-center-maintance-management-um2j.onrender.com";

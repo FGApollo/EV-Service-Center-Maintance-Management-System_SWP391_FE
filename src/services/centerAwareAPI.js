@@ -143,6 +143,17 @@ export const getTechnicians = async () => {
 };
 
 /**
+ * Lấy danh sách staff và technicians của center
+ * API: GET /api/users/center/staff_and_technician
+ * Backend đã tự filter theo center của user hiện tại
+ * @returns {Promise<Array>}
+ */
+export const getStaffAndTechnician = async () => {
+  // API này đã tự filter theo center của user hiện tại
+  return await API.getStaffAndTechnician();
+};
+
+/**
  * Tạo employee mới (auto-gán centerId)
  * @param {string} role - Role của employee
  * @param {Object} data - Employee data
@@ -262,7 +273,11 @@ export const getCurrentMonthExpense = async () => {
  * @returns {Promise<Array>}
  */
 export const getTrendingServices = async () => {
-  return await API.getTrendingServices();
+  const { centerId, role } = getCurrentUser();
+  
+  // Truyền centerId nếu không phải Admin
+  const centerIdParam = role === ROLES.ADMIN ? null : centerId;
+  return await API.getTrendingServices(centerIdParam);
 };
 
 /**
@@ -270,7 +285,11 @@ export const getTrendingServices = async () => {
  * @returns {Promise<Array>}
  */
 export const getTrendingServicesLastMonth = async () => {
-  return await API.getTrendingServicesLastMonth();
+  const { centerId, role } = getCurrentUser();
+  
+  // Truyền centerId nếu không phải Admin
+  const centerIdParam = role === ROLES.ADMIN ? null : centerId;
+  return await API.getTrendingServicesLastMonth(centerIdParam);
 };
 
 /**
@@ -388,6 +407,7 @@ export default {
   
   // Employees
   getTechnicians,
+  getStaffAndTechnician,
   createEmployee,
   deleteEmployee,
   

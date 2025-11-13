@@ -11,7 +11,7 @@ import StaffDashboard from "./pages/StaffDashboard.jsx";
 import TechnicianDashboard from "./pages/TechnicianDashboard.jsx";
 import Footer from "./components/Footer.jsx";
 import AdminDashboard from './pages/AdminDashboard/index.jsx';
-import ManagerDashboard from './pages/ManagerDashboard.jsx';
+import ManagerDashboard from './pages/ManagerDashboard/index.jsx';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');

@@ -1,90 +1,17 @@
 import React, { useState } from 'react';
-import { FaSearch, FaPlus, FaUserTie } from 'react-icons/fa';
+import { FaSearch, FaUserTie } from 'react-icons/fa';
 import { useStaff } from '../../hooks/useStaff';
 import { StaffStats } from './StaffStats';
 import { StaffTable } from './StaffTable';
-import { StaffModal } from './StaffModal';
 
 /**
- * StaffList Component (Container)
- * Main component for Staff Management tab
+ * StaffList Component (Read-Only)
+ * Displays staff list for current manager's center
+ * No CRUD operations - view only
  */
 export const StaffList = () => {
-  const { staffList, loading, error, stats, addStaff, updateStaff, deleteStaff } = useStaff();
+  const { staffList, loading, error, stats, fetchStaff } = useStaff();
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // Modal states
-  const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit'
-  const [selectedStaff, setSelectedStaff] = useState(null);
-  const [saving, setSaving] = useState(false);
-
-  /**
-   * Handle edit staff
-   */
-  const handleEdit = (staff) => {
-    setModalMode('edit');
-    setSelectedStaff(staff);
-    setShowModal(true);
-  };
-
-  /**
-   * Handle delete staff
-   */
-  const handleDelete = async (staff) => {
-    const confirmed = window.confirm(
-      `⚠️ Xác nhận xóa nhân viên?\n\n` +
-      `Tên: ${staff.fullName}\n` +
-      `Email: ${staff.email}\n` +
-      `Vai trò: ${staff.role === 'TECHNICIAN' ? 'Kỹ thuật viên' : 'Nhân viên'}\n\n` +
-      `Hành động này không thể hoàn tác!`
-    );
-
-    if (confirmed) {
-      try {
-        await deleteStaff(staff.id);
-        alert('✅ Xóa nhân viên thành công!');
-      } catch (err) {
-        alert(`❌ Lỗi: ${err.message || 'Không thể xóa nhân viên'}`);
-      }
-    }
-  };
-
-  /**
-   * Handle add new staff
-   */
-  const handleAddClick = () => {
-    setModalMode('add');
-    setSelectedStaff(null);
-    setShowModal(true);
-  };
-
-  /**
-   * Handle save staff (add or edit)
-   */
-  const handleSaveStaff = async (formData) => {
-    setSaving(true);
-    
-    try {
-      let result;
-      if (modalMode === 'add') {
-        result = await addStaff(formData);
-      } else {
-        result = await updateStaff(formData.id, formData);
-      }
-
-      if (result.success) {
-        alert(modalMode === 'add' ? '✅ Thêm nhân viên thành công!' : '✅ Cập nhật nhân viên thành công!');
-        setShowModal(false);
-      } else {
-        alert(`❌ Lỗi: ${result.error || 'Không thể lưu nhân viên'}`);
-      }
-    } catch (err) {
-      alert(`❌ Lỗi: ${err.message || 'Có lỗi xảy ra'}`);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // Loading state
   if (loading) {
@@ -121,7 +48,7 @@ export const StaffList = () => {
         }}>
           <p>❌ Lỗi: {error}</p>
           <button 
-            onClick={() => window.location.reload()}
+            onClick={fetchStaff}
             style={{
               marginTop: '20px',
               padding: '10px 20px',
@@ -141,7 +68,7 @@ export const StaffList = () => {
 
   return (
     <div className="staff-section">
-      {/* Toolbar: Search + Add Button */}
+      {/* Toolbar: Search Only (No Add Button) */}
       <div className="section-toolbar" style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -181,29 +108,6 @@ export const StaffList = () => {
             onBlur={(e) => e.target.style.borderColor = '#ddd'}
           />
         </div>
-        
-        <button 
-          className="add-btn"
-          onClick={handleAddClick}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: '#4caf50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '14px',
-            fontWeight: '500',
-            transition: 'background-color 0.3s'
-          }}
-          onMouseEnter={(e) => e.target.style.backgroundColor = '#45a049'}
-          onMouseLeave={(e) => e.target.style.backgroundColor = '#4caf50'}
-        >
-          <FaPlus /> Thêm nhân viên
-        </button>
       </div>
 
       {/* Statistics Cards */}
@@ -222,44 +126,16 @@ export const StaffList = () => {
           <h3 style={{color: '#666', marginBottom: '10px'}}>
             Chưa có nhân viên nào
           </h3>
-          <p style={{color: '#999', marginBottom: '20px'}}>
-            Bấm "Thêm nhân viên" để thêm kỹ thuật viên hoặc nhân viên mới
+          <p style={{color: '#999'}}>
+            Hiện tại không có nhân viên nào được gán cho trung tâm này
           </p>
-          <button 
-            onClick={handleAddClick}
-            style={{
-              padding: '10px 24px',
-              backgroundColor: '#4caf50',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}
-          >
-            <FaPlus style={{marginRight: '8px'}} />
-            Thêm nhân viên đầu tiên
-          </button>
         </div>
       ) : (
         <StaffTable
           staffList={staffList}
           searchQuery={searchQuery}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
         />
       )}
-
-      {/* Staff Modal */}
-      <StaffModal
-        show={showModal}
-        mode={modalMode}
-        staff={selectedStaff}
-        onClose={() => setShowModal(false)}
-        onSave={handleSaveStaff}
-        saving={saving}
-      />
     </div>
   );
 };

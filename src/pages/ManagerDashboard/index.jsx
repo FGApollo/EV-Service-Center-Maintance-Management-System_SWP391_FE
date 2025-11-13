@@ -1,35 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import './ManagerDashboard.css';
 import { 
-  FaUser, FaUserTie, FaWarehouse, FaMoneyBillWave, FaChartLine
+  FaUserTie, FaWarehouse, FaMoneyBillWave, FaChartLine, FaClipboardList, FaTools
 } from 'react-icons/fa';
-import { getCurrentUser, getCurrentCenterId } from '../utils/centerFilter';
-import { ROLES } from '../constants/roles';
+import { getCurrentUser, getCurrentCenterId } from '../../utils/centerFilter';
+import { ROLES } from '../../constants/roles';
 
 // ✅ Import Refactored Components
-import { StaffList } from './ManagerDashboard/components/Staff';
-import { OverviewTab } from './ManagerDashboard/components/Overview';
-import { CustomersTab } from './ManagerDashboard/components/Customers';
-import { PartsTab } from './ManagerDashboard/components/Parts';
-import { FinanceTab } from './ManagerDashboard/components/Finance';
+import { StaffList } from './components/Staff';
+import { OverviewTab } from './components/Overview';
+import { PartsTab } from './components/Parts';
+import { FinanceTab } from './components/Finance';
+import { WorkLogTab } from './components/WorkLog';
+import { MaintenanceRecordTab } from './components/MaintenanceRecord';
 
 /**
- * MANAGER DASHBOARD - CLEAN VERSION
+ * MANAGER DASHBOARD
  * 
  * Dashboard cho Manager - quản lý trung tâm dịch vụ
  * Scope: Chỉ xem & quản lý data của 1 center cụ thể
  * 
  * Quyền hạn:
- * - Quản lý khách hàng của center
- * - Quản lý phụ tùng & tồn kho
- * - Quản lý nhân sự (staff, technician)
- * - Xem báo cáo tài chính & thống kê
- * 
- * ❌ KHÔNG BAO GỒM:
- * - Quản lý xe (removed - not manager's responsibility)
- * - Quản lý lịch hẹn (removed - not manager's responsibility)
- * - Quản lý quy trình bảo dưỡng (removed - not manager's responsibility)
- * - Chat (removed - not manager's responsibility)
+ * - Xem tổng quan trung tâm (Overview)
+ * - Xem danh sách nhân sự (Staff)
+ * - Quản lý phụ tùng & tồn kho (Parts)
+ * - Quản lý quy trình bảo dưỡng (Maintenance Record)
+ * - Quản lý WorkLog nhân viên (WorkLog)
+ * - Xem báo cáo tài chính & thống kê (Finance)
  */
 function ManagerDashboard({ onNavigate }) {
   console.log('ManagerDashboard component loaded!', { onNavigate });
@@ -146,18 +143,25 @@ function ManagerDashboard({ onNavigate }) {
           Tổng quan
         </button>
         <button 
-          className={`tab-btn ${activeTab === 'customers' ? 'active' : ''}`}
-          onClick={() => handleTabChange('customers')}
-        >
-          <FaUser />
-          Khách hàng
-        </button>
-        <button 
           className={`tab-btn ${activeTab === 'staff' ? 'active' : ''}`}
           onClick={() => handleTabChange('staff')}
         >
           <FaUserTie />
           Nhân sự
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'worklog' ? 'active' : ''}`}
+          onClick={() => handleTabChange('worklog')}
+        >
+          <FaClipboardList />
+          WorkLog
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'maintenance' ? 'active' : ''}`}
+          onClick={() => handleTabChange('maintenance')}
+        >
+          <FaTools />
+          Bảo dưỡng
         </button>
         <button 
           className={`tab-btn ${activeTab === 'parts' ? 'active' : ''}`}
@@ -178,8 +182,9 @@ function ManagerDashboard({ onNavigate }) {
       {/* Content Area */}
       <div className="dashboard-content" key={activeTab}>
         {activeTab === 'overview' && <OverviewTab />}
-        {activeTab === 'customers' && <CustomersTab />}
         {activeTab === 'staff' && <StaffList />}
+        {activeTab === 'worklog' && <WorkLogTab />}
+        {activeTab === 'maintenance' && <MaintenanceRecordTab />}
         {activeTab === 'parts' && <PartsTab />}
         {activeTab === 'finance' && <FinanceTab />}
       </div>
@@ -188,3 +193,4 @@ function ManagerDashboard({ onNavigate }) {
 }
 
 export default ManagerDashboard;
+

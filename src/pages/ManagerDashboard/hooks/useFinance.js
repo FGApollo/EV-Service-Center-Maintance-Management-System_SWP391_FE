@@ -28,22 +28,23 @@ export const useFinance = () => {
       setLoading(true);
       setError(null);
       
-      // 🔍 Debug: Check token before making API calls
+      // 🔍 Debug: Check token before making API calls (but don't throw if expired - let axios handle it)
       console.log('🔍 [useFinance] Checking token validity...');
       const tokenCheck = checkTokenValidity();
       console.log('🔐 Token Status:', tokenCheck);
       
-      if (!tokenCheck.valid) {
-        throw new Error(`Token không hợp lệ: ${tokenCheck.reason}`);
+      // Only check role, not token validity (axiosClient will handle token expiration)
+      if (tokenCheck.valid) {
+        const roleUpperCase = tokenCheck.role?.toUpperCase();
+        if (roleUpperCase !== 'MANAGER' && roleUpperCase !== 'ADMIN') {
+          throw new Error(`Chỉ MANAGER hoặc ADMIN mới có quyền xem báo cáo tài chính. Role hiện tại: ${tokenCheck.role}`);
+        }
+        console.log('🔄 [useFinance] Fetching financial data...');
+        console.log('  📍 User:', tokenCheck.user);
+        console.log('  🎭 Role:', tokenCheck.role);
+      } else {
+        console.warn('⚠️ [useFinance] Token may be expired, but letting API call proceed (axiosClient will handle)');
       }
-      
-      if (tokenCheck.role !== 'MANAGER' && tokenCheck.role !== 'ADMIN') {
-        throw new Error(`Chỉ MANAGER hoặc ADMIN mới có quyền xem báo cáo tài chính. Role hiện tại: ${tokenCheck.role}`);
-      }
-      
-      console.log('🔄 [useFinance] Fetching financial data...');
-      console.log('  📍 User:', tokenCheck.user);
-      console.log('  🎭 Role:', tokenCheck.role);
 
       // Fetch all financial data in parallel with individual error handling
       const results = await Promise.allSettled([
@@ -116,9 +117,27 @@ export const useFinance = () => {
       return financeData;
     } catch (err) {
       console.error('❌ [useFinance] Error loading financial data:', err);
-      const errorMsg = err.response?.status === 403 
-        ? `403 Forbidden: Backend không cho phép truy cập. Kiểm tra SecurityConfig cho phép MANAGER truy cập /api/management/reports/**`
-        : (err.message || 'Failed to load financial data');
+      
+      // Check if it's a token expiration error
+      const isTokenError = 
+        err.message?.toLowerCase().includes('token') ||
+        err.message?.toLowerCase().includes('expired') ||
+        err.response?.status === 401 ||
+        err.response?.status === 403;
+      
+      let errorMsg;
+      if (isTokenError && err.response?.status === 401) {
+        errorMsg = 'Token đã hết hạn. Vui lòng đăng nhập lại.';
+        // axiosClient interceptor will handle redirect, but we can also do it here
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 2000);
+      } else if (err.response?.status === 403) {
+        errorMsg = '403 Forbidden: Bạn không có quyền truy cập báo cáo tài chính.';
+      } else {
+        errorMsg = err.message || 'Không thể tải dữ liệu tài chính. Vui lòng thử lại.';
+      }
+      
       setError(errorMsg);
       setLoading(false);
       return null;

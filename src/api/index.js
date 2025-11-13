@@ -60,6 +60,17 @@ export const getUsersByRole = async (role) => {
   return res.data;
 };
 
+// Lấy danh sách staff và technicians theo center (✅ Cần token)
+// API: GET /api/users/center/staff_and_technician
+// Response: Array of UserDto (có role TECHNICIAN hoặc STAFF)
+export const getStaffAndTechnician = async () => {
+  console.log('📤 API Request: GET /api/users/center/staff_and_technician');
+  const res = await axiosClient.get("/api/users/center/staff_and_technician");
+  console.log('📥 API Response:', res.data);
+  console.log('📊 Total staff & technicians:', res.data?.length || 0);
+  return res.data;
+};
+
 // Lấy tất cả customers (✅ Cần token - Admin/Staff)
 export const getAllCustomers = async () => {
   console.log('📤 API Request: GET /api/users/all_customer');
@@ -616,9 +627,20 @@ export const getAllMaintenanceRecords = async () => {
 };
 
 // Lấy maintenance records theo center (✅ Cần token)
-export const getMaintenanceRecordsByCenter = async () => {
-  const res = await axiosClient.get("/MaintainanceRecord/all/serviceCenter");
-  return res.data;
+// API: GET /api/MaintainanceRecord/all/serviceCenter/{centerId}
+export const getMaintenanceRecordsByCenter = async (centerId = null) => {
+  if (centerId) {
+    console.log('📊 [getMaintenanceRecordsByCenter] GET /api/MaintainanceRecord/all/serviceCenter/' + centerId);
+    const res = await axiosClient.get(`/api/MaintainanceRecord/all/serviceCenter/${centerId}`);
+    console.log('✅ [getMaintenanceRecordsByCenter] Response:', res.data);
+    console.log('📊 Total records:', res.data?.length || 0);
+    return res.data;
+  } else {
+    // Fallback to old endpoint if no centerId provided
+    console.log('📊 [getMaintenanceRecordsByCenter] GET /MaintainanceRecord/all/serviceCenter (no centerId)');
+    const res = await axiosClient.get("/MaintainanceRecord/all/serviceCenter");
+    return res.data;
+  }
 };
 
 // Lấy maintenance records theo staff (✅ Cần token)
@@ -663,6 +685,23 @@ export const createAutoWorkLog = async (appointmentId) => {
 export const getAllWorkLogsByCenter = async () => {
   const res = await axiosClient.get("/worklogs/center");
   return res.data;
+};
+
+// Lấy tất cả worklogs theo centerId cụ thể (✅ Cần token)
+// API: GET /api/worklogs/center/{centerId}
+// Response format: [{ staffId: [number], appointmentId: number, hoursSpent: number, tasksDone: string }]
+export const getAllWorkLogsByCenterId = async (centerId) => {
+  console.log('📊 [getAllWorkLogsByCenterId] GET /api/worklogs/center/' + centerId);
+  const res = await axiosClient.get(`/api/worklogs/center/${centerId}`);
+  console.log('✅ [getAllWorkLogsByCenterId] Response:', res.data);
+  console.log('📊 Total worklogs:', res.data?.length || 0);
+  
+  // Validate response format
+  if (Array.isArray(res.data)) {
+    return res.data;
+  }
+  console.warn('⚠️ [getAllWorkLogsByCenterId] Invalid response format, expected array');
+  return [];
 };
 
 /* --------------------------------
@@ -714,16 +753,80 @@ export const getCurrentMonthExpense = async () => {
 
 // Top dịch vụ phổ biến (all time) (✅ Cần token - Manager/Admin)
 // ✅ Updated: /api/admin → /api/management per OpenAPI spec
-export const getTrendingServices = async () => {
-  const res = await axiosClient.get("/api/management/reports/trending-services/alltime");
-  return res.data;
+// Optional centerId parameter để filter theo center
+// Response format từ backend: [{ "Tên dịch vụ": số }] hoặc [{ key: string, value: number }]
+export const getTrendingServices = async (centerId = null) => {
+  const params = centerId ? { centerId } : {};
+  console.log('📊 [getTrendingServices] GET /api/management/reports/trending-services/alltime', params);
+  const res = await axiosClient.get("/api/management/reports/trending-services/alltime", { params });
+  console.log('✅ [getTrendingServices] Raw Response:', res.data);
+  
+  // Transform response format: [{ "service": count }] → [{ key: "service", value: count }]
+  if (Array.isArray(res.data)) {
+    const transformed = res.data.map(item => {
+      // Nếu đã có format { key, value } thì giữ nguyên
+      if (item && typeof item === 'object' && 'key' in item && 'value' in item) {
+        return { key: String(item.key), value: Number(item.value) };
+      }
+      
+      // Nếu là format { "service name": count }, transform sang { key, value }
+      if (item && typeof item === 'object') {
+        const keys = Object.keys(item);
+        if (keys.length > 0) {
+          const serviceName = keys[0];
+          const count = item[serviceName];
+          return { key: String(serviceName), value: Number(count) || 0 };
+        }
+      }
+      
+      return null;
+    }).filter(item => item !== null);
+    
+    console.log('✅ [getTrendingServices] Transformed:', transformed);
+    return transformed;
+  }
+  
+  console.warn('⚠️ [getTrendingServices] Invalid response format, expected array');
+  return [];
 };
 
 // Top dịch vụ tháng trước (✅ Cần token - Manager/Admin)
 // ✅ Updated: /api/admin → /api/management per OpenAPI spec
-export const getTrendingServicesLastMonth = async () => {
-  const res = await axiosClient.get("/api/management/reports/trending-services/last-month");
-  return res.data;
+// Optional centerId parameter để filter theo center
+// Response format từ backend: [{ "Tên dịch vụ": số }] hoặc [{ key: string, value: number }]
+export const getTrendingServicesLastMonth = async (centerId = null) => {
+  const params = centerId ? { centerId } : {};
+  console.log('📊 [getTrendingServicesLastMonth] GET /api/management/reports/trending-services/last-month', params);
+  const res = await axiosClient.get("/api/management/reports/trending-services/last-month", { params });
+  console.log('✅ [getTrendingServicesLastMonth] Raw Response:', res.data);
+  
+  // Transform response format: [{ "service": count }] → [{ key: "service", value: count }]
+  if (Array.isArray(res.data)) {
+    const transformed = res.data.map(item => {
+      // Nếu đã có format { key, value } thì giữ nguyên
+      if (item && typeof item === 'object' && 'key' in item && 'value' in item) {
+        return { key: String(item.key), value: Number(item.value) };
+      }
+      
+      // Nếu là format { "service name": count }, transform sang { key, value }
+      if (item && typeof item === 'object') {
+        const keys = Object.keys(item);
+        if (keys.length > 0) {
+          const serviceName = keys[0];
+          const count = item[serviceName];
+          return { key: String(serviceName), value: Number(count) || 0 };
+        }
+      }
+      
+      return null;
+    }).filter(item => item !== null);
+    
+    console.log('✅ [getTrendingServicesLastMonth] Transformed:', transformed);
+    return transformed;
+  }
+  
+  console.warn('⚠️ [getTrendingServicesLastMonth] Invalid response format, expected array');
+  return [];
 };
 
 // Top 5 parts được dùng nhiều nhất tháng trước (✅ Cần token - Manager/Admin)

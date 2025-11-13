@@ -1,0 +1,163 @@
+.trending-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.trending-accordion {
+  margin-bottom: 0 !important;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: 8px;
+}
+
+.trending-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.trending-table thead {
+  background: #f5f5f5;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.trending-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
+.trending-table tbody tr {
+  border-bottom: 1px solid #f0f0f0;
+  transition: all 0.2s ease;
+}
+
+.trending-table tbody tr:hover {
+  background: #fafafa;
+  box-shadow: inset 3px 0 0 #000000;
+}
+
+.trending-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.trending-table td {
+  padding: 14px 16px;
+  color: #333;
+}
+
+.rank {
+  width: 50px;
+  text-align: center;
+}
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 12px;
+  color: white;
+}
+
+.rank-badge.rank-1 {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  box-shadow: 0 2px 6px rgba(255, 165, 0, 0.3);
+}
+
+.rank-badge.rank-2 {
+  background: linear-gradient(135deg, #C0C0C0 0%, #A9A9A9 100%);
+  box-shadow: 0 2px 6px rgba(192, 192, 192, 0.3);
+}
+
+.rank-badge.rank-3 {
+  background: linear-gradient(135deg, #CD7F32 0%, #B8860B 100%);
+  box-shadow: 0 2px 6px rgba(205, 127, 50, 0.3);
+}
+
+.rank-badge.rank-4,
+.rank-badge.rank-5 {
+  background: linear-gradient(135deg, #5b5ef5 0%, #4147d8 100%);
+  box-shadow: 0 2px 6px rgba(91, 94, 245, 0.3);
+}
+
+.service-name,
+.part-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.count-badge {
+  font-weight: 700;
+  font-size: 15px;
+  color: #5b5ef5;
+  text-align: right;
+  width: 80px;
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #999;
+  text-align: center;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.empty-state-small {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 20px;
+  color: #bbb;
+}
+
+.empty-state-small p {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .trending-table th,
+  .trending-table td {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .rank-badge {
+    width: 24px;
+    height: 24px;
+    font-size: 11px;
+  }
+
+  .trending-table th {
+    font-size: 11px;
+  }
+
+  .count-badge {
+    font-size: 13px;
+  }
+
+  .service-name,
+  .part-name {
+    font-size: 13px;
+  }
+}
+
