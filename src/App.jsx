@@ -3,19 +3,18 @@ import Navbar from "./components/Navbar.jsx";
 import Home from "./pages/Home.jsx";
 import Login from "./pages/Login.jsx";
 import BookingPage from "./pages/BookingPage.jsx";
-import PaymentGatewayPage from "./pages/PaymentGatewayPage.jsx";
-import PaymentReturnPage from "./pages/PaymentReturnPage.jsx";
+import PaymentReturn from "./pages/PaymentReturn.jsx";
 import Profile from "./pages/Profile.jsx";
 import MyCar from "./pages/MyCar.jsx";
 import StaffDashboard from "./pages/StaffDashboard";
 import TechnicianDashboard from "./pages/TechnicianDashboard.jsx";
 import Footer from "./components/Footer.jsx";
+import ChatWidget from "./components/ChatWidget/ChatWidget.jsx";
 
 const PAGE_TO_PATH = {
   home: '/',
   login: '/login',
   booking: '/booking',
-  payment: '/payment',
   'payment-return': '/payment-return',
   profile: '/profile',
   mycar: '/mycar',
@@ -47,7 +46,6 @@ function App() {
     }
   });
   const [selectedVehicle, setSelectedVehicle] = useState(null);
-  const [appointmentForPayment, setAppointmentForPayment] = useState(null);
   const [toast, setToast] = useState(null);
 
   const navigate = useCallback((page, options = {}) => {
@@ -116,22 +114,34 @@ function App() {
     };
   }, []);
 
-
-  // Check URL params để detect payment return
+  // Detect payment return và auto redirect
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
+    const currentPath = window.location.pathname;
     
-    // Check nếu có payment return params (VNPay, MoMo, etc.)
-    const hasPaymentParams = 
-      urlParams.has('vnp_TransactionStatus') || // VNPay
-      urlParams.has('vnp_ResponseCode') ||      // VNPay
-      urlParams.has('partnerCode') ||           // MoMo
-      urlParams.has('orderId') ||               // MoMo
-      urlParams.has('resultCode');              // MoMo
+    // Check nếu có custom backend payment params
+    const hasCustomParams = 
+      urlParams.has('status') && urlParams.has('amount');
     
-    if (hasPaymentParams) {
-      console.log('🔄 Detected payment return callback');
-      navigate('payment-return', { replace: true, search: window.location.search });
+    // Check nếu có VNPay payment params
+    const hasVNPayParams = 
+      urlParams.has('vnp_TransactionStatus') || 
+      urlParams.has('vnp_ResponseCode') ||
+      urlParams.has('vnp_TxnRef');
+    
+    // Check nếu có MoMo payment params
+    const hasMoMoParams = 
+      urlParams.has('partnerCode') ||
+      urlParams.has('orderId') ||
+      urlParams.has('resultCode');
+    
+    // Nếu đang ở /api/auth/payment-return hoặc có payment params
+    if (currentPath.includes('payment-return') || hasCustomParams || hasVNPayParams || hasMoMoParams) {
+      console.log('💳 Detected payment return, redirecting...');
+      navigate('payment-return', { 
+        replace: true, 
+        search: window.location.search 
+      });
     }
   }, [navigate]);
 
@@ -139,20 +149,6 @@ function App() {
     setIsLoggedIn(true);
     setUser(userData);
     try { localStorage.setItem('user', JSON.stringify(userData)); } catch (e) {}
-  };
-
-  // Navigate to payment với appointment data
-  const handleNavigateToPayment = (appointmentData) => {
-    setAppointmentForPayment(appointmentData);
-    navigate('payment');
-  };
-
-  // Handle payment complete
-  const handlePaymentComplete = (paymentData) => {
-    console.log('✅ Payment completed:', paymentData);
-    setAppointmentForPayment(null);
-    navigate('home');
-    alert('✅ Thanh toán thành công! Cảm ơn bạn đã sử dụng dịch vụ.');
   };
 
   // Navigate thông thường - clear vehicle data
@@ -172,11 +168,9 @@ function App() {
       case 'login':
         return <Login onNavigate={handleNavigate} onLogin={handleLogin} />;
       case 'booking':
-        return <BookingPage onNavigate={handleNavigate} onNavigateToPayment={handleNavigateToPayment} prefilledVehicle={selectedVehicle} />;
-      case 'payment':
-        return <PaymentGatewayPage appointmentData={appointmentForPayment} onNavigate={handleNavigate} onPaymentComplete={handlePaymentComplete} />;
+        return <BookingPage onNavigate={handleNavigate} prefilledVehicle={selectedVehicle} />;
       case 'payment-return':
-        return <PaymentReturnPage onNavigate={handleNavigate} />;
+        return <PaymentReturn onNavigate={handleNavigate} />;
       case 'profile':
         return <Profile onNavigate={handleNavigate} />;
       case 'mycar':
@@ -207,6 +201,8 @@ function App() {
           {toast.message}
         </div>
       )}
+      {/* Chat Widget - Luôn hiển thị trên mọi trang */}
+      <ChatWidget />
     </div>
   );
 }

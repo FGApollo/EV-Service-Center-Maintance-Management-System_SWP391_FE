@@ -34,7 +34,10 @@ const PaymentReturnPage = ({ onNavigate }) => {
     const processPaymentReturn = async () => {
       try {
         setStatus('processing');
+        console.log('🔍 DEBUG: queryParams =', queryParams);
+        console.log('🔍 DEBUG: Calling handlePaymentReturn...');
         const result = await handlePaymentReturn(queryParams);
+        console.log('🔍 DEBUG: handlePaymentReturn response =', result);
         setPaymentResult(result);
 
         const isSuccess =

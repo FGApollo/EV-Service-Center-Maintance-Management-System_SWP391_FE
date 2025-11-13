@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from "react";
 import "./BookingPage.css";
 import {
   createAppointment,
-  createPayment,
   getVehicles,
   getVehicleByVin,
 } from "../api";
@@ -14,7 +13,7 @@ import BookingScheduleStep from "../components/booking/BookingScheduleStep";
 import BookingContactStep from "../components/booking/BookingContactStep";
 import BookingSummarySidebar from "../components/booking/BookingSummarySidebar";
 
-function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
+function BookingPage({ onNavigate, prefilledVehicle }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     // Step 1: Vehicle Info (thông tin xe)
@@ -381,56 +380,22 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
       const appointmentId = response.appointmentId || response.id;
       const invoiceId = response.invoiceId || (response.invoices && response.invoices[0]?.id);
       
-      // Navigate sang trang thanh toán với thông tin appointment và invoice từ response
-      const paymentData = {
-        id: appointmentId,
-        appointmentId: appointmentId,
-        appointmentDate: appointmentData.appointmentDate,
-        vehicleModel: formData.vehicleModel,
-        serviceCenterId: formData.serviceCenterId,
-        serviceTypes: formData.selectedServices,
-        createdAt,
-        totalAmount: totalSelectedPrice,
-        selectedServices: selectedServiceDetails,
-        // ✅ Invoice info từ API response (đã tích hợp trong API đặt lịch)
-        invoiceId: invoiceId,
-        invoices: response.invoices || [],
-        ...response
-      };
+      console.log('✅ Đặt lịch thành công:', response);
       
-      console.log('📤 Chuyển sang thanh toán:', paymentData);
-
-      let paymentUrl = response.paymentUrl || response.paymentLink || response.url;
-
-      if (!paymentUrl && invoiceId) {
-        try {
-          console.log('💳 Đang tạo giao dịch thanh toán cho invoice:', invoiceId);
-          const paymentResponse = await createPayment({
-            invoiceId,
-            method: 'online',
-            clientIp
-          });
-          console.log('✅ Payment API response:', paymentResponse);
-          paymentUrl = paymentResponse.paymentUrl || paymentResponse.url || paymentResponse.redirectUrl;
-        } catch (paymentError) {
-          console.error('❌ Không thể tạo thanh toán tự động:', paymentError);
-          alert('⚠️ Đặt lịch thành công nhưng chưa tạo được liên kết thanh toán tự động. Vui lòng thử lại trên trang thanh toán.');
-        }
-      }
-
+      // Kiểm tra xem có URL thanh toán từ backend không (VNPay, MoMo, etc.)
+      const paymentUrl = response.url || response.paymentUrl || response.paymentLink;
+      
       if (paymentUrl) {
         console.log('🔗 Redirecting to payment URL:', paymentUrl);
+        alert('✅ Đặt lịch thành công! Đang chuyển đến trang thanh toán...');
+        // Redirect đến VNPay sandbox hoặc payment gateway khác
         window.location.href = paymentUrl;
         return;
       }
       
-      if (onNavigateToPayment) {
-        onNavigateToPayment(paymentData);
-      } else {
-        // Fallback nếu không có payment handler
-        alert('✅ Đặt lịch thành công! Chúng tôi sẽ xác nhận lịch hẹn của bạn trong thời gian sớm nhất.');
-        onNavigate('home');
-      }
+      // Nếu không có payment URL, thông báo thành công và quay về trang chủ
+      alert('✅ Đặt lịch thành công! Chúng tôi sẽ xác nhận lịch hẹn của bạn trong thời gian sớm nhất.');
+      onNavigate('home');
       
     } catch (error) {
       console.error('Lỗi khi đặt lịch:', error);

@@ -93,6 +93,12 @@ export const deleteVehicle = async (id) => {
   return res.data;
 };
 
+// Lấy thời gian bảo dưỡng cuối cùng của xe (✅ Cần token)
+export const getVehicleLatestMaintenanceTime = async (vehicleId) => {
+  const res = await axiosClient.get(`/api/vehicles/${vehicleId}/appointments/latest_time`);
+  return res.data; // Returns string (timestamp)
+};
+
 /* --------------------------------
    🕒 APPOINTMENTS
 ---------------------------------- */
@@ -161,94 +167,6 @@ export const startAppointment = async (appointmentId) => {
 // Technician: Hoàn thành appointment (✅ Cần token)
 export const completeAppointment = async (appointmentId) => {
   const res = await axiosClient.post(`/api/technician/appointments/${appointmentId}/complete`);
-  return res.data;
-};
-
-
-
-/* --------------------------------
-   💳 PAYMENT API
----------------------------------- */
-
-// Create payment transaction
-/**
- * Tạo payment transaction
- * 
- * API: GET /api/customer/payments/create
- * Headers: {
- *   "Authorization": "Bearer <token>",
- *   "Content-Type": "application/json"
- * }
- * Query Params: {
- *   invoiceId: number,
- *   method: string (default: "online"),
- *   clientIp: string
- * }
- * 
- * @param {Object} paymentData - Payment data
- * @param {number} paymentData.invoiceId - ID của invoice (bắt buộc)
- * @param {string} [paymentData.method="online"] - Phương thức thanh toán
- * @param {string} [paymentData.clientIp] - IP của client (fallback: "127.0.0.1")
- * @returns {Promise<Object>} Payment response (có thể chứa paymentUrl, qrCode, status, ...)
- */
-export const createPayment = async (paymentData) => {
-  const { invoiceId, method = "online", clientIp } = paymentData;
-  
-  // Validation
-  if (!invoiceId || invoiceId === 0) {
-    throw new Error('invoiceId is required and must be greater than 0');
-  }
-  
-  // Build query string
-  const params = new URLSearchParams({
-    invoiceId: invoiceId.toString(),
-    method: method.toString(),
-    clientIp: (clientIp || "127.0.0.1").toString()
-  });
-  
-  console.log('💳 Creating payment:', {
-    endpoint: '/api/customer/payments/create',
-    queryParams: Object.fromEntries(params)
-  });
-  
-  const res = await axiosClient.get(`/api/customer/payments/create?${params.toString()}`);
-  return res.data;
-};
-
-// Payment return/callback - Xử lý khi thanh toán xong và trả về từ gateway
-export const handlePaymentReturn = async (returnData) => {
-  // returnData: Query params từ payment gateway (VNPay/MoMo callback)
-  // Ví dụ VNPay: { vnp_TransactionStatus, vnp_TxnRef, vnp_Amount, vnp_ResponseCode, ... }
-  // Ví dụ MoMo: { partnerCode, orderId, requestId, amount, orderInfo, ... }
-  // Note: Backend sử dụng GET request với query params
-  const params = new URLSearchParams();
-  
-  // Convert returnData object thành query params
-  Object.keys(returnData).forEach(key => {
-    if (returnData[key] !== null && returnData[key] !== undefined) {
-      params.append(key, returnData[key].toString());
-    }
-  });
-  
-  const res = await axiosClient.get(`/api/customer/payments/return?${params.toString()}`);
-  return res.data;
-};
-
-// Get payment by appointment ID
-export const getPaymentByAppointment = async (appointmentId) => {
-  const res = await axiosClient.get(`/api/payments/appointment/${appointmentId}`);
-  return res.data;
-};
-
-// VNPay callback handler
-export const verifyVNPayPayment = async (callbackData) => {
-  const res = await axiosClient.post("/api/payments/vnpay/callback", callbackData);
-  return res.data;
-};
-
-// MoMo callback handler
-export const verifyMoMoPayment = async (callbackData) => {
-  const res = await axiosClient.post("/api/payments/momo/callback", callbackData);
   return res.data;
 };
 
