@@ -71,10 +71,12 @@ export const MaintenanceRecordTab = () => {
     const vehicleModel = (record.appointment?.vehicle?.model || '').toLowerCase();
     const checkList = (record.checklist || '').toLowerCase();
     const remarks = (record.remarks || '').toLowerCase();
+    const appointmentId = (record.appointment_id || '').toLowerCase();
     
     return vehicleModel.includes(query) || 
            checkList.includes(query) || 
            remarks.includes(query);
+           appointmentId.includes(query)
   });
 
   return (
@@ -133,7 +135,7 @@ export const MaintenanceRecordTab = () => {
           <table style={{width: '100%', borderCollapse: 'collapse'}}>
             <thead>
               <tr style={{backgroundColor: '#f5f5f5', borderBottom: '2px solid #ddd'}}>
-                <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Xe</th>
+                <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Appointment ID</th>
                 <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Tình trạng xe</th>
                 <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Kiểm tra</th>
                 <th style={{padding: '12px', textAlign: 'left', fontWeight: '600'}}>Ghi chú</th>
@@ -142,34 +144,47 @@ export const MaintenanceRecordTab = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredRecords.map((record, index) => (
-                <tr key={record.id} style={{borderBottom: '1px solid #eee', backgroundColor: index % 2 === 0 ? '#fff' : '#f9f9f9'}}>
-                  <td style={{padding: '12px'}}>
-                    <strong>{record.appointment?.vehicle?.model || 'N/A'}</strong>
-                  </td>
-                  <td style={{padding: '12px'}}>
-                    {record.vehicleCondition || 'N/A'}
-                  </td>
-                  <td style={{padding: '12px'}}>
-                    {record.checklist || 'N/A'}
-                  </td>
-                  <td style={{padding: '12px'}}>
-                    {record.remarks || 'N/A'}
-                  </td>
-                  <td style={{padding: '12px'}}>
-                    {record.startTime 
-                      ? new Date(record.startTime).toLocaleString('vi-VN')
-                      : 'N/A'
-                    }
-                  </td>
-                  <td style={{padding: '12px'}}>
-                    {record.endTime 
-                      ? new Date(record.endTime).toLocaleString('vi-VN')
-                      : 'N/A'
-                    }
-                  </td>
-                </tr>
-              ))}
+              {filteredRecords.map((record, index) => {
+                // Helper để format ngày giờ
+                const formatDateTime = (value) => {
+                  if (!value) return 'N/A';
+                  try {
+                    const date = new Date(value);
+                    if (isNaN(date.getTime())) return 'N/A';
+                    return date.toLocaleString('vi-VN');
+                  } catch (err) {
+                    return 'N/A';
+                  }
+                };
+
+                // Lấy start_time từ các field có thể có
+                const startTime = record.start_time || record.startTime || record.start_time_stamp || record.startTimestamp;
+                // Lấy end_time từ các field có thể có
+                const endTime = record.end_time || record.endTime || record.end_time_stamp || record.endTimestamp;
+
+                return (
+                  <tr key={record.id} style={{borderBottom: '1px solid #eee', backgroundColor: index % 2 === 0 ? '#fff' : '#f9f9f9'}}>
+                    <td style={{padding: '12px'}}>
+                      <strong>{record.appointmentId || 'N/A'}</strong>
+                    </td>
+                    <td style={{padding: '12px'}}>
+                      {record.vehicleCondition || 'N/A'}
+                    </td>
+                    <td style={{padding: '12px'}}>
+                      {record.checklist || 'N/A'}
+                    </td>
+                    <td style={{padding: '12px'}}>
+                      {record.remarks || 'N/A'}
+                    </td>
+                    <td style={{padding: '12px'}}>
+                      {formatDateTime(startTime)}
+                    </td>
+                    <td style={{padding: '12px'}}>
+                      {formatDateTime(endTime)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 
@@ -181,4 +196,3 @@ export const MaintenanceRecordTab = () => {
     </div>
   );
 };
-

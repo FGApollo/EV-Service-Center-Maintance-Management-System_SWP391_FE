@@ -36,6 +36,8 @@ export const updateUser = async (id, data) => {
   console.log('📤 Request Data:', data);
   const res = await axiosClient.put(`/api/auth/update/${id}`, data);
   console.log('📥 API Response:', res.data);
+  return res.data;
+};
 // Xem hồ sơ người dùng (✅ Cần token)
 export const getProfile = async () => {
   const res = await axiosClient.get("/api/profile");
@@ -176,16 +178,16 @@ export const getVehicleLatestMaintenanceTime = async (vehicleId) => {
 // API: GET /api/vehicles/all
 export const getAllVehicles = async () => {
   try {
-    console.log('📤 API Request: GET /api/vehicles/all');
+    console.log('API Request: GET /api/vehicles/all');
     const res = await axiosClient.get("/api/vehicles/all");
-    console.log('📥 API Response:', res.data);
-    console.log('📊 Total vehicles:', res.data?.length || 0);
+    console.log('API Response:', res.data);
+    console.log('Total vehicles:', res.data?.length || 0);
     return Array.isArray(res.data) ? res.data : [];
   } catch (err) {
-    console.error('❌ [getAllVehicles] Error:', err);
+    console.error('[getAllVehicles] Error:', err);
     // If 500 error, try fallback to maintained vehicles
     if (err.response?.status === 500 || err.response?.status === 404) {
-      console.log(`⚠️ /api/vehicles/all returned ${err.response?.status}, trying /api/vehicles/maintained`);
+      console.log(`/api/vehicles/all returned ${err.response?.status}, trying /api/vehicles/maintained`);
       try {
         const res = await axiosClient.get("/api/vehicles/maintained");
         console.log('📥 API Response (maintained):', res.data);
@@ -201,7 +203,45 @@ export const getAllVehicles = async () => {
     return [];
   }
 };
+/* --------------------------------
+   🔧 PARTS APIs
+---------------------------------- */
 
+// Lấy tất cả parts (✅ Cần token)
+export const getAllParts = async () => {
+  const res = await axiosClient.get("/api/auth/parts");
+  return res.data;
+};
+
+// Lấy part theo ID (✅ Cần token)
+export const getPartById = async (id) => {
+  const res = await axiosClient.get(`/api/auth/parts/${id}`);
+  return res.data;
+};
+
+// Tạo part mới (✅ Cần token)
+export const createPart = async (data) => {
+  const res = await axiosClient.post("/api/auth/parts/create", data);
+  return res.data;
+};
+
+// Cập nhật part (✅ Cần token)
+export const updatePart = async (id, data) => {
+  const res = await axiosClient.put(`/api/auth/parts/update/${id}`, data);
+  return res.data;
+};
+
+// Xóa part (✅ Cần token)
+export const deletePart = async (id) => {
+  const res = await axiosClient.delete(`/api/auth/parts/delete/${id}`);
+  return res.data;
+};
+
+// Sử dụng part (✅ Cần token)
+export const usePart = async (data) => {
+  const res = await axiosClient.post("/api/technician/part_usage", data);
+  return res.data;
+};
 /* --------------------------------
    🕒 APPOINTMENTS
 ---------------------------------- */
@@ -324,8 +364,8 @@ export const getMaintenanceRecordsByCenter = async (centerId = null) => {
 export const completeAppointmentDone = markAppointmentAsDone;
 
 // Staff: Lấy chi tiết appointment với thông tin kỹ thuật viên (✅ Cần token)
-export const getAppointmentStatus = async (appointmentId) => {
-  const res = await axiosClient.get(`/api/appointments/status/${appointmentId}`);
+export const getAppointmentStatus = async (status) => {
+  const res = await axiosClient.get(`/api/appointments/status/${status}`);
   return res.data;
 };
 
@@ -345,9 +385,28 @@ export const completeAppointment = async (appointmentId) => {
    👨‍🔧 TECHNICIAN & STAFF ASSIGNMENT
 ---------------------------------- */
 
-// Lấy danh sách tất cả technicians (✅ Cần token)
-export const getAllTechnicians = async () => {
-  const res = await axiosClient.get('/api/users/allTechnicians');
+// Lấy tất cả worklogs theo centerId cụ thể (✅ Cần token)
+// API: GET /api/worklogs/center/{centerId}
+// Response format: [{ staffId: [number], appointmentId: number, hoursSpent: number, tasksDone: string }]
+/* --------------------------------
+   📝 WORKLOG APIs
+---------------------------------- */
+
+// Tạo worklog thủ công (✅ Cần token)
+export const createWorkLog = async (data) => {
+  const res = await axiosClient.post("/worklogs", data);
+  return res.data;
+};
+
+// Tạo worklog tự động cho appointment (✅ Cần token)
+export const createAutoWorkLog = async (appointmentId) => {
+  const res = await axiosClient.post(`/worklogs/${appointmentId}`);
+  return res.data;
+};
+
+// Lấy tất cả worklogs theo center (✅ Cần token)
+export const getAllWorkLogsByCenter = async () => {
+  const res = await axiosClient.get("/worklogs/center");
   return res.data;
 };
 
@@ -367,7 +426,6 @@ export const getAllWorkLogsByCenterId = async (centerId) => {
   console.warn('⚠️ [getAllWorkLogsByCenterId] Invalid response format, expected array');
   return [];
 };
-
 /* --------------------------------
    📊 REPORT APIs (Admin)
 ---------------------------------- */
@@ -388,7 +446,23 @@ export const assignTechniciansToAppointment = async (appointmentId, staffIds, no
     staffIds,
     notes
   });
-  return res.data;
+  try {
+    const res = await axiosClient.put(`/api/assignments/${appointmentId}/staff`, {
+      notes,
+      staffIds
+    });
+    console.log('✅ Assignment successful:', res.data);
+    return res.data;
+  } catch (error) {
+    console.error('❌ Assignment error:');
+    console.error('  📍 Status:', error.response?.status);
+    console.error('  📝 Message:', error.response?.data?.message || error.message);
+    console.error('  📦 Response:', error.response?.data);
+    console.error('  🔗 URL:', error.config?.url);
+    console.error('  📤 Request data:', error.config?.data);
+    console.error('  🔁 Response headers:', error.response?.headers);
+    throw error;
+  }
 };
 
 // Báo cáo doanh thu theo tháng (✅ Cần token - Manager/Admin)
@@ -533,25 +607,9 @@ export const getPaymentMethods = async () => {
 export const runReminderScheduler = async () => {
   const res = await axiosClient.get("/api/auth/reminder/run");
   return res.data;
-
-  try {
-    const res = await axiosClient.put(`/api/assignments/${appointmentId}/staff`, {
-      notes,
-      staffIds
-    });
-    console.log('✅ Assignment successful:', res.data);
-    return res.data;
-  } catch (error) {
-    console.error('❌ Assignment error:');
-    console.error('  📍 Status:', error.response?.status);
-    console.error('  📝 Message:', error.response?.data?.message || error.message);
-    console.error('  📦 Response:', error.response?.data);
-    console.error('  🔗 URL:', error.config?.url);
-    console.error('  📤 Request data:', error.config?.data);
-    console.error('  🔁 Response headers:', error.response?.headers);
-    throw error;
-  }
 };
+
+
 
 /* --------------------------------
    🧹 TIỆN ÍCH
@@ -609,4 +667,8 @@ export const deleteCenter = async (id) => {
 // Đăng xuất: xóa token local
 export const logout = () => {
   localStorage.removeItem("token");
+  localStorage.removeItem("role");
+  localStorage.removeItem("fullName");
+  localStorage.removeItem("userId");
+  localStorage.removeItem("centerId");
 };

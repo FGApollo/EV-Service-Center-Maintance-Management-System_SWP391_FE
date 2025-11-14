@@ -10,6 +10,11 @@
 
 import { ROLES } from '../constants/roles';
 
+const parseNumber = (value) => {
+  const parsed = parseInt(value, 10);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
 // ================================
 // 1. GET USER INFO FROM STORAGE
 // ================================
@@ -19,12 +24,42 @@ import { ROLES } from '../constants/roles';
  * @returns {Object} User info
  */
 export const getCurrentUser = () => {
+  let storedUser = null;
+  try {
+    const rawUser = localStorage.getItem('user');
+    storedUser = rawUser ? JSON.parse(rawUser) : null;
+  } catch (err) {
+    console.warn('⚠️ [centerFilter] Failed to parse user from localStorage:', err);
+  }
+
+  const userIdValue =
+    storedUser?.user_id ??
+    storedUser?.id ??
+    storedUser?.userId ??
+    localStorage.getItem('userId');
+
+  const centerIdValue =
+    storedUser?.center_id ??
+    storedUser?.centerId ??
+    localStorage.getItem('centerId');
+
+  const rawRole = (
+    localStorage.getItem('role') ??
+    storedUser?.role ??
+    ''
+  ).toString();
+
+  const normalizedRole = rawRole
+    ? rawRole.toLowerCase().replace(/^role_/, '')
+    : null;
+
   return {
-    id: parseInt(localStorage.getItem('userId')),
-    role: localStorage.getItem('role'),
-    centerId: parseInt(localStorage.getItem('centerId')),
-    fullName: localStorage.getItem('fullName'),
-    token: localStorage.getItem('token')
+    id: parseNumber(userIdValue),
+    role: normalizedRole,
+    centerId: parseNumber(centerIdValue),
+    fullName: storedUser?.fullName ?? localStorage.getItem('fullName') ?? '',
+    token: localStorage.getItem('token') ?? storedUser?.token ?? null,
+    rawUser: storedUser
   };
 };
 
@@ -33,8 +68,7 @@ export const getCurrentUser = () => {
  * @returns {number|null}
  */
 export const getCurrentCenterId = () => {
-  const centerId = localStorage.getItem('centerId');
-  return centerId ? parseInt(centerId) : null;
+  return getCurrentUser().centerId;
 };
 
 /**
@@ -42,7 +76,7 @@ export const getCurrentCenterId = () => {
  * @returns {string|null}
  */
 export const getCurrentRole = () => {
-  return localStorage.getItem('role');
+  return getCurrentUser().role;
 };
 
 // ================================

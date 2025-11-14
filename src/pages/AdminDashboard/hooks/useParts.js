@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import * as API from '../../../api';
+import { getAllParts, createPart, updatePart, deletePart, usePart } from '../../../api/index';
 
 /**
  * Custom hook for Parts Management (Admin)
@@ -20,7 +20,7 @@ export const useParts = () => {
     
     try {
       console.log('🔄 [useParts Admin] Fetching all parts from API...');
-      const data = await API.getAllParts();
+      const data = await getAllParts();
       console.log('✅ [useParts Admin] Parts loaded:', data?.length || 0);
       setParts(Array.isArray(data) ? data : []);
       setLoading(false);
@@ -41,7 +41,7 @@ export const useParts = () => {
   const addPart = async (partData) => {
     try {
       console.log('➕ [useParts Admin] Adding new part:', partData);
-      const result = await API.createPart(partData);
+      const result = await createPart(partData);
       console.log('✅ [useParts Admin] Part added successfully:', result);
       await fetchParts(); // Refresh list
       return { success: true, data: result };
@@ -56,10 +56,10 @@ export const useParts = () => {
    * @param {Number} id - Part ID
    * @param {Object} data - Updated data
    */
-  const updatePart = async (id, data) => {
+  const handleUpdatePart = async (id, data) => {
     try {
       console.log('📝 [useParts Admin] Updating part:', { id, data });
-      const result = await API.updatePart(id, data);
+      const result = await updatePart(id, data);
       console.log('✅ [useParts Admin] Part updated successfully:', result);
       await fetchParts(); // Refresh list
       return { success: true, data: result };
@@ -73,10 +73,10 @@ export const useParts = () => {
    * Delete part
    * @param {Number} id - Part ID
    */
-  const deletePart = async (id) => {
+  const handleDeletePart = async (id) => {
     try {
       console.log('🗑️ [useParts Admin] Deleting part:', id);
-      await API.deletePart(id);
+      await deletePart(id);
       console.log('✅ [useParts Admin] Part deleted successfully');
       await fetchParts(); // Refresh list
       return { success: true };
@@ -96,8 +96,8 @@ export const useParts = () => {
     error,
     fetchParts,
     addPart,
-    updatePart,
-    deletePart
+    handleUpdatePart,
+    handleDeletePart
   };
 };
 

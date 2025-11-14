@@ -21,6 +21,7 @@ const PAGE_TO_PATH = {
   profile: '/profile',
   mycar: '/mycar',
   staff: '/staff',
+  manager: '/manager',
   technician: '/technician'
 };
 
@@ -117,32 +118,38 @@ function App() {
   }, []);
 
   // Detect payment return và auto redirect
+  // Detect payment return using HISTORY API
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
+    if (typeof window === 'undefined') return;
+
     const currentPath = window.location.pathname;
-    
-    // Check nếu có custom backend payment params
-    const hasCustomParams = 
-      urlParams.has('status') && urlParams.has('amount');
-    
-    // Check nếu có VNPay payment params
-    const hasVNPayParams = 
-      urlParams.has('vnp_TransactionStatus') || 
-      urlParams.has('vnp_ResponseCode') ||
-      urlParams.has('vnp_TxnRef');
-    
-    // Check nếu có MoMo payment params
-    const hasMoMoParams = 
-      urlParams.has('partnerCode') ||
-      urlParams.has('orderId') ||
-      urlParams.has('resultCode');
-    
-    // Nếu đang ở /api/auth/payment-return hoặc có payment params
-    if (currentPath.includes('payment-return') || hasCustomParams || hasVNPayParams || hasMoMoParams) {
-      console.log('💳 Detected payment return, redirecting...');
-      navigate('payment-return', { 
-        replace: true, 
-        search: window.location.search 
+    const searchParams = window.location.search;
+
+    const hasCustomParams =
+      searchParams.includes('orderId') ||
+      searchParams.includes('resultCode') ||
+      searchParams.includes('message');
+
+    const hasVNPayParams =
+      searchParams.includes('vnp_Amount') ||
+      searchParams.includes('vnp_ResponseCode') ||
+      searchParams.includes('vnp_TxnRef');
+
+    const hasMoMoParams =
+      searchParams.includes('momo') ||
+      searchParams.includes('partnerCode') ||
+      searchParams.includes('requestId');
+
+    if (
+      currentPath.includes('payment-return') ||
+      hasCustomParams ||
+      hasVNPayParams ||
+      hasMoMoParams
+    ) {
+      console.log('💳 Detected payment return, redirecting with history...');
+      navigate('payment-return', {
+        replace: true,
+        search: window.location.search
       });
     }
   }, [navigate]);
@@ -168,17 +175,27 @@ function App() {
   };
 
   const renderPage = () => {
-    switch(currentPage) {
+    switch (currentPage) {
       case 'login':
         return <Login onNavigate={handleNavigate} onLogin={handleLogin} />;
       case 'booking':
-        return <BookingPage onNavigate={handleNavigate} prefilledVehicle={selectedVehicle} />;
+        return (
+          <BookingPage
+            onNavigate={handleNavigate}
+            prefilledVehicle={selectedVehicle}
+          />
+        );
       case 'payment-return':
         return <PaymentReturn onNavigate={handleNavigate} />;
       case 'profile':
         return <Profile onNavigate={handleNavigate} />;
       case 'mycar':
-        return <MyCar onNavigate={handleNavigate} onNavigateWithVehicle={handleNavigateWithVehicle} />;
+        return (
+          <MyCar
+            onNavigate={handleNavigate}
+            onNavigateWithVehicle={handleNavigateWithVehicle}
+          />
+        );
       case 'staff':
         return <StaffDashboard onNavigate={handleNavigate} />;
       case 'technician':
@@ -192,17 +209,6 @@ function App() {
       case 'home':
       default:
         return <Home onNavigate={handleNavigate} />;
-      case 'home':
-      default:
-        return (
-          <>
-            <Navbar onNavigate={handleNavigate} isLoggedIn={isLoggedIn} onLogout={() => { setIsLoggedIn(false); setUser(null); localStorage.removeItem('token'); localStorage.removeItem('user'); }} user={user} />
-            <main>
-              <Home onNavigate={handleNavigate} />
-            </main>
-            <Footer onNavigate={handleNavigate} />
-          </>
-        );
     }
   };
 
@@ -230,7 +236,6 @@ function App() {
         {renderPage()}
       </main>
       {shouldShowFooter && <Footer onNavigate={handleNavigate} />}
-      {renderPage()}
       {toast && (
         <div className={`app-toast ${toast.type || 'info'}`}>
           {toast.message}
