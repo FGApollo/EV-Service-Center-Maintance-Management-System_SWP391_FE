@@ -237,4 +237,5 @@ export default function Navbar({ onNavigate, isLoggedIn, onLogout, user }) {
       )}
     </header>
   );
+  //test commit
 }
