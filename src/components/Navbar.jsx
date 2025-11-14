@@ -1,6 +1,6 @@
 // Navbar.jsx - Tesla Style
 import { useState, useEffect, useRef } from "react";
-import { FaQuestionCircle, FaUserCircle, FaGlobe, FaCar, FaSignOutAlt } from "react-icons/fa";
+import { FaQuestionCircle, FaUserCircle, FaGlobe, FaCar, FaSignOutAlt, FaTachometerAlt } from "react-icons/fa";
 
 export default function Navbar({ onNavigate, isLoggedIn, onLogout, user }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -53,6 +53,28 @@ export default function Navbar({ onNavigate, isLoggedIn, onLogout, user }) {
     alert('Đã đăng xuất thành công!');
     handleNavigate('home');
   };
+
+  // Xác định dashboard dựa vào role
+  const getDashboardInfo = () => {
+    if (!user || !user.role) return null;
+    
+    const role = user.role.toLowerCase();
+    
+    switch(role) {
+      case 'manager':
+        return { page: 'manager', label: 'Manager Dashboard', icon: '👨‍💼' };
+      case 'admin':
+        return { page: 'admin', label: 'Admin Dashboard', icon: '👑' };
+      case 'staff':
+        return { page: 'staff', label: 'Staff Dashboard', icon: '👨‍💼' };
+      case 'technician':
+        return { page: 'technician', label: 'Technician Dashboard', icon: '🔧' };
+      default:
+        return null;
+    }
+  };
+
+  const dashboardInfo = getDashboardInfo();
 
   return (
     <header className="w-full fixed top-0 z-50 bg-black/10 backdrop-blur-sm">
@@ -141,6 +163,20 @@ export default function Navbar({ onNavigate, isLoggedIn, onLogout, user }) {
                   <span className="text-sm text-gray-800">Xe của tôi</span>
                 </button>
                 
+                {/* Dashboard Link - Only for staff/technician/manager/admin */}
+                {dashboardInfo && (
+                  <>
+                    <div className="border-t border-gray-200 my-2"></div>
+                    <button 
+                      onClick={() => handleNavigate(dashboardInfo.page)}
+                      className="w-full text-left px-4 py-2 hover:bg-blue-50 transition-colors flex items-center gap-3 bg-blue-50/50"
+                    >
+                      <FaTachometerAlt size={16} className="text-blue-600" />
+                      <span className="text-sm text-blue-600 font-medium">{dashboardInfo.label}</span>
+                    </button>
+                  </>
+                )}
+                
                 <div className="border-t border-gray-200 mt-2"></div>
                 
                 <button 
@@ -216,6 +252,18 @@ export default function Navbar({ onNavigate, isLoggedIn, onLogout, user }) {
                   <FaCar size={16} />
                   Xe của tôi
                 </button>
+                
+                {/* Dashboard Link Mobile - Only for staff/technician/manager/admin */}
+                {dashboardInfo && (
+                  <button 
+                    onClick={() => handleNavigate(dashboardInfo.page)}
+                    className="block w-full text-left bg-blue-50 text-blue-700 font-semibold hover:bg-blue-100 transition-colors flex items-center gap-2 p-3 rounded"
+                  >
+                    <FaTachometerAlt size={16} />
+                    {dashboardInfo.label}
+                  </button>
+                )}
+                
                 <button 
                   onClick={handleLogout}
                   className="block w-full text-left text-red-600 font-medium hover:text-red-800 transition-colors flex items-center gap-2"
