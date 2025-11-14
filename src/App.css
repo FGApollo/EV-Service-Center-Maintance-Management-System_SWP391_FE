@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 .app-toast {
   position: fixed;
   top: 20px;
@@ -38,3 +39,28 @@
 }
 
 
+=======
+/* App Container */
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Main Content Area */
+main {
+  flex: 1;
+  padding-bottom: 20px;
+}
+
+/* Footer */
+footer {
+  margin-bottom: 30px; /* Thêm margin để tránh bị Windows taskbar che */
+}
+
+/* Body scrollbar */
+body {
+  overflow-y: scroll;
+  padding-bottom: env(safe-area-inset-bottom); /* Cho mobile */
+}
+>>>>>>> main

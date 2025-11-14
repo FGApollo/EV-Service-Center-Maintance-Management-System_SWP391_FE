@@ -102,6 +102,20 @@ function Footer({ onNavigate }) {
                 >
                   🔧 Technician
                 </button>
+                <button 
+                  onClick={() => {
+                    console.log('Admin button clicked!', onNavigate);
+                    if (onNavigate) {
+                      onNavigate('admin');
+                    } else {
+                      console.error('onNavigate is not defined!');
+                    }
+                  }}
+                  className="text-gray-600 hover:text-purple-400 text-sm transition-colors"
+                  title="Dành cho quản trị viên"
+                >
+                  👑 Admin
+                </button>
               </>
             )}
           </div>

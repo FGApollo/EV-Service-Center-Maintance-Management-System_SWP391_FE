@@ -1,7 +1,7 @@
 // 🔧 Cấu hình API URL cho từng môi trường
 
 // ⚠️ Sửa dòng này để chuyển môi trường nhanh:
-const ENV = "local"; // "local" | "render" | "vercel"  // ← Đổi thành "local" nếu có backend local
+const ENV = "render"; // "local" | "render" | "vercel"  // ← Đổi thành "render" nếu backend chưa chạy local
 
 // 🖥️ Local backend (sử dụng Vite proxy để tránh CORS)
 // Trong development, Vite sẽ tự động forward các request từ '' sang 'http://localhost:8080'

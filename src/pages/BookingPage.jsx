@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useState, useEffect, useMemo } from "react";
 import "./BookingPage.css";
 import {
@@ -12,6 +13,11 @@ import BookingServicesStep from "../components/booking/BookingServicesStep";
 import BookingScheduleStep from "../components/booking/BookingScheduleStep";
 import BookingContactStep from "../components/booking/BookingContactStep";
 import BookingSummarySidebar from "../components/booking/BookingSummarySidebar";
+=======
+import React, { useState, useEffect } from 'react';
+import './BookingPage.css';
+import * as API from '../api/index.js';
+>>>>>>> main
 
 function BookingPage({ onNavigate, prefilledVehicle }) {
   const [currentStep, setCurrentStep] = useState(1);
@@ -150,7 +156,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
   useEffect(() => {
     const fetchMyVehicles = async () => {
       try {
-        const data = await getVehicles();
+        const data = await API.getVehicles();
         setMyVehicles(data || []);
       } catch (err) {
         console.error('Lỗi khi tải danh sách xe:', err);
@@ -195,7 +201,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
       if (vin.length >= 3) {
         try {
           setVehicleLoading(true);
-          const vehicle = await getVehicleByVin(vin);
+          const vehicle = await API.getVehicleByVin(vin);
           if (vehicle) {
             setSelectedVehicleInfo(vehicle);
             setFormData(prev => ({
@@ -367,7 +373,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
       });
       
       // Gọi API tạo lịch hẹn
-      const response = await createAppointment(appointmentData);
+      const response = await API.createAppointment(appointmentData);
       
       console.log('✅ Đặt lịch thành công:', response);
       console.log('📋 Response data:', {
