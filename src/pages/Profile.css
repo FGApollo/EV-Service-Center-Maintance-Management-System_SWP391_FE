@@ -321,38 +321,6 @@
   100% { transform: rotate(360deg); }
 }
 
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 35px;
-  padding-bottom: 24px;
-  border-bottom: 3px solid transparent;
-  background: 
-    linear-gradient(white, white) padding-box,
-    linear-gradient(90deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.1), transparent) border-box;
-  border-image: linear-gradient(90deg, rgba(102, 126, 234, 0.3), transparent) 1;
-}
-
-.section-header h2 {
-  font-size: 28px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0;
-  letter-spacing: -0.5px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.section-header h2::before {
-  content: "";
-  width: 5px;
-  height: 32px;
-  background: #3b82f6;
-  border-radius: 3px;
-}
-
 .edit-btn {
   display: flex;
   align-items: center;

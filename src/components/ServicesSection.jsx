@@ -1,4 +1,5 @@
 import React from "react";
+import "./ServicesSection.css";
 
 const services = [
   {
@@ -106,20 +107,25 @@ const ServiceCard = ({ title, description, items, iconClass, iconPath }) => (
 
 const ServicesSection = ({ onNavigate }) => (
   <section id="services" className="services-section">
+    {/* Header Section */}
     <div className="section-header">
-      <h2>Dịch Vụ Của Chúng Tôi</h2>
-      <p>
-        Chúng tôi cung cấp đầy đủ các dịch vụ bảo dưỡng và sửa chữa xe hơi
-        chuyên nghiệp
+      <div className="header-tag">DỊCH VỤ CHUYÊN NGHIỆP</div>
+      <h2 className="section-title">Dịch Vụ Của Chúng Tôi</h2>
+      <p className="section-description">
+        CarCare cung cấp đa dạng dịch vụ bảo dưỡng và sửa chữa xe hơi chuyên nghiệp.
+        Đội ngũ kỹ thuật viên giàu kinh nghiệm cùng trang thiết bị hiện đại đảm bảo
+        xe của bạn luôn trong tình trạng hoạt động tốt nhất.
       </p>
     </div>
 
+    {/* Services Grid */}
     <div className="services-grid">
       {services.map((service) => (
         <ServiceCard key={service.title} {...service} />
       ))}
     </div>
 
+    {/* Call to Action */}
     <div className="services-cta">
       <button
         className="cta-button primary"
