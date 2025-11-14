@@ -8,7 +8,6 @@ import Profile from "./pages/Profile.jsx";
 import MyCar from "./pages/MyCar.jsx";
 import StaffDashboard from "./pages/StaffDashboard";
 import TechnicianDashboard from "./pages/TechnicianDashboard.jsx";
-import AdminDashboard from "./pages/AdminDashboard.jsx";
 import Footer from "./components/Footer.jsx";
 import ChatWidget from "./components/ChatWidget/ChatWidget.jsx";
 
@@ -20,8 +19,7 @@ const PAGE_TO_PATH = {
   profile: '/profile',
   mycar: '/mycar',
   staff: '/staff',
-  technician: '/technician',
-  admin: '/admin'
+  technician: '/technician'
 };
 
 const PATH_TO_PAGE = Object.entries(PAGE_TO_PATH).reduce((acc, [page, path]) => {
@@ -97,7 +95,6 @@ function App() {
     };
 
     window.addEventListener('popstate', handlePopState);
-    
     // Listen for global logout events dispatched by axios client
     const handleAppLogout = (e) => {
       console.warn('App received logout event:', e?.detail);
@@ -105,19 +102,17 @@ function App() {
       try {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        sessionStorage.removeItem('app_logout_dispatched');
       } catch (err) {}
       setIsLoggedIn(false);
       setUser(null);
       navigate('login', { replace: true });
     };
     window.addEventListener('app:logout', handleAppLogout);
-    
     return () => {
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('app:logout', handleAppLogout);
     };
-  }, [navigate]);
+  }, []);
 
   // Detect payment return và auto redirect
   useEffect(() => {
@@ -169,28 +164,32 @@ function App() {
   };
 
   const renderPage = () => {
-    console.log('Current page:', currentPage);
-    switch (currentPage) {
+    switch(currentPage) {
       case 'login':
-        return <Login onNavigate={setCurrentPage} onLogin={handleLogin} />;
+        return <Login onNavigate={handleNavigate} onLogin={handleLogin} />;
       case 'booking':
         return <BookingPage onNavigate={handleNavigate} prefilledVehicle={selectedVehicle} />;
       case 'payment-return':
         return <PaymentReturn onNavigate={handleNavigate} />;
       case 'profile':
-        return <Profile onNavigate={setCurrentPage} />;
+        return <Profile onNavigate={handleNavigate} />;
       case 'mycar':
-        return <MyCar onNavigate={setCurrentPage} />;
+        return <MyCar onNavigate={handleNavigate} onNavigateWithVehicle={handleNavigateWithVehicle} />;
       case 'staff':
-        return <StaffDashboard onNavigate={setCurrentPage} />;
+        return <StaffDashboard onNavigate={handleNavigate} />;
       case 'technician':
-        return <TechnicianDashboard onNavigate={setCurrentPage} />;
-      case 'admin':
-        console.log('Rendering AdminDashboard...');
-        return <AdminDashboard onNavigate={setCurrentPage} />;
+        return <TechnicianDashboard onNavigate={handleNavigate} />;
       case 'home':
       default:
-        return <Home onNavigate={setCurrentPage} />;
+        return (
+          <>
+            <Navbar onNavigate={handleNavigate} isLoggedIn={isLoggedIn} onLogout={() => { setIsLoggedIn(false); setUser(null); localStorage.removeItem('token'); localStorage.removeItem('user'); }} user={user} />
+            <main>
+              <Home onNavigate={handleNavigate} />
+            </main>
+            <Footer onNavigate={handleNavigate} />
+          </>
+        );
     }
   };
 
