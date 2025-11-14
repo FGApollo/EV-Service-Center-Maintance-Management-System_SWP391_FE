@@ -16,7 +16,6 @@ body {
   min-height: 100vh;
   background: #ffffff;
   position: relative;
-  padding-bottom: 80px; /* Để tránh bị footer che */
 }
 
 /* Back to Home Button */

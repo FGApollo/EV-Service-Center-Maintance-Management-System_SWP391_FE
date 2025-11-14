@@ -2,7 +2,7 @@
 .mycar-container {
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px 20px 100px 20px; /* Tăng padding bottom */
+  padding: 20px;
 }
 
 /* Header */

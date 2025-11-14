@@ -1,0 +1,14 @@
+.maintenance-process {
+  padding: 30px;
+}
+
+.maintenance-process h2 {
+  font-size: 24px;
+  color: #2d3748;
+  margin-bottom: 20px;
+}
+
+.maintenance-process p {
+  color: #718096;
+}
+
