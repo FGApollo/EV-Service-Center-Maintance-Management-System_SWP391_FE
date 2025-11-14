@@ -9,6 +9,8 @@ import MyCar from "./pages/MyCar.jsx";
 import StaffDashboard from "./pages/StaffDashboard";
 import TechnicianDashboard from "./pages/TechnicianDashboard.jsx";
 import Footer from "./components/Footer.jsx";
+import AdminDashboard from './pages/AdminDashboard/index.jsx';
+import ManagerDashboard from './pages/ManagerDashboard/index.jsx';
 import ChatWidget from "./components/ChatWidget/ChatWidget.jsx";
 
 const PAGE_TO_PATH = {
@@ -153,12 +155,14 @@ function App() {
 
   // Navigate thông thường - clear vehicle data
   const handleNavigate = (page) => {
+    console.log('🔗 Navigate to:', page);
     setSelectedVehicle(null); // Reset thông tin xe khi navigate thông thường
     navigate(page);
   };
 
   // Navigate với vehicle data - chỉ dùng khi bấm "Đặt lịch" từ MyCar
   const handleNavigateWithVehicle = (page, vehicleData) => {
+    console.log('🔗 Navigate to:', page, 'with vehicle:', vehicleData);
     setSelectedVehicle(vehicleData);
     navigate(page);
   };
@@ -179,6 +183,15 @@ function App() {
         return <StaffDashboard onNavigate={handleNavigate} />;
       case 'technician':
         return <TechnicianDashboard onNavigate={handleNavigate} />;
+      case 'admin':
+        console.log('Rendering AdminDashboard (deprecated - use manager)...');
+        return <AdminDashboard onNavigate={handleNavigate} />;
+      case 'manager':
+        console.log('Rendering ManagerDashboard...');
+        return <ManagerDashboard onNavigate={handleNavigate} />;
+      case 'home':
+      default:
+        return <Home onNavigate={handleNavigate} />;
       case 'home':
       default:
         return (
@@ -193,8 +206,30 @@ function App() {
     }
   };
 
+  // Check if current page should show Navbar and Footer
+  const shouldShowNavbar = !['manager', 'admin', 'staff', 'technician'].includes(currentPage);
+  const shouldShowFooter = !['manager', 'admin', 'staff', 'technician'].includes(currentPage);
+
   return (
     <div className="App">
+      {shouldShowNavbar && (
+        <Navbar 
+          onNavigate={handleNavigate} 
+          isLoggedIn={isLoggedIn} 
+          onLogout={() => { 
+            setIsLoggedIn(false); 
+            setUser(null); 
+            localStorage.removeItem('token'); 
+            localStorage.removeItem('user');
+            window.location.hash = 'home'; // ✅ Update hash
+          }} 
+          user={user} 
+        />
+      )}
+      <main>
+        {renderPage()}
+      </main>
+      {shouldShowFooter && <Footer onNavigate={handleNavigate} />}
       {renderPage()}
       {toast && (
         <div className={`app-toast ${toast.type || 'info'}`}>

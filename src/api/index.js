@@ -29,6 +29,13 @@ export const updateProfile = async (userId, data) => {
   return res.data;
 };
 
+// Cập nhật thông tin user (✅ Cần token)
+// ✅ Theo OpenAPI mới: PUT /api/auth/update/{id}
+export const updateUser = async (id, data) => {
+  console.log('📤 API Request: PUT /api/auth/update/' + id);
+  console.log('📤 Request Data:', data);
+  const res = await axiosClient.put(`/api/auth/update/${id}`, data);
+  console.log('📥 API Response:', res.data);
 // Xem hồ sơ người dùng (✅ Cần token)
 export const getProfile = async () => {
   const res = await axiosClient.get("/api/profile");
@@ -41,9 +48,66 @@ export const changePassword = async (data) => {
   return res.data;
 };
 
+// Lấy danh sách users theo role (✅ Cần token)
+export const getUsersByRole = async (role) => {
+  const res = await axiosClient.get("/api/users", { params: { role } });
+  return res.data;
+};
+
+// Lấy danh sách staff và technicians theo center (✅ Cần token)
+// API: GET /api/users/center/staff_and_technician
+// Response: Array of UserDto (có role TECHNICIAN hoặc STAFF)
+export const getStaffAndTechnician = async () => {
+  console.log('📤 API Request: GET /api/users/center/staff_and_technician');
+  const res = await axiosClient.get("/api/users/center/staff_and_technician");
+  console.log('📥 API Response:', res.data);
+  console.log('📊 Total staff & technicians:', res.data?.length || 0);
+  return res.data;
+};
+
+// Lấy tất cả customers (✅ Cần token - Admin/Staff)
 // Staff: Lấy danh sách tất cả khách hàng (✅ Cần token)
 export const getAllCustomers = async () => {
   const res = await axiosClient.get("/api/users/all_customer");
+  console.log('📥 API Response:', res.data);
+  console.log('📊 Total customers:', res.data?.length || 0);
+  return res.data;
+};
+
+// Lấy danh sách technicians (✅ Cần token)
+export const getAllTechnicians = async () => {
+  const res = await axiosClient.get("/api/users/allTechnicians");
+  return res.data;
+};
+
+// Lấy tất cả users theo role (✅ Cần token - Admin)
+// API: GET /api/users/all/{role}
+export const getAllUsersByRole = async (role) => {
+  console.log('📤 API Request: GET /api/users/all/' + role);
+  const res = await axiosClient.get(`/api/users/all/${role}`);
+  console.log('📥 API Response:', res.data);
+  console.log('📊 Total users with role', role + ':', res.data?.length || 0);
+  return res.data || [];
+};
+
+// Tạo employee mới (Admin/Staff) (✅ Cần token)
+export const createEmployee = async (role, data) => {
+  const res = await axiosClient.post("/api/users/employees", data, {
+    params: { role }
+  });
+  return res.data;
+};
+
+// Xóa employee (✅ Cần token)
+export const deleteEmployee = async (id) => {
+  const res = await axiosClient.delete(`/api/users/${id}`);
+  return res.data;
+};
+
+// Tạo customer mới - Dùng register endpoint (❌ Không cần token - public API)
+export const createCustomer = async (data) => {
+  console.log('📤 Creating customer via register:', data);
+  const res = await axiosClient.post("/api/auth/register", data);
   return res.data;
 };
 
@@ -87,6 +151,15 @@ export const addVehicle = async (data) => {
   return res.data;
 };
 
+// Cập nhật xe (✅)
+export const updateVehicle = async (id, data) => {
+  console.log('📤 API Request: PUT /api/vehicles/' + id);
+  console.log('📤 Request Data:', data);
+  const res = await axiosClient.put(`/api/vehicles/${id}`, data);
+  console.log('📥 API Response:', res.data);
+  return res.data;
+};
+
 // Xóa xe (✅)
 export const deleteVehicle = async (id) => {
   const res = await axiosClient.delete(`/api/vehicles/${id}`);
@@ -97,6 +170,36 @@ export const deleteVehicle = async (id) => {
 export const getVehicleLatestMaintenanceTime = async (vehicleId) => {
   const res = await axiosClient.get(`/api/vehicles/${vehicleId}/appointments/latest_time`);
   return res.data; // Returns string (timestamp)
+};
+
+// Lấy tất cả vehicles (✅ Cần token - Admin)
+// API: GET /api/vehicles/all
+export const getAllVehicles = async () => {
+  try {
+    console.log('📤 API Request: GET /api/vehicles/all');
+    const res = await axiosClient.get("/api/vehicles/all");
+    console.log('📥 API Response:', res.data);
+    console.log('📊 Total vehicles:', res.data?.length || 0);
+    return Array.isArray(res.data) ? res.data : [];
+  } catch (err) {
+    console.error('❌ [getAllVehicles] Error:', err);
+    // If 500 error, try fallback to maintained vehicles
+    if (err.response?.status === 500 || err.response?.status === 404) {
+      console.log(`⚠️ /api/vehicles/all returned ${err.response?.status}, trying /api/vehicles/maintained`);
+      try {
+        const res = await axiosClient.get("/api/vehicles/maintained");
+        console.log('📥 API Response (maintained):', res.data);
+        console.log('📊 Total vehicles:', res.data?.length || 0);
+        return Array.isArray(res.data) ? res.data : [];
+      } catch (fallbackErr) {
+        console.error('❌ Fallback API also failed:', fallbackErr);
+        // Return empty array instead of throwing
+        return [];
+      }
+    }
+    // For other errors, return empty array
+    return [];
+  }
 };
 
 /* --------------------------------
@@ -201,6 +304,22 @@ export const markAppointmentAsDone = async (appointmentId) => {
   return res.data;
 };
 
+// Lấy maintenance records theo center (✅ Cần token)
+// API: GET /api/MaintainanceRecord/all/serviceCenter/{centerId}
+export const getMaintenanceRecordsByCenter = async (centerId = null) => {
+  if (centerId) {
+    console.log('📊 [getMaintenanceRecordsByCenter] GET /api/MaintainanceRecord/all/serviceCenter/' + centerId);
+    const res = await axiosClient.get(`/api/MaintainanceRecord/all/serviceCenter/${centerId}`);
+    console.log('✅ [getMaintenanceRecordsByCenter] Response:', res.data);
+    console.log('📊 Total records:', res.data?.length || 0);
+    return res.data;
+  } else {
+    // Fallback to old endpoint if no centerId provided
+    console.log('📊 [getMaintenanceRecordsByCenter] GET /MaintainanceRecord/all/serviceCenter (no centerId)');
+    const res = await axiosClient.get("/MaintainanceRecord/all/serviceCenter");
+    return res.data;
+  }
+};
 // Alias cho tương thích ngược (Staff Dashboard vẫn dùng tên này)
 export const completeAppointmentDone = markAppointmentAsDone;
 
@@ -232,6 +351,26 @@ export const getAllTechnicians = async () => {
   return res.data;
 };
 
+// Lấy tất cả worklogs theo centerId cụ thể (✅ Cần token)
+// API: GET /api/worklogs/center/{centerId}
+// Response format: [{ staffId: [number], appointmentId: number, hoursSpent: number, tasksDone: string }]
+export const getAllWorkLogsByCenterId = async (centerId) => {
+  console.log('📊 [getAllWorkLogsByCenterId] GET /api/worklogs/center/' + centerId);
+  const res = await axiosClient.get(`/api/worklogs/center/${centerId}`);
+  console.log('✅ [getAllWorkLogsByCenterId] Response:', res.data);
+  console.log('📊 Total worklogs:', res.data?.length || 0);
+  
+  // Validate response format
+  if (Array.isArray(res.data)) {
+    return res.data;
+  }
+  console.warn('⚠️ [getAllWorkLogsByCenterId] Invalid response format, expected array');
+  return [];
+};
+
+/* --------------------------------
+   📊 REPORT APIs (Admin)
+---------------------------------- */
 // Giao việc cho technicians (✅ Cần token)
 export const assignTechniciansToAppointment = async (appointmentId, staffIds, notes = '') => {
   // Quick sanity check: ensure we have a token before calling protected endpoint
@@ -249,6 +388,151 @@ export const assignTechniciansToAppointment = async (appointmentId, staffIds, no
     staffIds,
     notes
   });
+  return res.data;
+};
+
+// Báo cáo doanh thu theo tháng (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
+export const getRevenueReport = async () => {
+  const res = await axiosClient.get("/api/management/reports/revenue");
+  return res.data;
+};
+
+// Doanh thu tháng hiện tại (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
+export const getRevenueCurrentMonth = async () => {
+  const res = await axiosClient.get("/api/management/reports/revenue/current-month");
+  return res.data;
+};
+
+// Doanh thu theo dịch vụ (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
+export const getRevenueByService = async () => {
+  const res = await axiosClient.get("/api/management/reports/revenue/service");
+  return res.data;
+};
+
+// Báo cáo lợi nhuận theo tháng (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
+export const getProfitReport = async () => {
+  const res = await axiosClient.get("/api/management/reports/profit");
+  return res.data;
+};
+
+// Chi phí tháng hiện tại (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
+export const getCurrentMonthExpense = async () => {
+  const res = await axiosClient.get("/api/management/reports/expense/current-month");
+  return res.data;
+};
+
+// Top dịch vụ phổ biến (all time) (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
+// Optional centerId parameter để filter theo center
+// Response format từ backend: [{ "Tên dịch vụ": số }] hoặc [{ key: string, value: number }]
+export const getTrendingServices = async (centerId = null) => {
+  const params = centerId ? { centerId } : {};
+  console.log('📊 [getTrendingServices] GET /api/management/reports/trending-services/alltime', params);
+  const res = await axiosClient.get("/api/management/reports/trending-services/alltime", { params });
+  console.log('✅ [getTrendingServices] Raw Response:', res.data);
+  
+  // Transform response format: [{ "service": count }] → [{ key: "service", value: count }]
+  if (Array.isArray(res.data)) {
+    const transformed = res.data.map(item => {
+      // Nếu đã có format { key, value } thì giữ nguyên
+      if (item && typeof item === 'object' && 'key' in item && 'value' in item) {
+        return { key: String(item.key), value: Number(item.value) };
+      }
+      
+      // Nếu là format { "service name": count }, transform sang { key, value }
+      if (item && typeof item === 'object') {
+        const keys = Object.keys(item);
+        if (keys.length > 0) {
+          const serviceName = keys[0];
+          const count = item[serviceName];
+          return { key: String(serviceName), value: Number(count) || 0 };
+        }
+      }
+      
+      return null;
+    }).filter(item => item !== null);
+    
+    console.log('✅ [getTrendingServices] Transformed:', transformed);
+    return transformed;
+  }
+  
+  console.warn('⚠️ [getTrendingServices] Invalid response format, expected array');
+  return [];
+};
+
+// Top dịch vụ tháng trước (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
+// Optional centerId parameter để filter theo center
+// Response format từ backend: [{ "Tên dịch vụ": số }] hoặc [{ key: string, value: number }]
+export const getTrendingServicesLastMonth = async (centerId = null) => {
+  const params = centerId ? { centerId } : {};
+  console.log('📊 [getTrendingServicesLastMonth] GET /api/management/reports/trending-services/last-month', params);
+  const res = await axiosClient.get("/api/management/reports/trending-services/last-month", { params });
+  console.log('✅ [getTrendingServicesLastMonth] Raw Response:', res.data);
+  
+  // Transform response format: [{ "service": count }] → [{ key: "service", value: count }]
+  if (Array.isArray(res.data)) {
+    const transformed = res.data.map(item => {
+      // Nếu đã có format { key, value } thì giữ nguyên
+      if (item && typeof item === 'object' && 'key' in item && 'value' in item) {
+        return { key: String(item.key), value: Number(item.value) };
+      }
+      
+      // Nếu là format { "service name": count }, transform sang { key, value }
+      if (item && typeof item === 'object') {
+        const keys = Object.keys(item);
+        if (keys.length > 0) {
+          const serviceName = keys[0];
+          const count = item[serviceName];
+          return { key: String(serviceName), value: Number(count) || 0 };
+        }
+      }
+      
+      return null;
+    }).filter(item => item !== null);
+    
+    console.log('✅ [getTrendingServicesLastMonth] Transformed:', transformed);
+    return transformed;
+  }
+  
+  console.warn('⚠️ [getTrendingServicesLastMonth] Invalid response format, expected array');
+  return [];
+};
+
+// Top 5 parts được dùng nhiều nhất tháng trước (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
+export const getTrendingParts = async () => {
+  const res = await axiosClient.get("/api/management/reports/trending-parts");
+  return res.data;
+};
+
+// Báo cáo tồn kho phụ tùng (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
+export const getPartStockReport = async () => {
+  const res = await axiosClient.get("/api/management/reports/parts/stock-report");
+  return res.data;
+};
+
+// Thống kê phương thức thanh toán (✅ Cần token - Manager/Admin)
+// ✅ Updated: /api/admin → /api/management per OpenAPI spec
+export const getPaymentMethods = async () => {
+  const res = await axiosClient.get("/api/management/reports/payment-methods");
+  return res.data;
+};
+
+/* --------------------------------
+   🔔 REMINDER APIs (Test)
+---------------------------------- */
+
+// Chạy scheduler manually (test) (✅ Cần token)
+export const runReminderScheduler = async () => {
+  const res = await axiosClient.get("/api/auth/reminder/run");
+  return res.data;
 
   try {
     const res = await axiosClient.put(`/api/assignments/${appointmentId}/staff`, {
@@ -267,6 +551,55 @@ export const assignTechniciansToAppointment = async (appointmentId, staffIds, no
     console.error('  🔁 Response headers:', error.response?.headers);
     throw error;
   }
+};
+
+/* --------------------------------
+   🧹 TIỆN ÍCH
+---------------------------------- */
+
+/* --------------------------------
+   🏢 SERVICE CENTER APIs (Admin)
+---------------------------------- */
+
+// Lấy tất cả centers (✅ Cần token - Admin)
+// API: GET /api/center
+export const getAllCenters = async () => {
+  console.log('📤 API Request: GET /api/center');
+  const res = await axiosClient.get("/api/center");
+  console.log('📥 API Response:', res.data);
+  console.log('📊 Total centers:', res.data?.length || 0);
+  return res.data || [];
+};
+
+// Tạo center mới (✅ Cần token - Admin)
+// API: POST /api/center
+// Body: CenterDTO { name, address, phone, email }
+export const createCenter = async (centerData) => {
+  console.log('📤 API Request: POST /api/center');
+  console.log('📤 Request Data:', centerData);
+  const res = await axiosClient.post("/api/center", centerData);
+  console.log('📥 API Response:', res.data);
+  return res.data;
+};
+
+// Cập nhật center (✅ Cần token - Admin)
+// API: PUT /api/center/{id}
+// Body: CenterDTO { name, address, phone, email }
+export const updateCenter = async (id, centerData) => {
+  console.log('📤 API Request: PUT /api/center/' + id);
+  console.log('📤 Request Data:', centerData);
+  const res = await axiosClient.put(`/api/center/${id}`, centerData);
+  console.log('📥 API Response:', res.data);
+  return res.data;
+};
+
+// Xóa center (✅ Cần token - Admin)
+// API: DELETE /api/center/{id}
+export const deleteCenter = async (id) => {
+  console.log('📤 API Request: DELETE /api/center/' + id);
+  const res = await axiosClient.delete(`/api/center/${id}`);
+  console.log('📥 API Response:', res.data);
+  return res.data;
 };
 
 /* --------------------------------

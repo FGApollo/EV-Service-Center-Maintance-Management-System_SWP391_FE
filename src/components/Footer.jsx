@@ -91,7 +91,7 @@ function Footer({ onNavigate }) {
                 <button 
                   onClick={() => onNavigate('staff')}
                   className="text-gray-600 hover:text-blue-400 text-sm transition-colors"
-                  title="Dành cho nhân viên"
+                  title="Dành cho nhân viên tiếp nhận"
                 >
                   👨‍💼 Staff
                 </button>
@@ -101,6 +101,34 @@ function Footer({ onNavigate }) {
                   title="Dành cho kỹ thuật viên"
                 >
                   🔧 Technician
+                </button>
+                <button 
+                  onClick={() => {
+                    console.log('Manager button clicked!', onNavigate);
+                    if (onNavigate) {
+                      onNavigate('manager');
+                    } else {
+                      console.error('onNavigate is not defined!');
+                    }
+                  }}
+                  className="text-gray-600 hover:text-orange-400 text-sm transition-colors font-semibold"
+                  title="Dành cho quản lý trung tâm"
+                >
+                  👨‍💼 Manager
+                </button>
+                <button 
+                  onClick={() => {
+                    console.log('Admin button clicked (deprecated)!', onNavigate);
+                    if (onNavigate) {
+                      onNavigate('admin');
+                    } else {
+                      console.error('onNavigate is not defined!');
+                    }
+                  }}
+                  className="text-gray-700 hover:text-purple-400 text-sm transition-colors opacity-50"
+                  title="Admin (deprecated - use Manager)"
+                >
+                  👑 Admin
                 </button>
               </>
             )}
