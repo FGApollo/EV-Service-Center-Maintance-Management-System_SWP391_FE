@@ -36,6 +36,9 @@ export const updateUser = async (id, data) => {
   console.log('📤 Request Data:', data);
   const res = await axiosClient.put(`/api/auth/update/${id}`, data);
   console.log('📥 API Response:', res.data);
+  return res.data;
+};
+
 // Xem hồ sơ người dùng (✅ Cần token)
 export const getProfile = async () => {
   const res = await axiosClient.get("/api/profile");
@@ -345,12 +348,6 @@ export const completeAppointment = async (appointmentId) => {
    👨‍🔧 TECHNICIAN & STAFF ASSIGNMENT
 ---------------------------------- */
 
-// Lấy danh sách tất cả technicians (✅ Cần token)
-export const getAllTechnicians = async () => {
-  const res = await axiosClient.get('/api/users/allTechnicians');
-  return res.data;
-};
-
 // Lấy tất cả worklogs theo centerId cụ thể (✅ Cần token)
 // API: GET /api/worklogs/center/{centerId}
 // Response format: [{ staffId: [number], appointmentId: number, hoursSpent: number, tasksDone: string }]
@@ -388,7 +385,24 @@ export const assignTechniciansToAppointment = async (appointmentId, staffIds, no
     staffIds,
     notes
   });
-  return res.data;
+
+  try {
+    const res = await axiosClient.put(`/api/assignments/${appointmentId}/staff`, {
+      notes,
+      staffIds
+    });
+    console.log('✅ Assignment successful:', res.data);
+    return res.data;
+  } catch (error) {
+    console.error('❌ Assignment error:');
+    console.error('  📍 Status:', error.response?.status);
+    console.error('  📝 Message:', error.response?.data?.message || error.message);
+    console.error('  📦 Response:', error.response?.data);
+    console.error('  🔗 URL:', error.config?.url);
+    console.error('  📤 Request data:', error.config?.data);
+    console.error('  🔁 Response headers:', error.response?.headers);
+    throw error;
+  }
 };
 
 // Báo cáo doanh thu theo tháng (✅ Cần token - Manager/Admin)
@@ -533,29 +547,7 @@ export const getPaymentMethods = async () => {
 export const runReminderScheduler = async () => {
   const res = await axiosClient.get("/api/auth/reminder/run");
   return res.data;
-
-  try {
-    const res = await axiosClient.put(`/api/assignments/${appointmentId}/staff`, {
-      notes,
-      staffIds
-    });
-    console.log('✅ Assignment successful:', res.data);
-    return res.data;
-  } catch (error) {
-    console.error('❌ Assignment error:');
-    console.error('  📍 Status:', error.response?.status);
-    console.error('  📝 Message:', error.response?.data?.message || error.message);
-    console.error('  📦 Response:', error.response?.data);
-    console.error('  🔗 URL:', error.config?.url);
-    console.error('  📤 Request data:', error.config?.data);
-    console.error('  🔁 Response headers:', error.response?.headers);
-    throw error;
-  }
 };
-
-/* --------------------------------
-   🧹 TIỆN ÍCH
----------------------------------- */
 
 /* --------------------------------
    🏢 SERVICE CENTER APIs (Admin)

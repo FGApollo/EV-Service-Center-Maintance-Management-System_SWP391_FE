@@ -192,17 +192,6 @@ function App() {
       case 'home':
       default:
         return <Home onNavigate={handleNavigate} />;
-      case 'home':
-      default:
-        return (
-          <>
-            <Navbar onNavigate={handleNavigate} isLoggedIn={isLoggedIn} onLogout={() => { setIsLoggedIn(false); setUser(null); localStorage.removeItem('token'); localStorage.removeItem('user'); }} user={user} />
-            <main>
-              <Home onNavigate={handleNavigate} />
-            </main>
-            <Footer onNavigate={handleNavigate} />
-          </>
-        );
     }
   };
 
@@ -230,7 +219,6 @@ function App() {
         {renderPage()}
       </main>
       {shouldShowFooter && <Footer onNavigate={handleNavigate} />}
-      {renderPage()}
       {toast && (
         <div className={`app-toast ${toast.type || 'info'}`}>
           {toast.message}
