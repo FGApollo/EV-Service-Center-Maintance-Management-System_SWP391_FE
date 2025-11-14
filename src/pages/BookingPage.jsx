@@ -1,26 +1,33 @@
-import React, { useState, useEffect } from 'react';
-import './BookingPage.css';
-import * as API from '../api/index.js';
+import React, { useState, useEffect, useMemo } from "react";
+import "./BookingPage.css";
+import {
+  createAppointment,
+  getVehicles,
+  getVehicleByVin,
+} from "../api";
+import { services, serviceCenters, timeSlots } from "../constants/booking";
+import BookingVehicleStep from "../components/booking/BookingVehicleStep";
+import BookingBranchStep from "../components/booking/BookingBranchStep";
+import BookingServicesStep from "../components/booking/BookingServicesStep";
+import BookingScheduleStep from "../components/booking/BookingScheduleStep";
+import BookingContactStep from "../components/booking/BookingContactStep";
+import BookingSummarySidebar from "../components/booking/BookingSummarySidebar";
 
-function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
+function BookingPage({ onNavigate, prefilledVehicle }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
-    // Step 1: Vehicle Info
+    // Step 1: Vehicle Info (thông tin xe)
     licensePlate: prefilledVehicle?.licensePlate || prefilledVehicle?.vin || '',
-    vehicleModel: prefilledVehicle ? [prefilledVehicle.brand, prefilledVehicle.model].filter(Boolean).join(' ') : '',
-    mileage: prefilledVehicle?.mileage || '',
-    
-    // Step 2: Service Center (Chi nhánh)
-    serviceCenterId: null,  // ID chi nhánh được chọn
-    
-    // Step 3: Services
+    vehicleModel: prefilledVehicle?.model || '',
+    mileage: '', // Số km đã chạy
+    // Step 2: Service Center (Chi nhánh) (thông tin chi nhánh)
+    serviceCenterId: null,  // ID chi nhánh được chọn    
+    // Step 3: Services (thông tin dịch vụ)
     selectedServices: [],
-    
-    // Step 4: Schedule
+    // Step 4: Schedule (thông tin lịch hẹn)
     selectedDate: null,
-    selectedTime: '',
-    
-    // Step 5: Personal Info
+    selectedTime: '',   
+    // Step 5: Personal Info (thông tin khách hàng)
     firstName: '',
     lastName: '',
     email: '',
@@ -33,12 +40,117 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
   const [selectedVehicleInfo, setSelectedVehicleInfo] = useState(prefilledVehicle || null);
   const [vehicleLoading, setVehicleLoading] = useState(false);
   const [showVehicleDropdown, setShowVehicleDropdown] = useState(false);
+  const [clientIp, setClientIp] = useState('127.0.0.1');
+  const [expandedServices, setExpandedServices] = useState([]);
+  const [today] = useState(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date;
+  });
+  const [calendarMonth, setCalendarMonth] = useState(() => ({
+    month: today.getMonth(),
+    year: today.getFullYear()
+  }));
+  // Pre-fetch client IP for payment gateway (fallback: 127.0.0.1)
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchClientIp = async () => {
+      try {
+        const response = await fetch('https://api.ipify.org?format=json');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch client IP: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data?.ip && isMounted) {
+          setClientIp(data.ip);
+        }
+      } catch (error) {
+        console.warn('⚠️ Không thể lấy địa chỉ IP client, sử dụng mặc định 127.0.0.1', error);
+      }
+    };
+
+    fetchClientIp();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const maxBookingDate = useMemo(() => {
+    const limit = new Date(today);
+    limit.setMonth(limit.getMonth() + 2);
+    limit.setHours(0, 0, 0, 0);
+    return limit;
+  }, [today]);
+
+  const isSameDay = (dateA, dateB) => {
+    if (!dateA || !dateB) return false;
+    return (
+      dateA.getFullYear() === dateB.getFullYear() &&
+      dateA.getMonth() === dateB.getMonth() &&
+      dateA.getDate() === dateB.getDate()
+    );
+  };
+
+  const isDateBefore = (dateA, dateB) => dateA.getTime() < dateB.getTime();
+  const isDateAfter = (dateA, dateB) => dateA.getTime() > dateB.getTime();
+
+  const isTimeSlotInPast = (time, date) => {
+    if (!date || !time) return false;
+    const [hours, minutes] = time.split(':').map(Number);
+    const slotDate = new Date(date);
+    slotDate.setHours(hours, minutes, 0, 0);
+    return slotDate.getTime() <= Date.now();
+  };
+
+  const handleDateSelection = (date) => {
+    if (!date) return;
+    setFormData(prev => {
+      const shouldResetTime = prev.selectedTime && isTimeSlotInPast(prev.selectedTime, date);
+      return {
+        ...prev,
+        selectedDate: date,
+        selectedTime: shouldResetTime ? '' : prev.selectedTime
+      };
+    });
+  };
+
+  const handlePrevMonth = () => {
+    setCalendarMonth(prev => {
+      const prevMonthStart = new Date(prev.year, prev.month, 1);
+      prevMonthStart.setMonth(prevMonthStart.getMonth() - 1);
+      const prevMonthEnd = new Date(prevMonthStart.getFullYear(), prevMonthStart.getMonth() + 1, 0);
+      prevMonthEnd.setHours(0, 0, 0, 0);
+      if (isDateBefore(prevMonthEnd, today)) {
+        return prev;
+      }
+      return {
+        month: prevMonthStart.getMonth(),
+        year: prevMonthStart.getFullYear()
+      };
+    });
+  };
+
+  const handleNextMonth = () => {
+    setCalendarMonth(prev => {
+      const nextMonthStart = new Date(prev.year, prev.month, 1);
+      nextMonthStart.setMonth(nextMonthStart.getMonth() + 1);
+      if (isDateAfter(nextMonthStart, maxBookingDate)) {
+        return prev;
+      }
+      return {
+        month: nextMonthStart.getMonth(),
+        year: nextMonthStart.getFullYear()
+      };
+    });
+  };
 
   // Fetch danh sách xe của user khi component mount
   useEffect(() => {
     const fetchMyVehicles = async () => {
       try {
-        const data = await API.getVehicles();
+        const data = await getVehicles();
         setMyVehicles(data || []);
       } catch (err) {
         console.error('Lỗi khi tải danh sách xe:', err);
@@ -67,15 +179,10 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
   // Cập nhật formData khi có thông tin xe được truyền vào
   useEffect(() => {
     if (prefilledVehicle) {
-      const vehicleName = [prefilledVehicle.brand, prefilledVehicle.model]
-        .filter(Boolean)
-        .join(' ');
-      
       setFormData(prev => ({
         ...prev,
         licensePlate: prefilledVehicle.licensePlate || prefilledVehicle.vin || '',
-        vehicleModel: vehicleName,
-        mileage: prefilledVehicle.mileage || ''
+        vehicleModel: prefilledVehicle.model || ''
       }));
       setSelectedVehicleInfo(prefilledVehicle);
     }
@@ -88,16 +195,12 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
       if (vin.length >= 3) {
         try {
           setVehicleLoading(true);
-          const vehicle = await API.getVehicleByVin(vin);
+          const vehicle = await getVehicleByVin(vin);
           if (vehicle) {
             setSelectedVehicleInfo(vehicle);
-            const vehicleName = [vehicle.brand, vehicle.model]
-              .filter(Boolean)
-              .join(' ');
             setFormData(prev => ({
               ...prev,
-              vehicleModel: vehicleName,
-              mileage: vehicle.mileage || prev.mileage
+              vehicleModel: vehicle.model || ''
             }));
           }
         } catch (err) {
@@ -121,15 +224,10 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
 
   // Handler để chọn xe từ dropdown
   const handleSelectVehicle = (vehicle) => {
-    const vehicleName = [vehicle.brand, vehicle.model]
-      .filter(Boolean)
-      .join(' ');
-    
     setFormData(prev => ({
       ...prev,
       licensePlate: vehicle.licensePlate || vehicle.vin,
-      vehicleModel: vehicleName,
-      mileage: vehicle.mileage || ''
+      vehicleModel: vehicle.model || ''
     }));
     setSelectedVehicleInfo(vehicle);
     setShowVehicleDropdown(false);
@@ -137,76 +235,15 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
 
   const totalSteps = 5;
 
-  const services = [
-    {
-      id: 1,
-      name: 'Bảo dưỡng hệ thống thắng - xe EQ',
-      category: 'Bảo dưỡng',
-      icon: '🔧',
-      price: '2,500,000 VNĐ',
-      description: 'Kiểm tra và bảo dưỡng hệ thống thắng chuyên dụng cho xe điện'
-    },
-    {
-      id: 2, 
-      name: 'BẢO DƯỠNG A - Dòng xe EQ',
-      category: 'Bảo dưỡng',
-      icon: '⚡',
-      price: '3,200,000 VNĐ',
-      description: 'Bảo dưỡng toàn diện cơ bản cho xe điện EQ'
-    },
-    {
-      id: 3,
-      name: 'Bảo Dưỡng B - Dòng xe EQ',
-      category: 'Bảo dưỡng',
-      icon: '🔋',
-      price: '4,500,000 VNĐ',
-      description: 'Bảo dưỡng nâng cao với kiểm tra hệ thống pin và động cơ điện'
-    },
-    {
-      id: 4,
-      name: 'Thay cao su gạt mưa xe EQ',
-      category: 'Bảo dưỡng',
-      icon: '🌧️',
-      price: '850,000 VNĐ',
-      description: 'Thay thế gạt mưa chính hãng'
-    },
-    {
-      id: 5,
-      name: 'Công việc khác cho xe EQ',
-      category: 'Các chào giá khác',
-      icon: '⚙️',
-      price: 'Liên hệ',
-      description: 'Dịch vụ tùy chỉnh theo yêu cầu'
+  const formatCurrency = (value) => {
+    if (!value || Number.isNaN(value)) {
+      return '0 ₫';
     }
-  ];
-
-  const serviceCenters = [
-    {
-      id: 1,
-      name: 'Chi nhánh 1 - CarCare Quận 1',
-      address: '123 Lê Lợi, Quận 1',
-      city: 'Hồ Chí Minh',
-      phone: '024-3456-7890',
-      workingHours: 'Thứ 2 - Thứ 7: 8:00 - 18:00',
-      icon: '🏢'
-    },
-    {
-      id: 2,
-      name: 'Chi nhánh 2 - CarCare Thủ Đức',
-      address: '456 Võ Văn Ngân, Thủ Đức',
-      city: 'Hồ Chí Minh',
-      phone: '028-9876-5432',
-      workingHours: 'Thứ 2 - Thứ 7: 8:00 - 18:00',
-      icon: '🏢'
-    }
-  ];
-
-  const timeSlots = [
-    '08:00', '08:30', '09:00', '09:30',
-    '10:00', '10:30', '11:00', '11:30',
-    '13:00', '13:30', '14:00', '14:30',
-    '15:00', '15:30', '16:00', '16:30'
-  ];
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(value);
+  };
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -222,6 +259,14 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
         ? prev.selectedServices.filter(id => id !== serviceId)
         : [...prev.selectedServices, serviceId]
     }));
+  };
+
+  const toggleServiceDetails = (serviceId) => {
+    setExpandedServices(prev => (
+      prev.includes(serviceId)
+        ? prev.filter(id => id !== serviceId)
+        : [...prev, serviceId]
+    ));
   };
 
   const nextStep = () => {
@@ -264,17 +309,34 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
 
       // Chuẩn bị dữ liệu theo format API backend
       // Kết hợp date và time thành ISO string
-      const appointmentDateTime = new Date(
-        `${formData.selectedDate ? 
-          `2025-10-${formData.selectedDate}` : 
-          new Date().toISOString().split('T')[0]} ${formData.selectedTime || '09:00'}`
-      ).toISOString();
+      const selectedDateObj = formData.selectedDate instanceof Date
+        ? new Date(formData.selectedDate)
+        : new Date();
+      const timeString = formData.selectedTime || '09:00';
+      const [hours, minutes] = timeString.split(':').map(Number);
+      selectedDateObj.setHours(hours, minutes, 0, 0);
+
+      if (selectedDateObj.getTime() <= Date.now()) {
+        alert('⚠️ Thời gian đã chọn đã qua. Vui lòng chọn thời gian khác.');
+        return;
+      }
+
+      const appointmentDateTime = selectedDateObj.toISOString();
+      const createdAt = new Date().toISOString();
+
+      const selectedServiceDetails = services.filter(service =>
+        formData.selectedServices.includes(service.id)
+      );
+      const totalSelectedPrice = selectedServiceDetails.reduce((sum, service) => (
+        sum + (service.priceValue || 0)
+      ), 0);
 
       const appointmentData = {
         vehicleId: selectedVehicleInfo?.id || 0,  // ID xe từ database
         serviceCenterId: formData.serviceCenterId,  // ID trung tâm dịch vụ đã chọn
         appointmentDate: appointmentDateTime,  // ISO datetime string
-        serviceTypeIds: formData.selectedServices  // Array các ID dịch vụ (numbers)
+        serviceTypeIds: formData.selectedServices,  // Array các ID dịch vụ (numbers)
+        createdAt  // Thời điểm tạo lịch hẹn
       };
 
       // Validation
@@ -305,7 +367,7 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
       });
       
       // Gọi API tạo lịch hẹn
-      const response = await API.createAppointment(appointmentData);
+      const response = await createAppointment(appointmentData);
       
       console.log('✅ Đặt lịch thành công:', response);
       console.log('📋 Response data:', {
@@ -316,30 +378,24 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
       
       // ✅ Invoice đã được tạo tự động bởi backend khi đặt lịch
       const appointmentId = response.appointmentId || response.id;
+      const invoiceId = response.invoiceId || (response.invoices && response.invoices[0]?.id);
       
-      // Navigate sang trang thanh toán với thông tin appointment và invoice từ response
-      const paymentData = {
-        id: appointmentId,
-        appointmentId: appointmentId,
-        appointmentDate: appointmentData.appointmentDate,
-        vehicleModel: formData.vehicleModel,
-        serviceCenterId: formData.serviceCenterId,
-        serviceTypes: formData.selectedServices,
-        // ✅ Invoice info từ API response (đã tích hợp trong API đặt lịch)
-        invoiceId: response.invoiceId || (response.invoices && response.invoices[0]?.id),
-        invoices: response.invoices || [],
-        ...response
-      };
+      console.log('✅ Đặt lịch thành công:', response);
       
-      console.log('📤 Chuyển sang thanh toán:', paymentData);
+      // Kiểm tra xem có URL thanh toán từ backend không (VNPay, MoMo, etc.)
+      const paymentUrl = response.url || response.paymentUrl || response.paymentLink;
       
-      if (onNavigateToPayment) {
-        onNavigateToPayment(paymentData);
-      } else {
-        // Fallback nếu không có payment handler
-        alert('✅ Đặt lịch thành công! Chúng tôi sẽ xác nhận lịch hẹn của bạn trong thời gian sớm nhất.');
-        onNavigate('home');
+      if (paymentUrl) {
+        console.log('🔗 Redirecting to payment URL:', paymentUrl);
+        alert('✅ Đặt lịch thành công! Đang chuyển đến trang thanh toán...');
+        // Redirect đến VNPay sandbox hoặc payment gateway khác
+        window.location.href = paymentUrl;
+        return;
       }
+      
+      // Nếu không có payment URL, thông báo thành công và quay về trang chủ
+      alert('✅ Đặt lịch thành công! Chúng tôi sẽ xác nhận lịch hẹn của bạn trong thời gian sớm nhất.');
+      onNavigate('home');
       
     } catch (error) {
       console.error('Lỗi khi đặt lịch:', error);
@@ -439,578 +495,65 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
   };
 
   // Generate calendar days
+  const calendarLabel = useMemo(() => {
+    return `tháng ${calendarMonth.month + 1} năm ${calendarMonth.year}`;
+  }, [calendarMonth]);
+
+  const canGoPrevMonth = useMemo(() => {
+    const prevMonthStart = new Date(calendarMonth.year, calendarMonth.month, 1);
+    prevMonthStart.setMonth(prevMonthStart.getMonth() - 1);
+    const prevMonthEnd = new Date(prevMonthStart.getFullYear(), prevMonthStart.getMonth() + 1, 0);
+    prevMonthEnd.setHours(0, 0, 0, 0);
+    return !isDateBefore(prevMonthEnd, today);
+  }, [calendarMonth, today]);
+
+  const canGoNextMonth = useMemo(() => {
+    const nextDate = new Date(calendarMonth.year, calendarMonth.month, 1);
+    nextDate.setMonth(nextDate.getMonth() + 1);
+    return !isDateAfter(nextDate, maxBookingDate);
+  }, [calendarMonth, maxBookingDate]);
+
   const generateCalendarDays = () => {
     const days = [];
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
+    const { month, year } = calendarMonth;
     
-    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const firstDayOfMonth = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const offset = (firstDayOfMonth.getDay() + 6) % 7; // Monday-first
     
-    // Empty cells for days before month starts
-    for (let i = 0; i < firstDay; i++) {
+    for (let i = 0; i < offset; i++) {
       days.push(null);
     }
     
-    // Days of the month
     for (let day = 1; day <= daysInMonth; day++) {
-      days.push(day);
+      const date = new Date(year, month, day);
+      date.setHours(0, 0, 0, 0);
+      days.push({ day, date });
+    }
+    
+    while (days.length % 7 !== 0) {
+      days.push(null);
     }
     
     return days;
   };
 
-  const renderStep1 = () => (
-    <div className="booking-step-content">
-      <div className="form-section">
-        <h2>
-          <span className="form-section-icon">🚗</span>
-          Thông tin xe
-        </h2>
-        <div className="form-grid">
-          <div className="form-group full-width" style={{ position: 'relative' }}>
-            <label>Số VIN / Biển số xe</label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="Nhập hoặc chọn VIN/biển số xe"
-              value={formData.licensePlate}
-              onChange={(e) => handleInputChange('licensePlate', e.target.value)}
-              onFocus={() => setShowVehicleDropdown(true)}
-              onBlur={() => setTimeout(() => setShowVehicleDropdown(false), 200)}
-            />
-            {vehicleLoading && (
-              <span style={{ position: 'absolute', right: '10px', top: '38px', fontSize: '12px', color: '#999' }}>
-                Đang tìm...
-              </span>
-            )}
-            
-            {/* Dropdown hiển thị danh sách xe của user */}
-            {showVehicleDropdown && myVehicles.length > 0 && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                right: 0,
-                background: 'white',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                maxHeight: '200px',
-                overflowY: 'auto',
-                zIndex: 1000,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-              }}>
-                <div style={{ padding: '8px', fontSize: '12px', color: '#666', borderBottom: '1px solid #eee' }}>
-                  Chọn từ xe của tôi:
-                </div>
-                {myVehicles.map(vehicle => (
-                  <div
-                    key={vehicle.id}
-                    onClick={() => handleSelectVehicle(vehicle)}
-                    style={{
-                      padding: '10px 12px',
-                      cursor: 'pointer',
-                      borderBottom: '1px solid #f0f0f0',
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.target.style.background = '#f5f5f5'}
-                    onMouseLeave={(e) => e.target.style.background = 'white'}
-                  >
-                    <div style={{ fontWeight: '500', marginBottom: '4px' }}>
-                      {[vehicle.brand, vehicle.model].filter(Boolean).join(' ') || 'Xe'}
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#666' }}>
-                      {vehicle.licensePlate || vehicle.vin} • Năm {vehicle.year}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>  
-          
-          <div className="form-group full-width">
-            <label>Quãng đường đi</label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="Nhập số km"
-              value={formData.mileage}
-              onChange={(e) => handleInputChange('mileage', e.target.value)}
-            />
-            <span className="form-helper-text">Không bắt buộc</span>
-          </div>
-        </div>
-      </div>
+  const dateFormatter = useMemo(() => (
+    new Intl.DateTimeFormat('vi-VN', {
+      weekday: 'long',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    })
+  ), []);
 
-      {/* Hiển thị thông tin xe chi tiết khi tìm thấy */}
-      {selectedVehicleInfo && (
-        <div className="form-section" style={{ background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '8px', padding: '20px' }}>
-          <h3 style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>✅</span>
-            <span>Thông tin xe</span>
-          </h3>
-          <div className="sidebar-item">
-            <div className="sidebar-item-content">
-              <h4 style={{ fontSize: '18px', marginBottom: '12px' }}>
-                {[selectedVehicleInfo.brand, selectedVehicleInfo.model]
-                  .filter(Boolean)
-                  .join(' ') || 'Thông tin xe'}
-              </h4>
-              <div style={{ display: 'grid', gap: '8px', fontSize: '14px' }}>
-                <p style={{ margin: 0 }}>
-                  <strong>Biển số:</strong> {selectedVehicleInfo.licensePlate || 'N/A'}
-                </p>
-                {selectedVehicleInfo.vin && (
-                  <p style={{ margin: 0 }}>
-                    <strong>VIN:</strong> {selectedVehicleInfo.vin}
-                  </p>
-                )}
-                <p style={{ margin: 0 }}>
-                  <strong>Năm sản xuất:</strong> {selectedVehicleInfo.year}
-                </p>
-                {selectedVehicleInfo.color && (
-                  <p style={{ margin: 0 }}>
-                    <strong>Màu sắc:</strong> {selectedVehicleInfo.color}
-                  </p>
-                )}
-                {selectedVehicleInfo.mileage && (
-                  <p style={{ margin: 0 }}>
-                    <strong>Số km đã đi:</strong> {selectedVehicleInfo.mileage.toLocaleString()} km
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Thông báo khi không tìm thấy xe */}
-      {formData.licensePlate && !selectedVehicleInfo && !vehicleLoading && formData.licensePlate.length >= 3 && (
-        <div className="form-section" style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '8px', padding: '15px' }}>
-          <p style={{ margin: 0, color: '#856404', fontSize: '14px' }}>
-            ⚠️ Không tìm thấy thông tin xe với VIN/biển số này. Bạn có thể tiếp tục đặt lịch hoặc chọn xe khác.
-          </p>
-        </div>
-      )}
-    </div>
-  );
-
-  const renderStep2 = () => (
-    <div className="booking-step-content">
-      <div className="form-section">
-        <h2>
-          <span className="form-section-icon">📍</span>
-          Chọn chi nhánh dịch vụ
-        </h2>
-        <div className="selection-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
-          {serviceCenters.map(center => (
-            <div 
-              key={center.id}
-              className={`selection-card ${formData.serviceCenterId === center.id ? 'selected' : ''}`}
-              onClick={() => handleInputChange('serviceCenterId', center.id)}
-              style={{ 
-                padding: '24px',
-                cursor: 'pointer',
-                minHeight: '220px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px'
-              }}
-            >
-              <div className="selection-card-header" style={{ justifyContent: 'space-between' }}>
-                <span className="selection-card-icon" style={{ fontSize: '32px' }}>{center.icon}</span>
-                <input
-                  type="radio"
-                  name="serviceCenter"
-                  className="selection-checkbox"
-                  checked={formData.serviceCenterId === center.id}
-                  onChange={() => {}}
-                  style={{ width: '20px', height: '20px' }}
-                />
-              </div>
-              <h3 style={{ fontSize: '18px', margin: '8px 0', fontWeight: '600' }}>{center.name}</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px', color: '#666' }}>
-                <p style={{ margin: 0, display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                  <span>📍</span>
-                  <span>{center.address}, {center.city}</span>
-                </p>
-                <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>📞</span>
-                  <span>{center.phone}</span>
-                </p>
-                <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>🕒</span>
-                  <span>{center.workingHours}</span>
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderStep3 = () => (
-    <div className="booking-step-content">
-      <div className="form-section">
-        <h2>
-          <span className="form-section-icon">🔧</span>
-          Bảo dưỡng
-        </h2>
-        <div className="selection-grid">
-            {services.filter(s => s.category === 'Bảo dưỡng').map(service => (
-              <div 
-                key={service.id}
-              className={`selection-card ${formData.selectedServices.includes(service.id) ? 'selected' : ''}`}
-                onClick={() => handleServiceToggle(service.id)}
-              >
-              <div className="selection-card-header">
-                <span className="selection-card-icon">{service.icon}</span>
-                    <input
-                      type="checkbox"
-                  className="selection-checkbox"
-                      checked={formData.selectedServices.includes(service.id)}
-                  onChange={() => {}}
-                />
-              </div>
-              <h3>{service.name}</h3>
-              <div className="selection-card-price">{service.price}</div>
-              <button className="selection-card-details" onClick={(e) => e.stopPropagation()}>
-                Chi tiết
-              </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-      <div className="form-section">
-        <h2>
-          <span className="form-section-icon">💬</span>
-          Các chào giá khác
-        </h2>
-        <div className="selection-grid">
-          {services.filter(s => s.category === 'Các chào giá khác').map(service => (
-              <div 
-                key={service.id}
-              className={`selection-card ${formData.selectedServices.includes(service.id) ? 'selected' : ''}`}
-                onClick={() => handleServiceToggle(service.id)}
-              >
-              <div className="selection-card-header">
-                <span className="selection-card-icon">{service.icon}</span>
-                    <input
-                      type="checkbox"
-                  className="selection-checkbox"
-                      checked={formData.selectedServices.includes(service.id)}
-                  onChange={() => {}}
-                />
-              </div>
-              <h3>{service.name}</h3>
-              <button className="selection-card-details" onClick={(e) => e.stopPropagation()}>
-                Chi tiết
-              </button>
-              </div>
-            ))}
-        </div>
-
-        <div className="form-section" style={{ marginTop: '2rem', background: '#f9fafb' }}>
-          <h3 style={{ fontSize: '0.9rem', marginBottom: '1rem' }}>💡 Không chắc chắn bạn cần gì?</h3>
-          <div className="form-group full-width">
-            <label>Nhận trợ giúp về các dịch vụ</label>
-            <textarea
-              className="form-input"
-              placeholder="Tin nhắn"
-              rows="4"
-              style={{ resize: 'vertical' }}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderStep4 = () => (
-    <div className="booking-step-content">
-      <div className="form-section">
-        <h2>
-          <span className="form-section-icon">📅</span>
-          Cả Văn Dịch Vụ
-        </h2>
-        
-        <div className="form-group">
-          <label>Không ưa thích</label>
-          <select className="form-select">
-            <option>Không ưa thích</option>
-          </select>
-          <span className="form-helper-text">Không bắt buộc</span>
-        </div>
-
-        <div className="calendar-section">
-          <div className="calendar-header">
-            <h3>tháng 10 năm 2025</h3>
-            <div className="calendar-nav-btns">
-              <button className="calendar-nav-btn">‹</button>
-              <button className="calendar-nav-btn">›</button>
-            </div>
-          </div>
-          
-          <div className="calendar-grid">
-            <div className="calendar-weekdays">
-              <div className="calendar-weekday">Th 2</div>
-              <div className="calendar-weekday">Th 3</div>
-              <div className="calendar-weekday">Th 4</div>
-              <div className="calendar-weekday">Th 5</div>
-              <div className="calendar-weekday">Th 6</div>
-              <div className="calendar-weekday">Th 7</div>
-              <div className="calendar-weekday">CN</div>
-            </div>
-
-            <div className="calendar-days">
-              {generateCalendarDays().map((day, index) => (
-              <button
-                  key={index}
-                  className={`calendar-day ${!day ? 'disabled' : ''} ${
-                    formData.selectedDate === day ? 'selected' : ''
-                  } ${day && day >= new Date().getDate() ? 'available' : ''}`}
-                  onClick={() => day && handleInputChange('selectedDate', day)}
-                  disabled={!day || day < new Date().getDate()}
-                >
-                  {day || ''}
-              </button>
-            ))}
-            </div>
-          </div>
-        </div>
-
-        {formData.selectedDate && (
-          <div className="time-slots-section">
-            <h4>Không thời gian khả dụng</h4>
-            <div className="time-slots-grid">
-              {timeSlots.map(time => (
-                <button
-                  key={time}
-                  className={`time-slot ${formData.selectedTime === time ? 'selected' : ''}`}
-                  onClick={() => handleInputChange('selectedTime', time)}
-                >
-                  {time}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderStep5 = () => (
-    <div className="booking-step-content">
-      <div className="form-section">
-        <h2>Thông tin liên hệ</h2>
-        <div className="contact-form">
-          <div className="form-grid">
-            <div className="form-group">
-              <label>Tên</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Tên"
-                value={formData.firstName}
-                onChange={(e) => handleInputChange('firstName', e.target.value)}
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Họ</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Họ"
-                value={formData.lastName}
-                onChange={(e) => handleInputChange('lastName', e.target.value)}
-              />
-            </div>
-
-            <div className="form-group full-width">
-              <label>Email</label>
-              <input
-                type="email"
-                className="form-input"
-                placeholder="Email"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-              />
-            </div>
-
-            <div className="form-group full-width">
-              <label>Số điện thoại</label>
-              <div className="phone-input-group">
-                <select className="country-code-select">
-                  <option>VN (+84)</option>
-                </select>
-                <input
-                  type="tel"
-                  className="form-input"
-                  placeholder="Số điện thoại"
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="privacy-notice">
-        <h4>Quyền riêng tư của bạn là ưu tiên của chúng tôi</h4>
-        <p>
-          Bạn có thể tham khảo Chính sách bảo mật <a href="#">tại đây</a>.
-        </p>
-      </div>
-
-      <div className="checkbox-item">
-        <input
-          type="checkbox"
-          id="terms"
-          checked={formData.agreeToTerms}
-          onChange={(e) => handleInputChange('agreeToTerms', e.target.checked)}
-        />
-        <label htmlFor="terms" className="checkbox-label">
-          Tôi hiểu rằng Dữ liệu liên quan sau khi khách hàng và phương tiện được thu thập trong quá trình đặt chỗ sẽ được chuyển tiếp đến Xưởng dịch vụ ủy quyền. Tôi đã đọc và đồng ý với tất cả các điều khoản và điều kiện về bảo mật dữ liệu cá nhân.
-        </label>
-      </div>
-    </div>
-  );
-
-  const renderSidebar = () => {
-    const selectedServicesData = services.filter(s => 
-      formData.selectedServices.includes(s.id)
-    );
-
-    return (
-      <div className="booking-right-sidebar">
-        <div className="progress-percentage">
-          Đã hoàn thành {Math.round(getProgressPercentage())}%
-        </div>
-        <div className="progress-bar-container">
-          <div 
-            className="progress-bar-fill" 
-            style={{ width: `${getProgressPercentage()}%` }}
-          />
-        </div>
-
-        {formData.licensePlate && (
-          <div className="sidebar-section">
-            <h3>Xe</h3>
-            <div className="sidebar-item">
-              <div className="sidebar-item-content">
-                <h4>
-                  {selectedVehicleInfo 
-                    ? [selectedVehicleInfo.brand, selectedVehicleInfo.model]
-                        .filter(Boolean)
-                        .join(' ') || 'Thông tin xe'
-                    : formData.vehicleModel || 'Thông tin xe'}
-                </h4>
-                <p>{formData.licensePlate}</p>
-              </div>
-              {currentStep > 1 && (
-                <button 
-                  className="sidebar-edit-btn"
-                  onClick={() => setCurrentStep(1)}
-                >
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {formData.serviceCenterId && currentStep >= 3 && (
-          <div className="sidebar-section">
-            <h3>Chi nhánh dịch vụ</h3>
-            <div className="sidebar-item">
-              <div className="sidebar-item-content">
-                <h4>{serviceCenters.find(c => c.id === formData.serviceCenterId)?.name}</h4>
-                <p style={{ fontSize: '14px', color: '#666', margin: '4px 0 0 0' }}>
-                  {serviceCenters.find(c => c.id === formData.serviceCenterId)?.city}
-                </p>
-              </div>
-              {currentStep > 2 && (
-                <button 
-                  className="sidebar-edit-btn"
-                  onClick={() => setCurrentStep(2)}
-                >
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {selectedServicesData.length > 0 && (
-          <div className="sidebar-section">
-            <h3>Dịch vụ</h3>
-            {selectedServicesData.map(service => (
-              <div key={service.id} className="sidebar-item">
-                <div className="sidebar-item-content">
-                  <h4>{service.name}</h4>
-                </div>
-                {currentStep > 3 && (
-                  <button 
-                    className="sidebar-edit-btn"
-                    onClick={() => setCurrentStep(3)}
-                  >
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {formData.selectedDate && formData.selectedTime && (
-          <div className="sidebar-section">
-            <h3>Ngày và giờ</h3>
-            <div className="sidebar-item">
-              <div className="sidebar-item-content">
-                <h4>Thứ Sáu, {formData.selectedDate} thg 10 2025, {formData.selectedTime}</h4>
-              </div>
-              {currentStep > 4 && (
-                <button 
-                  className="sidebar-edit-btn"
-                  onClick={() => setCurrentStep(4)}
-                >
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {formData.firstName && formData.lastName && (
-          <div className="sidebar-section">
-            <h3>Chi tiết cá nhân</h3>
-          </div>
-        )}
-
-        {selectedServicesData.length > 0 && (
-          <div className="sidebar-total">
-            <h3>Tổng cộng</h3>
-            <div className="sidebar-total-price">Giá theo yêu cầu</div>
-            <p>Chỉ phí bổ sung có thể được áp dụng. Thành toán sẽ chỉ được thực hiện sau khi bạn chấp thuận với Đối tác Mercedes-Benz của bạn.</p>
-        </div>
-        )}
-    </div>
-  );
+  const formatDateLabel = (date) => {
+    if (!date) return '';
+    const value = dateFormatter.format(date);
+    return value.charAt(0).toUpperCase() + value.slice(1);
   };
 
+  // Hàm để lấy khuyến nghị gói dịch vụ dựa trên số km
   return (
     <div className="tesla-booking-container">
       {/* Back to Home Button */}
@@ -1057,11 +600,61 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
             <p>{getStepSubtitle()}</p>
         </div>
 
-          {currentStep === 1 && renderStep1()}
-          {currentStep === 2 && renderStep2()}
-          {currentStep === 3 && renderStep3()}
-          {currentStep === 4 && renderStep4()}
-          {currentStep === 5 && renderStep5()}
+          {currentStep === 1 && (
+            <BookingVehicleStep
+              formData={formData}
+              vehicleLoading={vehicleLoading}
+              showVehicleDropdown={showVehicleDropdown}
+              setShowVehicleDropdown={setShowVehicleDropdown}
+              myVehicles={myVehicles}
+              handleSelectVehicle={handleSelectVehicle}
+              handleInputChange={handleInputChange}
+              selectedVehicleInfo={selectedVehicleInfo}
+            />
+          )}
+          {currentStep === 2 && (
+            <BookingBranchStep
+              formData={formData}
+              handleInputChange={handleInputChange}
+              serviceCenters={serviceCenters}
+            />
+          )}
+          {currentStep === 3 && (
+            <BookingServicesStep
+              formData={formData}
+              services={services}
+              expandedServices={expandedServices}
+              toggleServiceDetails={toggleServiceDetails}
+              handleServiceToggle={handleServiceToggle}
+              formatCurrency={formatCurrency}
+            />
+          )}
+          {currentStep === 4 && (
+            <BookingScheduleStep
+              calendarLabel={calendarLabel}
+              handlePrevMonth={handlePrevMonth}
+              handleNextMonth={handleNextMonth}
+              canGoPrevMonth={canGoPrevMonth}
+              canGoNextMonth={canGoNextMonth}
+              calendarDays={generateCalendarDays()}
+              today={today}
+              maxBookingDate={maxBookingDate}
+              formData={formData}
+              handleDateSelection={handleDateSelection}
+              isDateBefore={isDateBefore}
+              isDateAfter={isDateAfter}
+              isSameDay={isSameDay}
+              timeSlots={timeSlots}
+              isTimeSlotInPast={isTimeSlotInPast}
+              handleInputChange={handleInputChange}
+            />
+          )}
+          {currentStep === 5 && (
+            <BookingContactStep
+              formData={formData}
+              handleInputChange={handleInputChange}
+            />
+          )}
 
         {/* Navigation Buttons */}
           <div className="step-navigation">
@@ -1077,7 +670,17 @@ function BookingPage({ onNavigate, onNavigateToPayment, prefilledVehicle }) {
         </div>
 
         {/* Right Sidebar */}
-        {renderSidebar()}
+        <BookingSummarySidebar
+          getProgressPercentage={getProgressPercentage}
+          formData={formData}
+          selectedVehicleInfo={selectedVehicleInfo}
+          currentStep={currentStep}
+          setCurrentStep={setCurrentStep}
+          services={services}
+          serviceCenters={serviceCenters}
+          formatCurrency={formatCurrency}
+          formatDateLabel={formatDateLabel}
+        />
       </div>
     </div>
   );

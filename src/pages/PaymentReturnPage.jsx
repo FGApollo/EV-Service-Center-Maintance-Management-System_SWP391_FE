@@ -1,159 +1,262 @@
-import React, { useState, useEffect } from 'react';
-import './PaymentReturnPage.css';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FaCheckCircle, FaTimesCircle, FaSpinner } from 'react-icons/fa';
 import { handlePaymentReturn } from '../api';
 
-function PaymentReturnPage({ onNavigate }) {
-  const [status, setStatus] = useState('processing'); // processing, success, failed
-  const [paymentData, setPaymentData] = useState(null);
-  const [errorMessage, setErrorMessage] = useState('');
+const formatCurrency = (value) => {
+  if (value === undefined || value === null || Number.isNaN(Number(value))) {
+    return '—';
+  }
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND'
+  }).format(Number(value));
+};
+
+const PaymentReturnPage = ({ onNavigate }) => {
+  const [status, setStatus] = useState('processing');
+  const [paymentResult, setPaymentResult] = useState(null);
+  const [error, setError] = useState('');
+  const [countdown, setCountdown] = useState(5);
+
+  const queryParams = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return {};
+    }
+    const params = new URLSearchParams(window.location.search);
+    const result = {};
+    params.forEach((value, key) => {
+      result[key] = value;
+    });
+    return result;
+  }, []);
 
   useEffect(() => {
-    // Lấy query params từ URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const params = {};
-    
-    // Convert tất cả query params thành object
-    urlParams.forEach((value, key) => {
-      params[key] = value;
-    });
-
-    console.log('🔄 Payment return callback:', params);
-
-    // Gọi API xử lý payment return
     const processPaymentReturn = async () => {
       try {
         setStatus('processing');
-        
-        const result = await handlePaymentReturn(params);
-        
-        console.log('✅ Payment return processed:', result);
+        console.log('🔍 DEBUG: queryParams =', queryParams);
+        console.log('🔍 DEBUG: Calling handlePaymentReturn...');
+        const result = await handlePaymentReturn(queryParams);
+        console.log('🔍 DEBUG: handlePaymentReturn response =', result);
+        setPaymentResult(result);
 
-        if (result.status === 'success' || result.success === true) {
+        const isSuccess =
+          result.success === true ||
+          result.status === 'success' ||
+          result.vnp_TransactionStatus === '00' ||
+          result.resultCode === '0';
+
+        if (isSuccess) {
           setStatus('success');
-          setPaymentData(result);
-          
-          // Auto redirect sau 3 giây
-          setTimeout(() => {
-            if (onNavigate) {
-              onNavigate('home');
-            }
-          }, 3000);
+          setCountdown(5);
         } else {
           setStatus('failed');
-          setErrorMessage(result.message || 'Thanh toán không thành công');
+          setError(
+            result.message ||
+              result.vnp_Message ||
+              'Thanh toán không thành công. Vui lòng thử lại hoặc liên hệ hỗ trợ.'
+          );
         }
-      } catch (error) {
-        console.error('❌ Payment return error:', error);
+      } catch (err) {
+        console.error('❌ Lỗi xử lý payment return:', err);
         setStatus('failed');
-        
-        let errorMsg = 'Có lỗi xảy ra khi xử lý thanh toán!';
-        if (error.response?.data?.message) {
-          errorMsg = error.response.data.message;
-        } else if (error.message) {
-          errorMsg = error.message;
-        }
-        
-        setErrorMessage(errorMsg);
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            'Không thể xử lý kết quả thanh toán. Vui lòng thử lại sau.'
+        );
       }
     };
 
-    // Chỉ process nếu có params
-    if (Object.keys(params).length > 0) {
+    if (Object.keys(queryParams).length > 0) {
       processPaymentReturn();
     } else {
       setStatus('failed');
-      setErrorMessage('Không tìm thấy thông tin thanh toán');
+      setError('Không tìm thấy tham số kết quả thanh toán trong URL.');
     }
-  }, [onNavigate]);
+  }, [onNavigate, queryParams]);
 
-  // Processing state
+  useEffect(() => {
+    if (status !== 'success') return;
+    if (countdown <= 0) {
+      onNavigate && onNavigate('home', { toast: { type: 'success', message: 'Đặt lịch và thanh toán thành công!' } });
+      return;
+    }
+    const timer = setTimeout(() => setCountdown((prev) => prev - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [countdown, onNavigate, status]);
+
   if (status === 'processing') {
     return (
-      <div className="payment-return-page">
-        <div className="payment-return-container">
-          <div className="processing-icon">
-            <FaSpinner className="spinning" />
-          </div>
-          <h2>Đang xử lý thanh toán...</h2>
-          <p>Vui lòng đợi trong giây lát</p>
+      <div style={styles.container}>
+        <div style={styles.card}>
+          <FaSpinner style={{ ...styles.icon, animation: 'spin 1s linear infinite' }} />
+          <h2>Đang xác thực thanh toán...</h2>
+          <p>Vui lòng đợi trong giây lát.</p>
         </div>
       </div>
     );
   }
 
-  // Success state
-  if (status === 'success') {
+  if (status === 'failed') {
     return (
-      <div className="payment-return-page">
-        <div className="payment-return-container success">
-          <div className="success-icon">
-            <FaCheckCircle />
-          </div>
-          <h2>Thanh toán thành công!</h2>
-          <p>Cảm ơn bạn đã sử dụng dịch vụ</p>
-          
-          {paymentData && (
-            <div className="payment-details">
-              {paymentData.paymentId && (
-                <p><strong>Mã giao dịch:</strong> {paymentData.paymentId}</p>
-              )}
-              {paymentData.appointmentId && (
-                <p><strong>Mã lịch hẹn:</strong> #{paymentData.appointmentId}</p>
-              )}
-              {paymentData.amount && (
-                <p><strong>Số tiền:</strong> {new Intl.NumberFormat('vi-VN', {
-                  style: 'currency',
-                  currency: 'VND'
-                }).format(paymentData.amount)}</p>
-              )}
-              {paymentData.method && (
-                <p><strong>Phương thức:</strong> {paymentData.method}</p>
-              )}
-            </div>
-          )}
-
-          <button 
-            className="btn-primary"
-            onClick={() => onNavigate && onNavigate('home')}
-          >
+      <div style={styles.container}>
+        <div style={{ ...styles.card, ...styles.failed }}>
+          <FaTimesCircle style={{ ...styles.icon, color: '#dc2626' }} />
+          <h2>Thanh toán thất bại</h2>
+          <p style={styles.message}>{error}</p>
+          <button style={styles.primaryBtn} onClick={() => onNavigate && onNavigate('booking')}>
+            Quay lại đặt lịch
+          </button>
+          <button style={styles.secondaryBtn} onClick={() => onNavigate && onNavigate('home')}>
             Về trang chủ
           </button>
-          
-          <p className="auto-redirect">Tự động chuyển về trang chủ sau 3 giây...</p>
         </div>
       </div>
     );
   }
 
-  // Failed state
   return (
-    <div className="payment-return-page">
-      <div className="payment-return-container failed">
-        <div className="failed-icon">
-          <FaTimesCircle />
+    <div style={styles.container}>
+      <div style={{ ...styles.card, ...styles.success }}>
+        <FaCheckCircle style={{ ...styles.icon, color: '#16a34a' }} />
+        <h2>Thanh toán thành công</h2>
+        <p>Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi.</p>
+
+        <div style={styles.details}>
+          {paymentResult?.appointmentId && (
+            <DetailRow label="Mã lịch hẹn" value={`#${paymentResult.appointmentId}`} />
+          )}
+          {paymentResult?.invoiceId && (
+            <DetailRow label="Mã hóa đơn" value={`#${paymentResult.invoiceId}`} />
+          )}
+          {paymentResult?.orderId && (
+            <DetailRow label="Mã giao dịch" value={paymentResult.orderId} />
+          )}
+          {paymentResult?.paymentId && (
+            <DetailRow label="Mã thanh toán" value={paymentResult.paymentId} />
+          )}
+          <DetailRow
+            label="Số tiền thanh toán"
+            value={formatCurrency(
+              paymentResult?.amount ||
+                paymentResult?.totalAmount ||
+                paymentResult?.vnp_Amount / 100 ||
+                paymentResult?.payAmount
+            )}
+          />
+          {paymentResult?.method && (
+            <DetailRow label="Phương thức" value={paymentResult.method} />
+          )}
+          {paymentResult?.bankCode && (
+            <DetailRow label="Ngân hàng" value={paymentResult.bankCode} />
+          )}
         </div>
-        <h2>Thanh toán thất bại</h2>
-        <p className="error-message">{errorMessage}</p>
-        
-        <div className="action-buttons">
-          <button 
-            className="btn-primary"
-            onClick={() => onNavigate && onNavigate('home')}
-          >
-            Về trang chủ
-          </button>
-          <button 
-            className="btn-secondary"
-            onClick={() => window.history.back()}
-          >
-            Thử lại
-          </button>
-        </div>
+
+        <p style={{ marginTop: '1rem', color: '#4b5563' }}>
+          Bạn sẽ được chuyển về trang chủ sau {countdown} giây...
+        </p>
+        <button
+          style={styles.primaryBtn}
+          onClick={() =>
+            onNavigate &&
+            onNavigate('home', {
+              toast: { type: 'success', message: 'Đặt lịch và thanh toán thành công!' }
+            })
+          }
+        >
+          Về trang chủ ngay
+        </button>
       </div>
     </div>
   );
-}
+};
+
+const DetailRow = ({ label, value }) => (
+  <div style={styles.detailRow}>
+    <span style={styles.detailLabel}>{label}</span>
+    <span style={styles.detailValue}>{value}</span>
+  </div>
+);
+
+const styles = {
+  container: {
+    minHeight: '70vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: '#f8fafc',
+    padding: '2rem'
+  },
+  card: {
+    width: '100%',
+    maxWidth: '520px',
+    background: '#ffffff',
+    borderRadius: '16px',
+    padding: '2.5rem',
+    boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
+    textAlign: 'center',
+    border: '1px solid #e2e8f0'
+  },
+  success: {
+    borderColor: '#bbf7d0',
+    background: '#f0fdf4'
+  },
+  failed: {
+    borderColor: '#fecaca',
+    background: '#fef2f2'
+  },
+  icon: {
+    fontSize: '48px',
+    marginBottom: '1rem'
+  },
+  details: {
+    textAlign: 'left',
+    marginTop: '1.5rem',
+    background: '#ffffff',
+    borderRadius: '12px',
+    padding: '1.5rem',
+    boxShadow: 'inset 0 0 0 1px #e0e7ff'
+  },
+  detailRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    marginBottom: '0.75rem',
+    fontSize: '15px'
+  },
+  detailLabel: {
+    color: '#475569',
+    fontWeight: 500
+  },
+  detailValue: {
+    fontWeight: 600,
+    color: '#0f172a'
+  },
+  message: {
+    margin: '1rem 0',
+    color: '#dc2626'
+  },
+  primaryBtn: {
+    marginTop: '1.5rem',
+    padding: '0.75rem 1.5rem',
+    borderRadius: '9999px',
+    border: 'none',
+    background: '#2563eb',
+    color: '#fff',
+    fontWeight: 600,
+    cursor: 'pointer'
+  },
+  secondaryBtn: {
+    marginTop: '0.75rem',
+    padding: '0.6rem 1.5rem',
+    borderRadius: '9999px',
+    border: '1px solid #94a3b8',
+    background: '#fff',
+    color: '#1e293b',
+    fontWeight: 500,
+    cursor: 'pointer'
+  }
+};
 
 export default PaymentReturnPage;
 

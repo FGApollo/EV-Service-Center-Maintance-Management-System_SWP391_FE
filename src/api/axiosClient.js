@@ -62,6 +62,30 @@ axiosClient.interceptors.response.use(
           
           // Reload page to force re-login
           window.location.href = '/';
+          try {
+            // Avoid removing token immediately to prevent race conditions where
+            // multiple concurrent requests cause one to clear credentials and
+            // others to fail without a token. Instead, dispatch a single
+            // 'app:logout' event and let application-level logic handle clearing
+            // storage and redirecting the user in a controlled manner.
+            console.warn('🔐 Token looks invalid/expired — dispatching logout event for app to handle.');
+
+            try {
+              // Use a sessionStorage flag to avoid dispatching the event repeatedly
+              if (!sessionStorage.getItem('app_logout_dispatched')) {
+                sessionStorage.setItem('app_logout_dispatched', '1');
+                window.dispatchEvent(new CustomEvent('app:logout', { detail: { reason: backendMessage, status } }));
+              }
+            } catch (e) {
+              console.warn('Unable to dispatch app:logout event:', e);
+            }
+
+            // Do NOT clear localStorage or redirect here to avoid mid-flight races.
+            // Application root should clear tokens and redirect when it receives
+            // the 'app:logout' event.
+          } catch (e) {
+            console.error('Error handling token-expiry notification:', e);
+          }
         }
       }
     } else if (error.request) {

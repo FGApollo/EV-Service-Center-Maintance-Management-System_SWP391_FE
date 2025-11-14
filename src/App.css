@@ -1,23 +1,40 @@
-/* App Container */
-.App {
-  min-height: 100vh;
+.app-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 14px 20px;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.2);
+  z-index: 9999;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: slideIn 0.3s ease forwards;
 }
 
-/* Main Content Area */
-main {
-  flex: 1;
-  padding-bottom: 20px;
+.app-toast.success {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
 }
 
-/* Footer */
-footer {
-  margin-bottom: 30px; /* Thêm margin để tránh bị Windows taskbar che */
+.app-toast.info {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
 }
 
-/* Body scrollbar */
-body {
-  overflow-y: scroll;
-  padding-bottom: env(safe-area-inset-bottom); /* Cho mobile */
+.app-toast.error {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
 }
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+

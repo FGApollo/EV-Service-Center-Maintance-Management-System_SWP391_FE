@@ -99,8 +99,7 @@ const ImageSlider = () => {
                 <p className="slide-description">{slide.description}</p>
                 
                 <div className="slide-actions">
-                  <button className="btn-primary-slide">{slide.cta1}</button>
-                  <button className="btn-secondary-slide">{slide.cta2}</button>
+                  
                 </div>
               </div>
             </div>

@@ -1,11 +1,11 @@
 // 🔧 Cấu hình API URL cho từng môi trường
 
 // ⚠️ Sửa dòng này để chuyển môi trường nhanh:
-const ENV = "local"; // "local" | "render" | "vercel"  // ← Chuyển sang "local" để dùng backend local
+const ENV = "local"; // "local" | "render" | "vercel"  // ← Đổi thành "local" nếu có backend local
 
-// 🖥️ Local backend (khi chạy Node/Express trên localhost)
-// Sử dụng relative path để Vite proxy xử lý (tránh CORS)
-const LOCAL_API = ""; // Empty string = relative path, Vite proxy sẽ forward đến http://localhost:8080
+// 🖥️ Local backend (sử dụng Vite proxy để tránh CORS)
+// Trong development, Vite sẽ tự động forward các request từ '' sang 'http://localhost:8080'
+const LOCAL_API = ""; // Empty string để dùng proxy của Vite
 
 // ☁️ Backend Render (deploy online)
 const RENDER_API = "https://ev-service-center-maintance-management-um2j.onrender.com";
