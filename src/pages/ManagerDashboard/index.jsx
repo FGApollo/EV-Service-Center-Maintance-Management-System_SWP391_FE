@@ -48,7 +48,7 @@ function ManagerDashboard({ onNavigate }) {
     if (!token) {
       if (!hasShownAlert) {
         hasShownAlert = true;
-        alert('Bạn cần đăng nhập để truy cập trang này!');
+        showWarning('Bạn cần đăng nhập để truy cập trang này!');
         onNavigate && onNavigate('login');
       }
       return;
@@ -58,7 +58,7 @@ function ManagerDashboard({ onNavigate }) {
     if (role !== ROLES.MANAGER) {
       if (!hasShownAlert) {
         hasShownAlert = true;
-        alert('Bạn không có quyền truy cập trang này! Trang này chỉ dành cho Manager.');
+        showWarning('Bạn không có quyền truy cập trang này! Trang này chỉ dành cho Manager.');
         onNavigate && onNavigate('login');
       }
       return;
@@ -68,7 +68,7 @@ function ManagerDashboard({ onNavigate }) {
     if (!centerId) {
       if (!hasShownAlert) {
         hasShownAlert = true;
-        alert('Tài khoản chưa được gán vào trung tâm nào!');
+        showWarning('Tài khoản chưa được gán vào trung tâm nào!');
         onNavigate && onNavigate('login');
       }
       return;

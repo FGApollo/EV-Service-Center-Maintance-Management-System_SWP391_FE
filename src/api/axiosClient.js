@@ -1,5 +1,6 @@
 import axios from "axios";
 import { CONFIG } from "./config";
+import { showWarning } from '../utils/toast';
 
 const axiosClient = axios.create({
   baseURL: CONFIG.API_BASE,
@@ -54,7 +55,7 @@ axiosClient.interceptors.response.use(
           console.warn('🔐 Token error detected. Please login again.');
           
           // Alert user to login again
-          alert('⚠️ Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
+          showWarning('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
           
           // Clear token và user data
           localStorage.removeItem('token');

@@ -12,6 +12,7 @@ import {
   createMaintenanceRecord,
   markAppointmentAsDone
 } from '../../api';
+import { showSuccess, showError, showWarning } from '../../utils/toast';
 
 function TechnicianDashboard() {
   const [activeStatus, setActiveStatus] = useState('all');
@@ -186,13 +187,13 @@ function TechnicianDashboard() {
       await startAppointment(appointmentId);
       
       console.log('✅ Đã bắt đầu làm việc');
-      alert('✅ Đã bắt đầu làm việc!');
+      showSuccess('Đã bắt đầu làm việc!');
       
       await fetchAppointments();
       
     } catch (err) {
       console.error('❌ Lỗi khi bắt đầu:', err);
-      alert(err.response?.data?.message || 'Không thể bắt đầu làm việc');
+      showError(err.response?.data?.message || 'Không thể bắt đầu làm việc');
     } finally {
       setActionLoading(false);
     }
@@ -211,7 +212,7 @@ function TechnicianDashboard() {
       await markAppointmentAsDone(appointmentId);
       
       console.log('✅ Appointment completed (done)');
-      alert('✅ Công việc đã hoàn thành!');
+      showSuccess('Công việc đã hoàn thành!');
       
       // Refresh list
       await fetchAppointments();
@@ -219,7 +220,7 @@ function TechnicianDashboard() {
     } catch (err) {
       console.error('❌ Lỗi khi hoàn thành:', err);
       console.error('❌ Error response:', err.response?.data);
-      alert(err.response?.data?.message || 'Không thể hoàn thành công việc');
+      showError(err.response?.data?.message || 'Không thể hoàn thành công việc');
     } finally {
       setActionLoading(false);
     }
@@ -229,12 +230,12 @@ function TechnicianDashboard() {
     try {
       // Validate required fields
       if (!maintenanceRecord.vehicleCondition.trim()) {
-        alert('⚠️ Vui lòng nhập tình trạng xe');
+        showWarning('Vui lòng nhập tình trạng xe');
         return;
       }
       
       if (!maintenanceRecord.checklist.trim()) {
-        alert('⚠️ Vui lòng nhập checklist');
+        showWarning('Vui lòng nhập checklist');
         return;
       }
       
@@ -263,7 +264,7 @@ function TechnicianDashboard() {
       }
       
       if (staffIds.length === 0) {
-        alert('⚠️ Không tìm thấy thông tin technician. Vui lòng đăng nhập lại.');
+        showWarning('Không tìm thấy thông tin technician. Vui lòng đăng nhập lại.');
         return;
       }
       
@@ -286,13 +287,13 @@ function TechnicianDashboard() {
       const response = await createMaintenanceRecord(selectedAppointment.id, recordData);
       
       console.log('✅ Maintenance record saved:', response);
-      alert('✅ Đã lưu thông tin bảo dưỡng thành công!');
+      showSuccess('Đã lưu thông tin bảo dưỡng thành công!');
       setIsEditingCondition(false);
       
     } catch (err) {
       console.error('❌ Lỗi khi lưu maintenance record:', err);
       console.error('❌ Error response:', err.response?.data);
-      alert(err.response?.data?.message || 'Không thể lưu thông tin bảo dưỡng');
+      showError(err.response?.data?.message || 'Không thể lưu thông tin bảo dưỡng');
     } finally {
       setActionLoading(false);
     }
@@ -317,7 +318,7 @@ function TechnicianDashboard() {
   
   const handleAddPart = () => {
     if (!newPart.partId || !newPart.quantityUsed || !newPart.unitCost) {
-      alert('⚠️ Vui lòng điền đầy đủ thông tin linh kiện');
+      showWarning('Vui lòng điền đầy đủ thông tin linh kiện');
       return;
     }
     

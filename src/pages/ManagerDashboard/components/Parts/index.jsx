@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FaSearch, FaPlus, FaWarehouse, FaEdit, FaTrash } from 'react-icons/fa';
 import { useParts } from '../../hooks/useParts';
 import { PartModal } from './PartModal';
+import { showSuccess, showError } from '../../../../utils/toast';
 
 export const PartsTab = () => {
   const { parts, loading, addPart, updatePart, deletePart } = useParts();
@@ -46,12 +47,12 @@ export const PartsTab = () => {
       try {
         const result = await deletePart(part.id);
         if (result.success) {
-          alert('✅ Xóa phụ tùng thành công!');
+          showSuccess('Xóa phụ tùng thành công!');
         } else {
-          alert(`❌ Lỗi: ${result.error}`);
+          showError(`Lỗi: ${result.error}`);
         }
       } catch (err) {
-        alert(`❌ Lỗi: ${err.message || 'Không thể xóa phụ tùng'}`);
+        showError(`Lỗi: ${err.message || 'Không thể xóa phụ tùng'}`);
       }
     }
   };
@@ -71,13 +72,13 @@ export const PartsTab = () => {
       }
 
       if (result.success) {
-        alert(modalMode === 'add' ? '✅ Thêm phụ tùng thành công!' : '✅ Cập nhật phụ tùng thành công!');
+        showSuccess(modalMode === 'add' ? 'Thêm phụ tùng thành công!' : 'Cập nhật phụ tùng thành công!');
         setShowModal(false);
       } else {
-        alert(`❌ Lỗi: ${result.error || 'Không thể lưu phụ tùng'}`);
+        showError(`Lỗi: ${result.error || 'Không thể lưu phụ tùng'}`);
       }
     } catch (err) {
-      alert(`❌ Lỗi: ${err.message || 'Có lỗi xảy ra'}`);
+      showError(`Lỗi: ${err.message || 'Có lỗi xảy ra'}`);
     } finally {
       setSaving(false);
     }

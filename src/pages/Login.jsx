@@ -2,8 +2,10 @@ import React from "react";
 import "./Login.css";
 import AuthForm from "../components/login/AuthForm";
 import useAuthForm from "../hooks/useAuthForm";
+import { useToastContext } from "../contexts/ToastContext";
 
 function Login({ onNavigate, onLogin }) {
+  const toast = useToastContext();
   const {
     formData,
     isSignUp,
@@ -11,7 +13,7 @@ function Login({ onNavigate, onLogin }) {
     handleInputChange,
     handleSubmit,
     toggleSignUp,
-  } = useAuthForm({ onNavigate, onLogin });
+  } = useAuthForm({ onNavigate, onLogin, toast });
 
   return (
     <div className="login-container">

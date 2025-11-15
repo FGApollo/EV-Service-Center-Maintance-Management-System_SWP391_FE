@@ -9,45 +9,45 @@ const ImageSlider = () => {
     {
       id: 1,
       image: "https://images.unsplash.com/photo-1593941707882-a5bba14938c7?ixlib=rb-4.0.3&auto=format&fit=crop&w=2400&q=80",
-      title: "EMPOWER YOUR DRIVE",
-      subtitle: "Premium EV Service Center",
-      description: "Step into the future with a car that blends elegant features, sleek design, and everything you need for the road ahead",
+      title: "CARCARE - CHĂM SÓC XE ĐIỆN",
+      subtitle: "Trung Tâm Bảo Dưỡng Xe Điện",
+      description: "Chuyên sâu về xe điện với công nghệ tiên tiến và đội ngũ kỹ thuật viên được đào tạo bài bản",
       cta1: "Explore",
       cta2: "Book Service"
     },
     {
       id: 2,
       image: "https://images.unsplash.com/photo-1617469767053-d3b523a0b982?ixlib=rb-4.0.3&auto=format&fit=crop&w=2400&q=80",
-      title: "ELECTRIC REVOLUTION",
-      subtitle: "Advanced Technology",
-      description: "Experience the pinnacle of electric vehicle performance and innovation",
+      title: "HỆ THỐNG PIN HIỆU SUẤT CAO",
+      subtitle: "Bảo Dưỡng Pin Chuyên Nghiệp",
+      description: "Kiểm tra và bảo dưỡng hệ thống pin xe điện đảm bảo hiệu suất tối ưu và tuổi thọ cao",
       cta1: "Discover More",
       cta2: "Schedule Now"
     },
     {
       id: 3,
       image: "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2400&q=80",
-      title: "LUXURY REDEFINED",
-      subtitle: "Premium Service Excellence",
-      description: "Where cutting-edge technology meets unparalleled craftsmanship",
+      title: "CÔNG NGHỆ TIÊN TIẾN",
+      subtitle: "Chẩn Đoán Thông Minh",
+      description: "Hệ thống chẩn đoán hiện đại giúp phát hiện sớm và khắc phục mọi vấn đề của xe điện",
       cta1: "Learn More",
       cta2: "Contact Us"
     },
     {
       id: 4,
       image: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?ixlib=rb-4.0.3&auto=format&fit=crop&w=2400&q=80",
-      title: "PERFORMANCE UNLEASHED",
-      subtitle: "Next-Gen Electric Power",
-      description: "Elevate your driving experience with precision engineering and dynamic performance",
+      title: "TỐI ƯU HÓA HIỆU SUẤT",
+      subtitle: "Nâng Cấp Hệ Thống Sạc",
+      description: "Tối ưu hóa hiệu suất sạc và cập nhật phần mềm xe điện cho trải nghiệm lái tốt nhất",
       cta1: "Explore",
       cta2: "Book Now"
     },
     {
       id: 5,
       image: "https://images.unsplash.com/photo-1619405399517-d7fce0f13302?ixlib=rb-4.0.3&auto=format&fit=crop&w=2400&q=80",
-      title: "FUTURE IS NOW",
-      subtitle: "Sustainable Excellence",
-      description: "Join the electric revolution with world-class service and maintenance",
+      title: "CAM KẾT CHẤT LƯỢNG",
+      subtitle: "Bảo Hành Toàn Diện",
+      description: "Dịch vụ bảo dưỡng định kỳ với cam kết chất lượng và bảo hành dài hạn cho xe điện",
       cta1: "Get Started",
       cta2: "Learn More"
     }
