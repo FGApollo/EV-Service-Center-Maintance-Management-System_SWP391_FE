@@ -274,11 +274,7 @@ function VehicleManagement() {
                 <div className="maintenance-info">
                   <div className="maintenance-stat">
                     <span className="stat-value">{selectedVehicle.maintenanceCount}</span>
-                    <span className="stat-label">Lần bảo dưỡng</span>
-                  </div>
-                  <div className="maintenance-stat">
-                    <span className="stat-value">{formatDate(selectedVehicle.closetTime)}</span>
-                    <span className="stat-label">Lần cuối cùng</span>
+                    <span className="stat-label">Tổng số lần bảo dưỡng</span>
                   </div>
                 </div>
               </div>

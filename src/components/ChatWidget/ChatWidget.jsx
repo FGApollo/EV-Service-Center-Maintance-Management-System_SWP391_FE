@@ -24,7 +24,10 @@ function ChatWidget() {
   };
 
   useEffect(() => {
+    // Scroll ngay lập tức và sau một delay nhỏ để đảm bảo DOM đã update
     scrollToBottom();
+    const timer = setTimeout(() => scrollToBottom(), 50);
+    return () => clearTimeout(timer);
   }, [messages]);
 
   // Kết nối WebSocket khi mở chat lần đầu
@@ -135,9 +138,17 @@ function ChatWidget() {
       time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     };
 
-    setMessages(prev => [...prev, newMessage]);
     const messageToSend = inputMessage;
     setInputMessage('');
+    
+    // Update messages và force scroll
+    setMessages(prev => {
+      const updated = [...prev, newMessage];
+      console.log('📝 Messages updated:', updated.length, 'messages');
+      // Force scroll sau khi update
+      setTimeout(() => scrollToBottom(), 100);
+      return updated;
+    });
 
     // Gửi tin nhắn qua WebSocket
     if (connected && stompRef.current?.connected && sessionId) {
@@ -181,7 +192,12 @@ function ChatWidget() {
   };
 
   const toggleChat = () => {
-    setIsOpen(!isOpen);
+    const newIsOpen = !isOpen;
+    setIsOpen(newIsOpen);
+    // Scroll xuống cuối khi mở chat
+    if (newIsOpen) {
+      setTimeout(() => scrollToBottom(), 100);
+    }
   };
 
   return (
@@ -209,8 +225,9 @@ function ChatWidget() {
 
         {/* Messages */}
         <div className="chat-widget-messages">
-          {messages.map((msg) => (
-            <div key={msg.id} className={`chat-message ${msg.sender}`}>
+          {console.log('🎨 Rendering messages:', messages.length, messages)}
+          {messages.map((msg, index) => (
+            <div key={`${msg.id}-${index}`} className={`chat-message ${msg.sender}`}>
               {msg.sender === 'staff' && (
                 <div className="message-avatar">👨‍💼</div>
               )}

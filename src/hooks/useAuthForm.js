@@ -10,10 +10,31 @@ const initialFormState = {
   rememberMe: false,
 };
 
-const useAuthForm = ({ onNavigate, onLogin }) => {
+const useAuthForm = ({ onNavigate, onLogin, toast }) => {
   const [formData, setFormData] = useState(initialFormState);
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // Helper function to show message (use toast if available, otherwise alert)
+  const showMessage = (message, type = 'info') => {
+    if (toast) {
+      switch(type) {
+        case 'success':
+          toast.showSuccess(message);
+          break;
+        case 'error':
+          toast.showError(message);
+          break;
+        case 'warning':
+          toast.showWarning(message);
+          break;
+        default:
+          toast.showInfo(message);
+      }
+    } else {
+      alert(message);
+    }
+  };
 
   const handleInputChange = (event) => {
     const { name, value, type, checked } = event.target;
@@ -39,7 +60,7 @@ const useAuthForm = ({ onNavigate, onLogin }) => {
     try {
       if (isSignUp) {
         if (formData.password !== formData.confirmPassword) {
-          alert("❌ Mật khẩu xác nhận không khớp!");
+          showMessage("Mật khẩu xác nhận không khớp!", 'error');
           setLoading(false);
           return;
         }
@@ -53,7 +74,7 @@ const useAuthForm = ({ onNavigate, onLogin }) => {
 
         const response = await register(newUser);
         console.log("✅ Đăng ký thành công:", response);
-        alert("Đăng ký thành công! Hãy đăng nhập.");
+        showMessage("Đăng ký thành công! Hãy đăng nhập.", 'success');
         setIsSignUp(false);
         resetForm();
         return;
@@ -68,7 +89,7 @@ const useAuthForm = ({ onNavigate, onLogin }) => {
       console.log("✅ Đăng nhập thành công:", response);
 
       if (!response.token) {
-        alert("Không nhận được token!");
+        showMessage("Không nhận được token!", 'error');
         return;
       }
 
@@ -91,14 +112,28 @@ const useAuthForm = ({ onNavigate, onLogin }) => {
         console.error("Lỗi lưu localStorage:", storageError);
       }
 
-      alert("Đăng nhập thành công!");
+      showMessage("Đăng nhập thành công!", 'success');
       if (onLogin) {
         onLogin(userData);
       }
-      onNavigate("home");
+      
+      // Redirect based on role
+      const role = userData.role?.toLowerCase();
+      if (role === 'staff') {
+        onNavigate('staff');
+      } else if (role === 'manager') {
+        onNavigate('manager');
+      } else if (role === 'technician') {
+        onNavigate('technician');
+      } else if (role === 'admin') {
+        onNavigate('admin');
+      } else {
+        onNavigate('home');
+      }
     } catch (error) {
       console.error("Lỗi khi gọi API:", error.response?.data || error.message);
-      alert("Lỗi khi gọi API, xem console để biết thêm chi tiết!");
+      const errorMessage = error.response?.data?.message || error.message || "Lỗi khi gọi API";
+      showMessage(errorMessage, 'error');
     } finally {
       setLoading(false);
     }

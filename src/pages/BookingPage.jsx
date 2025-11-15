@@ -12,8 +12,10 @@ import BookingServicesStep from "../components/booking/BookingServicesStep";
 import BookingScheduleStep from "../components/booking/BookingScheduleStep";
 import BookingContactStep from "../components/booking/BookingContactStep";
 import BookingSummarySidebar from "../components/booking/BookingSummarySidebar";
+import { useToastContext } from "../contexts/ToastContext";
 
 function BookingPage({ onNavigate, prefilledVehicle }) {
+  const toast = useToastContext();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     // Step 1: Vehicle Info (thông tin xe)
@@ -317,7 +319,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
       selectedDateObj.setHours(hours, minutes, 0, 0);
 
       if (selectedDateObj.getTime() <= Date.now()) {
-        alert('⚠️ Thời gian đã chọn đã qua. Vui lòng chọn thời gian khác.');
+        toast.showWarning('Thời gian đã chọn đã qua. Vui lòng chọn thời gian khác.');
         return;
       }
 
@@ -341,15 +343,15 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
 
       // Validation
       if (!selectedVehicleInfo?.id) {
-        alert('⚠️ Vui lòng chọn xe có sẵn trong hệ thống hoặc nhập VIN/biển số hợp lệ');
+        toast.showWarning('Vui lòng chọn xe có sẵn trong hệ thống hoặc nhập VIN/biển số hợp lệ');
         return;
       }
       if (!formData.serviceCenterId) {
-        alert('⚠️ Vui lòng chọn chi nhánh dịch vụ');
+        toast.showWarning('Vui lòng chọn chi nhánh dịch vụ');
         return;
       }
       if (!formData.selectedServices || formData.selectedServices.length === 0) {
-        alert('⚠️ Vui lòng chọn dịch vụ');
+        toast.showWarning('Vui lòng chọn dịch vụ');
         return;
       }
 
@@ -387,15 +389,21 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
       
       if (paymentUrl) {
         console.log('🔗 Redirecting to payment URL:', paymentUrl);
-        alert('✅ Đặt lịch thành công! Đang chuyển đến trang thanh toán...');
+        toast.showSuccess('Đặt lịch thành công! Đang chuyển đến trang thanh toán...');
         // Redirect đến VNPay sandbox hoặc payment gateway khác
-        window.location.href = paymentUrl;
+        setTimeout(() => {
+          window.location.href = paymentUrl;
+        }, 1500);
         return;
       }
       
-      // Nếu không có payment URL, thông báo thành công và quay về trang chủ
-      alert('✅ Đặt lịch thành công! Chúng tôi sẽ xác nhận lịch hẹn của bạn trong thời gian sớm nhất.');
-      onNavigate('home');
+      // Nếu không có payment URL, redirect đến payment-return với thông tin đặt lịch
+      const returnUrl = `/payment-return?status=success&amount=${totalSelectedPrice}&orderId=${appointmentId || 'N/A'}&appointmentId=${appointmentId || ''}&message=Đặt lịch bảo dưỡng thành công`;
+      
+      toast.showSuccess('Đặt lịch thành công! Đang chuyển đến trang xác nhận...');
+      setTimeout(() => {
+        window.location.href = returnUrl;
+      }, 1500);
       
     } catch (error) {
       console.error('Lỗi khi đặt lịch:', error);
@@ -464,7 +472,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
         errorMessage = error.message;
       }
       
-      alert(`❌ Không thể đặt lịch: ${errorMessage}`);
+      toast.showError(`Không thể đặt lịch: ${errorMessage}`);
     }
   };
 

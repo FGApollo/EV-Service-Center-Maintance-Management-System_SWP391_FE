@@ -7,9 +7,22 @@ const initialPassword = {
   confirmPassword: "",
 };
 
-const usePasswordChange = () => {
+const usePasswordChange = (toast) => {
   const [passwordData, setPasswordData] = useState(initialPassword);
   const [saving, setSaving] = useState(false);
+  
+  const showMessage = (message, type = 'info') => {
+    if (toast) {
+      switch(type) {
+        case 'success': toast.showSuccess(message); break;
+        case 'error': toast.showError(message); break;
+        case 'warning': toast.showWarning(message); break;
+        default: toast.showInfo(message);
+      }
+    } else {
+      alert(message);
+    }
+  };
 
   const handlePasswordChange = (event) => {
     const { name, value } = event.target;
@@ -25,7 +38,7 @@ const usePasswordChange = () => {
 
   const submitPasswordChange = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert("❌ Mật khẩu xác nhận không khớp!");
+      showMessage("Mật khẩu xác nhận không khớp!", 'error');
       return;
     }
 
@@ -36,14 +49,14 @@ const usePasswordChange = () => {
         newPassword: passwordData.newPassword,
       });
       resetPasswordForm();
-      alert("✅ Đổi mật khẩu thành công!");
+      showMessage("Đổi mật khẩu thành công!", 'success');
     } catch (error) {
       console.error("❌ Lỗi khi đổi mật khẩu:", error);
       const errorMessage =
         error.response?.data?.message ||
         error.response?.data?.error ||
         "Có lỗi xảy ra khi đổi mật khẩu!";
-      alert(`❌ Lỗi: ${errorMessage}`);
+      showMessage(`Lỗi: ${errorMessage}`, 'error');
       throw error;
     } finally {
       setSaving(false);

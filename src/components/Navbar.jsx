@@ -1,8 +1,10 @@
 // Navbar.jsx - Tesla Style
 import { useState, useEffect, useRef } from "react";
 import { FaQuestionCircle, FaUserCircle, FaGlobe, FaCar, FaSignOutAlt, FaTachometerAlt } from "react-icons/fa";
+import { useToastContext } from "../contexts/ToastContext";
 
 export default function Navbar({ onNavigate, isLoggedIn, onLogout, user }) {
+  const toast = useToastContext();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef(null);
@@ -50,7 +52,7 @@ export default function Navbar({ onNavigate, isLoggedIn, onLogout, user }) {
       onLogout();
     }
     setIsUserMenuOpen(false);
-    alert('Đã đăng xuất thành công!');
+    toast.showSuccess('Đã đăng xuất thành công!');
     handleNavigate('home');
   };
 

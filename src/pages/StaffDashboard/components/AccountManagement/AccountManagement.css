@@ -33,7 +33,7 @@
 }
 
 .search-box:focus-within {
-  border-color: #667eea;
+  border-color: #3b82f6;
   background: white;
 }
 
@@ -113,14 +113,14 @@
 
 .customer-item.active {
   background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-  border-color: #667eea;
+  border-color: #3b82f6;
 }
 
 .customer-avatar {
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -152,7 +152,7 @@
 
 .customer-phone {
   font-weight: 500;
-  color: #667eea;
+  color: #3b82f6;
 }
 
 /* Customer Detail */
@@ -178,7 +178,7 @@
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -228,7 +228,7 @@
 }
 
 .detail-item svg {
-  color: #667eea;
+  color: #3b82f6;
   font-size: 20px;
   margin-top: 2px;
   flex-shrink: 0;
@@ -256,7 +256,7 @@
 }
 
 .detail-item .value.highlight {
-  color: #667eea;
+  color: #3b82f6;
   font-weight: 700;
   font-size: 18px;
 }
@@ -330,7 +330,7 @@
 }
 
 .vehicle-card:hover {
-  border-color: #667eea;
+  border-color: #3b82f6;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
   transform: translateY(-2px);
 }
@@ -339,7 +339,7 @@
   width: 50px;
   height: 50px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -437,7 +437,7 @@
   justify-content: center;
   align-items: center;
   padding: 60px;
-  color: #667eea;
+  color: #3b82f6;
   gap: 15px;
 }
 
@@ -503,7 +503,7 @@
 }
 
 .vehicle-maintenance span {
-  color: #667eea;
+  color: #3b82f6;
   font-weight: 600;
   font-size: 12px;
 }

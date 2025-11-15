@@ -1,10 +1,19 @@
-import React from "react";
+import React, { useState } from "react";
 import "./MyCar.css";
+import "./Profile.css";
 import useVehicles from "../hooks/useVehicles";
-import VehicleList from "../components/mycar/VehicleList";
+import MyCarHeader from "../components/mycar/MyCarHeader";
+import MyCarSidebar from "../components/mycar/MyCarSidebar";
+import MyCarList from "../components/mycar/MyCarList";
+import MyCarAddForm from "../components/mycar/MyCarAddForm";
+import { useToastContext } from "../contexts/ToastContext";
+import { addVehicle } from "../api";
 
 function MyCar({ onNavigate, onNavigateWithVehicle }) {
+  const toast = useToastContext();
   const { vehicles, loading, error, refresh } = useVehicles();
+  const [activeTab, setActiveTab] = useState("list");
+  const [saving, setSaving] = useState(false);
 
   const handleBook = (vehicle) => {
     if (onNavigateWithVehicle) {
@@ -14,31 +23,58 @@ function MyCar({ onNavigate, onNavigateWithVehicle }) {
     onNavigate("booking");
   };
 
-  return (
-    <div className="mycar-container">
-      {/* Header */}
-      <div className="mycar-header">
-        <button 
-          className="back-btn"
-          onClick={() => onNavigate('home')}
-        >
-          <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
-            <path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"/>
-          </svg>
-          Quay lại
-        </button>
-        <h1>Xe của tôi</h1>
-      </div>
+  const handleAddVehicle = async (formData) => {
+    try {
+      setSaving(true);
+      await addVehicle(formData);
+      toast.showSuccess("Thêm xe thành công!");
+      await refresh();
+      setActiveTab("list");
+    } catch (error) {
+      console.error("Lỗi khi thêm xe:", error);
+      toast.showError(error.response?.data?.message || "Không thể thêm xe");
+    } finally {
+      setSaving(false);
+    }
+  };
 
-      {/* Car List */}
-      <div className="mycar-content">
-        <VehicleList
-          vehicles={vehicles}
-          loading={loading}
-          error={error}
-          onRetry={refresh}
-          onBook={handleBook}
+  if (loading && vehicles.length === 0) {
+    return (
+      <div className="profile-container">
+        <MyCarHeader onBack={() => onNavigate("home")} />
+        <div className="profile-content profile-loading-container">
+          <div className="profile-loading-content">
+            <div className="profile-loading-spinner" />
+            <p>Đang tải thông tin...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="profile-container">
+      <MyCarHeader onBack={() => onNavigate("home")} />
+      <div className="profile-content">
+        <MyCarSidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          vehicleCount={vehicles?.length || 0}
         />
+
+        {activeTab === "list" && (
+          <MyCarList
+            vehicles={vehicles}
+            loading={loading}
+            error={error}
+            onRetry={refresh}
+            onBook={handleBook}
+          />
+        )}
+
+        {activeTab === "add" && (
+          <MyCarAddForm onAdd={handleAddVehicle} saving={saving} />
+        )}
       </div>
     </div>
   );

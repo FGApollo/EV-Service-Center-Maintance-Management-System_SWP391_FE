@@ -12,6 +12,7 @@ import Footer from "./components/Footer.jsx";
 import AdminDashboard from './pages/AdminDashboard/index.jsx';
 import ManagerDashboard from './pages/ManagerDashboard/index.jsx';
 import ChatWidget from "./components/ChatWidget/ChatWidget.jsx";
+import { ToastProvider } from "./contexts/ToastContext.jsx";
 
 const PAGE_TO_PATH = {
   home: '/',
@@ -22,7 +23,8 @@ const PAGE_TO_PATH = {
   mycar: '/mycar',
   staff: '/staff',
   manager: '/manager',
-  technician: '/technician'
+  technician: '/technician',
+  admin: '/admin'
 };
 
 const PATH_TO_PAGE = Object.entries(PAGE_TO_PATH).reduce((acc, [page, path]) => {
@@ -217,33 +219,37 @@ function App() {
   const shouldShowFooter = currentPage === 'home';
 
   return (
-    <div className="App">
-      {shouldShowNavbar && (
-        <Navbar 
-          onNavigate={handleNavigate} 
-          isLoggedIn={isLoggedIn} 
-          onLogout={() => { 
-            setIsLoggedIn(false); 
-            setUser(null); 
-            localStorage.removeItem('token'); 
-            localStorage.removeItem('user');
-            window.location.hash = 'home'; // ✅ Update hash
-          }} 
-          user={user} 
-        />
-      )}
-      <main>
-        {renderPage()}
-      </main>
-      {shouldShowFooter && <Footer onNavigate={handleNavigate} />}
-      {toast && (
-        <div className={`app-toast ${toast.type || 'info'}`}>
-          {toast.message}
-        </div>
-      )}
-      {/* Chat Widget - Luôn hiển thị trên mọi trang */}
-      <ChatWidget />
-    </div>
+    <ToastProvider>
+      <div className="App">
+        {shouldShowNavbar && (
+          <Navbar 
+            onNavigate={handleNavigate} 
+            isLoggedIn={isLoggedIn} 
+            onLogout={() => { 
+              setIsLoggedIn(false); 
+              setUser(null); 
+              localStorage.removeItem('token'); 
+              localStorage.removeItem('user');
+              window.location.hash = 'home'; // ✅ Update hash
+            }} 
+            user={user} 
+          />
+        )}
+        <main>
+          {renderPage()}
+        </main>
+        {shouldShowFooter && <Footer onNavigate={handleNavigate} />}
+        {toast && (
+          <div className={`app-toast ${toast.type || 'info'}`}>
+            {toast.message}
+          </div>
+        )}
+        {/* Chat Widget - Chỉ hiển thị cho khách hàng (customer) */}
+        {(!isLoggedIn || !user || user?.role?.toLowerCase() === 'customer') && (
+          <ChatWidget />
+        )}
+      </div>
+    </ToastProvider>
   );
 }
 

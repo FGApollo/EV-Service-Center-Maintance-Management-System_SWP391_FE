@@ -10,10 +10,23 @@ const initialProfile = {
   avatar: null,
 };
 
-const useProfile = () => {
+const useProfile = (toast) => {
   const [profileData, setProfileData] = useState(initialProfile);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  
+  const showMessage = (message, type = 'info') => {
+    if (toast) {
+      switch(type) {
+        case 'success': toast.showSuccess(message); break;
+        case 'error': toast.showError(message); break;
+        case 'warning': toast.showWarning(message); break;
+        default: toast.showInfo(message);
+      }
+    } else {
+      alert(message);
+    }
+  };
 
   const loadProfile = useCallback(async () => {
     try {
@@ -95,7 +108,7 @@ const useProfile = () => {
   const saveProfile = async () => {
     if (!profileData.user_id) {
       console.error("❌ Không tìm thấy user_id trong profileData");
-      alert("❌ Không tìm thấy User ID. Vui lòng đăng nhập lại!");
+      showMessage("Không tìm thấy User ID. Vui lòng đăng nhập lại!", 'error');
       return;
     }
 
@@ -112,7 +125,7 @@ const useProfile = () => {
       const updated = { ...profileData, ...response };
       localStorage.setItem("user", JSON.stringify(updated));
       setProfileData(updated);
-      alert("✅ Cập nhật thông tin thành công!");
+      showMessage("Cập nhật thông tin thành công!", 'success');
     } catch (error) {
       console.error("❌ Lỗi khi cập nhật profile:", error);
       const errorMessage =
@@ -121,11 +134,7 @@ const useProfile = () => {
         error.response?.statusText ||
         "Có lỗi xảy ra khi cập nhật thông tin!";
 
-      alert(
-        `❌ Lỗi: ${errorMessage}\n\nStatus: ${
-          error.response?.status || "Unknown"
-        }`
-      );
+      showMessage(`Lỗi: ${errorMessage}`, 'error');
       throw error;
     } finally {
       setSaving(false);

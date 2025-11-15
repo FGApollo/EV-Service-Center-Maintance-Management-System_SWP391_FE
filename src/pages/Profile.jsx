@@ -8,8 +8,10 @@ import ProfileSidebar from "../components/profile/ProfileSidebar";
 import ProfileInfoForm from "../components/profile/ProfileInfoForm";
 import ProfilePasswordForm from "../components/profile/ProfilePasswordForm";
 import ProfileHistory from "../components/profile/ProfileHistory";
+import { useToastContext } from "../contexts/ToastContext";
 
 function Profile({ onNavigate }) {
+  const toast = useToastContext();
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("info");
   const {
@@ -19,13 +21,13 @@ function Profile({ onNavigate }) {
     handleProfileChange,
     handleAvatarChange,
     saveProfile,
-  } = useProfile();
+  } = useProfile(toast);
   const {
     passwordData,
     saving: savingPassword,
     handlePasswordChange,
     submitPasswordChange,
-  } = usePasswordChange();
+  } = usePasswordChange(toast);
   const {
     bookingHistory,
     loading: loadingHistory,

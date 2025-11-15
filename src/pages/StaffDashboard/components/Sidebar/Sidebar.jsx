@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaUser, FaCar, FaCalendarAlt, FaTools, FaCog, FaComments } from 'react-icons/fa';
+import { FaUser, FaCar, FaCalendarAlt, FaComments } from 'react-icons/fa';
 import './Sidebar.css';
 
 function Sidebar({ activeTab, onTabChange }) {
@@ -7,8 +7,6 @@ function Sidebar({ activeTab, onTabChange }) {
     { id: 'accounts', label: 'Quản lý tài khoản', icon: <FaUser /> },
     { id: 'vehicles', label: 'Quản lý xe', icon: <FaCar /> },
     { id: 'appointments', label: 'Quản lý lịch hẹn', icon: <FaCalendarAlt /> },
-    { id: 'maintenance', label: 'Quy trình bảo dưỡng', icon: <FaTools /> },
-    { id: 'parts', label: 'Phụ tùng', icon: <FaCog /> },
     { id: 'chat', label: 'Chat', icon: <FaComments /> },
   ];
 
