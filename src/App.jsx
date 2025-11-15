@@ -23,7 +23,8 @@ const PAGE_TO_PATH = {
   mycar: '/mycar',
   staff: '/staff',
   manager: '/manager',
-  technician: '/technician'
+  technician: '/technician',
+  admin: '/admin'
 };
 
 const PATH_TO_PAGE = Object.entries(PAGE_TO_PATH).reduce((acc, [page, path]) => {
