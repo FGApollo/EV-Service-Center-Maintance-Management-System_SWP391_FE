@@ -158,24 +158,6 @@ const BookingServicesStep = ({
           })}
         </div>
       </div>
-
-      <div
-        className="form-section"
-        style={{ marginTop: "2rem", background: "#f9fafb" }}
-      >
-        <h3 style={{ fontSize: "0.9rem", marginBottom: "1rem" }}>
-          💡 Không chắc chắn bạn cần gì?
-        </h3>
-        <div className="form-group full-width">
-          <label>Nhận trợ giúp về các dịch vụ</label>
-          <textarea
-            className="form-input"
-            placeholder="Tin nhắn"
-            rows="4"
-            style={{ resize: "vertical" }}
-          />
-        </div>
-      </div>
     </div>
   );
 };
