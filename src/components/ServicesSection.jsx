@@ -109,7 +109,6 @@ const ServicesSection = ({ onNavigate }) => (
   <section id="services" className="services-section">
     {/* Header Section */}
     <div className="section-header">
-      <div className="header-tag">DỊCH VỤ CHUYÊN NGHIỆP</div>
       <h2 className="section-title">Dịch Vụ Của Chúng Tôi</h2>
       <p className="section-description">
         CarCare cung cấp đa dạng dịch vụ bảo dưỡng và sửa chữa xe hơi chuyên nghiệp.

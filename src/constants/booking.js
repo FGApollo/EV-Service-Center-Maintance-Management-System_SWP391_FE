@@ -4,8 +4,8 @@ export const services = [
     name: "Gói Cơ bản (Basic Maintenance)",
     category: "Bảo dưỡng",
     icon: "🛠️",
-    priceText: "2.000.000 VNĐ",
-    priceValue: 2000000,
+    priceText: "1.000.000 VNĐ",
+    priceValue: 1000000,
     summary:
       "Mục tiêu: Kiểm tra nhanh, tiết kiệm chi phí. Tần suất: 3-6 tháng/lần hoặc mỗi 5.000 km. Thời gian: 60-90 phút.",
     details: [
@@ -20,8 +20,8 @@ export const services = [
     name: "Gói Tiêu chuẩn (Standard Maintenance)",
     category: "Bảo dưỡng",
     icon: "⚡",
-    priceText: "3.200.000 VNĐ",
-    priceValue: 3200000,
+    priceText: "1.800.000 VNĐ",
+    priceValue: 1800000,
     summary:
       "Mục tiêu: Cân bằng chi phí và hiệu quả, phù hợp đa số khách hàng. Tần suất: 6-12 tháng/lần hoặc mỗi 10.000 km. Thời gian: 2-3 giờ.",
     details: [
@@ -37,8 +37,8 @@ export const services = [
     name: "Gói Cao cấp (Premium / Full Maintenance)",
     category: "Bảo dưỡng",
     icon: "✨",
-    priceText: "4.500.000 VNĐ",
-    priceValue: 4500000,
+    priceText: "3.900.000 VNĐ",
+    priceValue: 3900000,
     summary:
       "Mục tiêu: Bảo dưỡng toàn diện cho xe hoạt động thường xuyên hoặc xe cao cấp. Tần suất: 12 tháng/lần hoặc mỗi 20.000 km. Thời gian: 4-6 giờ.",
     details: [

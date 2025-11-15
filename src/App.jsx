@@ -213,8 +213,8 @@ function App() {
   };
 
   // Check if current page should show Navbar and Footer
-  const shouldShowNavbar = !['manager', 'admin', 'staff', 'technician'].includes(currentPage);
-  const shouldShowFooter = !['manager', 'admin', 'staff', 'technician'].includes(currentPage);
+  const shouldShowNavbar = currentPage === 'home';
+  const shouldShowFooter = currentPage === 'home';
 
   return (
     <div className="App">

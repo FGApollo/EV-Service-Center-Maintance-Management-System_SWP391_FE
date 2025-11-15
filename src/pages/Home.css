@@ -964,10 +964,6 @@
     justify-content: center;
   }
   
-  .services-grid {
-    grid-template-columns: 1fr;
-  }
-  
   .premium-branches-section {
     padding: 60px 20px;
   }
@@ -1059,7 +1055,6 @@
     font-size: 2rem;
   }
   
-  .services-section,
   .premium-branches-section {
     padding: 50px 15px;
   }
@@ -1467,7 +1462,6 @@
 .find-store-section {
   padding: 0;
   background: #ffffff;
-  min-height: 100vh;
 }
 
 .find-store-container {

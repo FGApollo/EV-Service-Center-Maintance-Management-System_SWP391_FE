@@ -256,8 +256,8 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
     setFormData(prev => ({
       ...prev,
       selectedServices: prev.selectedServices.includes(serviceId)
-        ? prev.selectedServices.filter(id => id !== serviceId)
-        : [...prev.selectedServices, serviceId]
+        ? [] // Bỏ chọn nếu click lại
+        : [serviceId] // Chỉ chọn 1 dịch vụ duy nhất
     }));
   };
 
@@ -349,7 +349,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
         return;
       }
       if (!formData.selectedServices || formData.selectedServices.length === 0) {
-        alert('⚠️ Vui lòng chọn ít nhất một dịch vụ');
+        alert('⚠️ Vui lòng chọn dịch vụ');
         return;
       }
 
@@ -476,7 +476,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
     switch(currentStep) {
       case 1: return 'Thông tin xe của bạn';
       case 2: return 'Chọn chi nhánh';
-      case 3: return 'Chọn một hoặc nhiều dịch vụ';
+      case 3: return 'Chọn dịch vụ';
       case 4: return 'Lịch hẹn';
       case 5: return 'Chi tiết cá nhân';
       default: return '';
@@ -487,7 +487,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
     switch(currentStep) {
       case 1: return 'Đối với một đề nghị dịch vụ rõng bước, chúng tôi cần một số thông tin về xe của bạn.';
       case 2: return 'Vui lòng chọn chi nhánh gần bạn nhất để được phục vụ tốt nhất.';
-      case 3: return 'Chọn một hoặc nhiều dịch vụ.';
+      case 3: return 'Chọn dịch vụ phù hợp cho xe của bạn.';
       case 4: return 'Kiểm tra các cuộc hẹn có sẵn và chọn một cuộc hẹn phù hợp với lịch trình của bạn';
       case 5: return 'Chúng tôi chỉ cần một số thông tin về bạn.';
       default: return '';
@@ -663,7 +663,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
                 className="nav-btn nav-btn-back"
               onClick={prevStep}
             >
-                ‹ Lên trên
+                ‹ Quay lại
             </button>
           )}
           </div>
