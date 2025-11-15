@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './AdminDashboard.css';
+import { showWarning } from '../../utils/toast';
 import { 
   FaChartLine, FaUsers, FaWarehouse, FaCog, FaSignOutAlt
 } from 'react-icons/fa';
@@ -23,14 +24,14 @@ function AdminDashboard({ onNavigate }) {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
-      alert('Bạn cần đăng nhập để truy cập trang này!');
+      showWarning('Bạn cần đăng nhập để truy cập trang này!');
       onNavigate && onNavigate('login');
       return;
     }
     
     // Only accept ADMIN role
     if (role?.toLowerCase() !== 'admin') {
-      alert('Bạn không có quyền truy cập trang này! Trang này chỉ dành cho Administrator.');
+      showWarning('Bạn không có quyền truy cập trang này! Trang này chỉ dành cho Administrator.');
       onNavigate && onNavigate('login');
       return;
     }

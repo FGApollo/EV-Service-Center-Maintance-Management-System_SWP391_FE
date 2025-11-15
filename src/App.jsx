@@ -243,8 +243,10 @@ function App() {
             {toast.message}
           </div>
         )}
-        {/* Chat Widget - Luôn hiển thị trên mọi trang */}
-        <ChatWidget />
+        {/* Chat Widget - Chỉ hiển thị cho khách hàng (customer) */}
+        {(!isLoggedIn || !user || user?.role?.toLowerCase() === 'customer') && (
+          <ChatWidget />
+        )}
       </div>
     </ToastProvider>
   );

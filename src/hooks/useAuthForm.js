@@ -116,7 +116,20 @@ const useAuthForm = ({ onNavigate, onLogin, toast }) => {
       if (onLogin) {
         onLogin(userData);
       }
-      onNavigate("home");
+      
+      // Redirect based on role
+      const role = userData.role?.toLowerCase();
+      if (role === 'staff') {
+        onNavigate('staff');
+      } else if (role === 'manager') {
+        onNavigate('manager');
+      } else if (role === 'technician') {
+        onNavigate('technician');
+      } else if (role === 'admin') {
+        onNavigate('admin');
+      } else {
+        onNavigate('home');
+      }
     } catch (error) {
       console.error("Lỗi khi gọi API:", error.response?.data || error.message);
       const errorMessage = error.response?.data?.message || error.message || "Lỗi khi gọi API";

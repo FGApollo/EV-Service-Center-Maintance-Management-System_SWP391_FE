@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FaWarehouse, FaPlus, FaEdit, FaTrash, FaSearch } from 'react-icons/fa';
 import { useCenters } from '../../hooks/useCenters';
+import { showSuccess, showError, showWarning } from '../../../../utils/toast';
 
 export const CentersTab = () => {
   const { centers, loading, error, fetchCenters, addCenter, updateCenter, deleteCenter } = useCenters();
@@ -51,17 +52,17 @@ export const CentersTab = () => {
     if (!window.confirm(`Bạn có chắc muốn xóa trung tâm "${center.name}"?`)) return;
     const centerId = center.centerId || center.id;
     if (!centerId) {
-      alert('❌ Không tìm thấy ID của trung tâm!');
+      showError('Không tìm thấy ID của trung tâm!');
       return;
     }
     const result = await deleteCenter(centerId);
-    if (result.success) alert('✅ Xóa trung tâm thành công!');
-    else alert(`❌ Lỗi: ${result.error}`);
+    if (result.success) showSuccess('Xóa trung tâm thành công!');
+    else showError(`Lỗi: ${result.error}`);
   };
 
   const handleSaveCenter = async () => {
     if (!formData.name?.trim() || !formData.address?.trim() || !formData.email?.trim() || !formData.phone?.trim()) {
-      alert('Vui lòng điền đầy đủ thông tin!');
+      showWarning('Vui lòng điền đầy đủ thông tin!');
       return;
     }
     let result;
@@ -70,17 +71,17 @@ export const CentersTab = () => {
     } else {
       const centerId = selectedCenter?.centerId || selectedCenter?.id;
       if (!centerId) {
-        alert('❌ Không tìm thấy ID của trung tâm!');
+        showError('Không tìm thấy ID của trung tâm!');
         return;
       }
       result = await updateCenter(centerId, formData);
     }
     if (result.success) {
-      alert('✅ Lưu trung tâm thành công!');
+      showSuccess('Lưu trung tâm thành công!');
       setShowModal(false);
       setSelectedCenter(null);
     } else {
-      alert(`❌ Lỗi: ${result.error}`);
+      showError(`Lỗi: ${result.error}`);
     }
   };
 

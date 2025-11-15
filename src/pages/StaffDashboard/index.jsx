@@ -4,8 +4,6 @@ import Sidebar from './components/Sidebar/Sidebar';
 import AccountManagement from './components/AccountManagement/AccountManagement';
 import VehicleManagement from './components/VehicleManagement/VehicleManagement';
 import AppointmentManagement from './components/AppointmentManagement/AppointmentManagement';
-import MaintenanceProcess from './components/MaintenanceProcess/MaintenanceProcess';
-import PartsManagement from './components/PartsManagement/PartsManagement';
 import Chat from './components/Chat/Chat';
 import './StaffDashboard.css';
 
@@ -20,10 +18,6 @@ function StaffDashboard() {
         return <VehicleManagement />;
       case 'appointments':
         return <AppointmentManagement />;
-      case 'maintenance':
-        return <MaintenanceProcess />;
-      case 'parts':
-        return <PartsManagement />;
       case 'chat':
         return <Chat />;
       default:

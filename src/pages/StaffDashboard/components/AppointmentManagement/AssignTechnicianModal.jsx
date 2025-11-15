@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaTimes, FaUser, FaUserPlus, FaSpinner, FaIdBadge, FaClipboardList, FaClock, FaStar } from 'react-icons/fa';
 import './AssignTechnicianModal.css';
+import { showSuccess, showError, showWarning } from '../../../../utils/toast';
 import { getAllTechnicians, assignTechniciansToAppointment } from '../../../../api';
 
 function AssignTechnicianModal({ isOpen, onClose, appointmentId, onAssign, existingTechnicians = [] }) {
@@ -77,7 +78,7 @@ function AssignTechnicianModal({ isOpen, onClose, appointmentId, onAssign, exist
       
     } catch (error) {
       console.error('❌ Lỗi khi tải danh sách kỹ thuật viên:', error);
-      alert(error.response?.data?.message || 'Không thể tải danh sách kỹ thuật viên');
+      showError(error.response?.data?.message || 'Không thể tải danh sách kỹ thuật viên');
       setTechnicians([]);
     } finally {
       setLoading(false);
@@ -96,7 +97,7 @@ function AssignTechnicianModal({ isOpen, onClose, appointmentId, onAssign, exist
 
   const handleAssign = async () => {
     if (selectedTechIds.length === 0) {
-      alert('Vui lòng chọn ít nhất một kỹ thuật viên');
+      showWarning('Vui lòng chọn ít nhất một kỹ thuật viên');
       return;
     }
 
@@ -111,7 +112,7 @@ function AssignTechnicianModal({ isOpen, onClose, appointmentId, onAssign, exist
       await assignTechniciansToAppointment(appointmentId, selectedTechIds, '');
       
       console.log(`✅ Đã ${isEditing ? 'cập nhật' : 'giao việc'} thành công`);
-      alert(`✅ Đã ${isEditing ? 'cập nhật' : 'giao việc cho'} ${selectedTechIds.length} kỹ thuật viên thành công!`);
+      showSuccess(`Đã ${isEditing ? 'cập nhật' : 'giao việc cho'} ${selectedTechIds.length} kỹ thuật viên thành công!`);
       
       // Callback để reload data
       onAssign(selectedTechIds);
@@ -131,7 +132,7 @@ function AssignTechnicianModal({ isOpen, onClose, appointmentId, onAssign, exist
         errorMessage = error.response.data.message;
       }
       
-      alert(errorMessage);
+      showError(errorMessage);
     } finally {
       setAssigning(false);
     }

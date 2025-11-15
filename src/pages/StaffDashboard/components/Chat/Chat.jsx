@@ -50,7 +50,7 @@ function Chat() {
           console.log('✅ Staff subscribed to /topic/staff/sessions');
         }, (err) => {
           console.error('❌ WebSocket connection error:', err);
-          alert('Không thể kết nối chat. Vui lòng kiểm tra backend.');
+          showError('Không thể kết nối chat. Vui lòng kiểm tra backend.');
         });
 
         return () => {

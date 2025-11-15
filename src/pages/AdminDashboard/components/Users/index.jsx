@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { FaUsers, FaPlus, FaEdit, FaTrash, FaSearch, FaUserTie, FaUserCog, FaWrench, FaUser } from 'react-icons/fa';
 import { useUsers } from '../../hooks/useUsers';
 import { UserModal } from './UserModal';
+import { showSuccess, showError } from '../../../../utils/toast';
 import { AccordionSection } from './Accordion';
 import './Users.css';
 
@@ -85,9 +86,9 @@ export const UsersTab = () => {
 
     const result = await deleteUser(user.id);
     if (result.success) {
-      alert('✅ Xóa người dùng thành công!');
+      showSuccess('Xóa người dùng thành công!');
     } else {
-      alert(`❌ Lỗi: ${result.error}`);
+      showError(`Lỗi: ${result.error}`);
     }
   };
 
@@ -100,11 +101,11 @@ export const UsersTab = () => {
     }
 
     if (result.success) {
-      alert(`✅ ${modalMode === 'add' ? 'Thêm' : 'Cập nhật'} người dùng thành công!`);
+      showSuccess(`${modalMode === 'add' ? 'Thêm' : 'Cập nhật'} người dùng thành công!`);
       setShowModal(false);
       setSelectedUser(null);
     } else {
-      alert(`❌ Lỗi: ${result.error}`);
+      showError(`Lỗi: ${result.error}`);
     }
   };
 

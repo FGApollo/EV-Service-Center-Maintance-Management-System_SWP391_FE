@@ -14,6 +14,7 @@ import {
   getAppointmentStatus
 } from '../../../../api';
 import AssignTechnicianModal from './AssignTechnicianModal';
+import { showSuccess, showError, showWarning } from '../../../../utils/toast';
 
 function AppointmentManagement() {
   const [activeStatus, setActiveStatus] = useState('all');
@@ -34,7 +35,7 @@ function AppointmentManagement() {
       key: 'all', 
       label: 'Tất cả', 
       icon: <FaCalendarAlt />, 
-      color: '#667eea',
+      color: '#3b82f6',
       apiStatus: null
     },
     { 
@@ -209,15 +210,15 @@ function AppointmentManagement() {
       await acceptAppointment(appointmentId);
       
       console.log('✅ Đã chấp nhận lịch hẹn thành công');
-      alert('Đã chấp nhận lịch hẹn thành công!');
+      showSuccess('Đã chấp nhận lịch hẹn thành công!');
       
       // Reload data
       await fetchAppointments();
       
     } catch (err) {
       console.error('❌ Lỗi khi chấp nhận lịch hẹn:', err);
-      alert(err.response?.data?.message || 'Không thể chấp nhận lịch hẹn');
-    } finally {
+      showError(err.response?.data?.message || 'Không thể chấp nhận lịch hẹn');
+    } finally{
       setActionLoading(false);
     }
   };
@@ -235,14 +236,14 @@ function AppointmentManagement() {
       await cancelAppointment(appointmentId);
       
       console.log('✅ Đã hủy lịch hẹn thành công');
-      alert('Đã hủy lịch hẹn thành công!');
+      showSuccess('Đã hủy lịch hẹn thành công!');
       
       // Reload data
       await fetchAppointments();
       
     } catch (err) {
       console.error('❌ Lỗi khi hủy lịch hẹn:', err);
-      alert(err.response?.data?.message || 'Không thể hủy lịch hẹn');
+      showError(err.response?.data?.message || 'Không thể hủy lịch hẹn');
     } finally {
       setActionLoading(false);
     }
@@ -257,14 +258,14 @@ function AppointmentManagement() {
       await startAppointmentProgress(appointmentId);
       
       console.log('✅ Đã bắt đầu thực hiện lịch hẹn');
-      alert('Đã bắt đầu thực hiện lịch hẹn!');
+      showSuccess('Đã bắt đầu thực hiện lịch hẹn!');
       
       // Reload data
       await fetchAppointments();
       
     } catch (err) {
       console.error('❌ Lỗi khi bắt đầu lịch hẹn:', err);
-      alert(err.response?.data?.message || 'Không thể bắt đầu lịch hẹn');
+      showError(err.response?.data?.message || 'Không thể bắt đầu lịch hẹn');
     } finally {
       setActionLoading(false);
     }
@@ -279,14 +280,14 @@ function AppointmentManagement() {
       await completeAppointmentDone(appointmentId);
       
       console.log('✅ Đã hoàn thành lịch hẹn');
-      alert('Đã hoàn thành lịch hẹn!');
+      showSuccess('Đã hoàn thành lịch hẹn!');
       
       // Reload data
       await fetchAppointments();
       
     } catch (err) {
       console.error('❌ Lỗi khi hoàn thành lịch hẹn:', err);
-      alert(err.response?.data?.message || 'Không thể hoàn thành lịch hẹn');
+      showError(err.response?.data?.message || 'Không thể hoàn thành lịch hẹn');
     } finally {
       setActionLoading(false);
     }
@@ -632,7 +633,7 @@ function AppointmentManagement() {
                         className="btn-assign"
                         onClick={() => {
                           if (!selectedAppointment?.id) {
-                            alert('Lỗi: Không tìm thấy ID lịch hẹn. Vui lòng chọn lại lịch hẹn.');
+                            showError('Không tìm thấy ID lịch hẹn. Vui lòng chọn lại lịch hẹn.');
                             return;
                           }
                           console.log('🔍 Opening modal for appointment ID:', selectedAppointment.id);
@@ -659,7 +660,7 @@ function AppointmentManagement() {
                         className="btn-assign"
                         onClick={() => {
                           if (!selectedAppointment?.id) {
-                            alert('Lỗi: Không tìm thấy ID lịch hẹn. Vui lòng chọn lại lịch hẹn.');
+                            showError('Không tìm thấy ID lịch hẹn. Vui lòng chọn lại lịch hẹn.');
                             return;
                           }
                           console.log('🔍 Opening edit modal for appointment ID:', selectedAppointment.id);

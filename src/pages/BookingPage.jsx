@@ -397,11 +397,13 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
         return;
       }
       
-      // Nếu không có payment URL, thông báo thành công và quay về trang chủ
-      toast.showSuccess('Đặt lịch thành công! Chúng tôi sẽ xác nhận lịch hẹn của bạn trong thời gian sớm nhất.');
+      // Nếu không có payment URL, redirect đến payment-return với thông tin đặt lịch
+      const returnUrl = `/payment-return?status=success&amount=${totalSelectedPrice}&orderId=${appointmentId || 'N/A'}&appointmentId=${appointmentId || ''}&message=Đặt lịch bảo dưỡng thành công`;
+      
+      toast.showSuccess('Đặt lịch thành công! Đang chuyển đến trang xác nhận...');
       setTimeout(() => {
-        onNavigate('home');
-      }, 2000);
+        window.location.href = returnUrl;
+      }, 1500);
       
     } catch (error) {
       console.error('Lỗi khi đặt lịch:', error);
