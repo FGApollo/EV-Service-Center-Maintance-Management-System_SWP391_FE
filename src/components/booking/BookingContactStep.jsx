@@ -6,53 +6,48 @@ const BookingContactStep = ({ formData, handleInputChange }) => (
       <h2>Thông tin liên hệ</h2>
       <div className="contact-form">
         <div className="form-grid">
-          <div className="form-group">
-            <label>Tên</label>
+          <div className="form-group full-width">
+            <label>Họ và tên</label>
             <input
               type="text"
-              className="form-input"
-              placeholder="Tên"
-              value={formData.firstName}
-              onChange={(e) => handleInputChange("firstName", e.target.value)}
+              className="form-input form-input-readonly"
+              placeholder="Nhập họ và tên đầy đủ"
+              value={formData.fullName}
+              readOnly
+              disabled
             />
-          </div>
-
-          <div className="form-group">
-            <label>Họ</label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="Họ"
-              value={formData.lastName}
-              onChange={(e) => handleInputChange("lastName", e.target.value)}
-            />
+            <span className="readonly-badge">Tự động điền từ tài khoản</span>
           </div>
 
           <div className="form-group full-width">
             <label>Email</label>
             <input
               type="email"
-              className="form-input"
+              className="form-input form-input-readonly"
               placeholder="Email"
               value={formData.email}
-              onChange={(e) => handleInputChange("email", e.target.value)}
+              readOnly
+              disabled
             />
+            <span className="readonly-badge">Tự động điền từ tài khoản</span>
           </div>
 
           <div className="form-group full-width">
             <label>Số điện thoại</label>
             <div className="phone-input-group">
-              <select className="country-code-select">
+              <select className="country-code-select" disabled>
                 <option>VN (+84)</option>
               </select>
               <input
                 type="tel"
-                className="form-input"
+                className="form-input form-input-readonly"
                 placeholder="Số điện thoại"
                 value={formData.phone}
-                onChange={(e) => handleInputChange("phone", e.target.value)}
+                readOnly
+                disabled
               />
             </div>
+            <span className="readonly-badge">Tự động điền từ tài khoản</span>
           </div>
         </div>
       </div>

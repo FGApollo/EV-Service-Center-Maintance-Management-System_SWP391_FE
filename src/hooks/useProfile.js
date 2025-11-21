@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { getProfile, updateProfile } from "../api";
 
 const initialProfile = {
@@ -14,6 +14,7 @@ const useProfile = (toast) => {
   const [profileData, setProfileData] = useState(initialProfile);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const hasLoadedRef = useRef(false);
   
   const showMessage = (message, type = 'info') => {
     if (toast) {
@@ -29,21 +30,26 @@ const useProfile = (toast) => {
   };
 
   const loadProfile = useCallback(async () => {
+    // Chỉ load 1 lần để tránh infinite loop
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+
     try {
       setLoading(true);
       const storedUser = localStorage.getItem("user");
+      let initialData = { ...initialProfile };
 
       if (storedUser) {
         const parsed = JSON.parse(storedUser);
-        setProfileData((prev) => ({
-          ...prev,
-          user_id: parsed.user_id || parsed.id || parsed.userId || prev.user_id,
-          fullName: parsed.fullName || prev.fullName,
-          email: parsed.email || prev.email,
-          phone: parsed.phone || prev.phone,
-          address: parsed.address || prev.address,
-          avatar: parsed.avatar || prev.avatar,
-        }));
+        initialData = {
+          user_id: parsed.user_id || parsed.id || parsed.userId || null,
+          fullName: parsed.fullName || initialProfile.fullName,
+          email: parsed.email || initialProfile.email,
+          phone: parsed.phone || initialProfile.phone,
+          address: parsed.address || initialProfile.address,
+          avatar: parsed.avatar || initialProfile.avatar,
+        };
+        setProfileData(initialData);
       }
 
       try {
@@ -53,13 +59,13 @@ const useProfile = (toast) => {
             data.user_id ||
             data.id ||
             data.userId ||
-            profileData.user_id ||
+            initialData.user_id ||
             null,
-          fullName: data.fullName || initialProfile.fullName,
-          email: data.email || initialProfile.email,
-          phone: data.phone || initialProfile.phone,
-          address: data.address || initialProfile.address,
-          avatar: data.avatar || initialProfile.avatar,
+          fullName: data.fullName || initialData.fullName || initialProfile.fullName,
+          email: data.email || initialData.email || initialProfile.email,
+          phone: data.phone || initialData.phone || initialProfile.phone,
+          address: data.address || initialData.address || initialProfile.address,
+          avatar: data.avatar || initialData.avatar || initialProfile.avatar,
         };
 
         setProfileData(updatedData);
@@ -72,14 +78,15 @@ const useProfile = (toast) => {
       }
     } catch (error) {
       console.error("❌ Lỗi khi tải thông tin profile:", error);
+      hasLoadedRef.current = false; // Reset để có thể retry
     } finally {
       setLoading(false);
     }
-  }, [profileData.user_id]);
+  }, []); // Empty dependency array - chỉ tạo 1 lần
 
   useEffect(() => {
     loadProfile();
-  }, [loadProfile]);
+  }, []); // Chỉ chạy 1 lần khi mount
 
   const handleProfileChange = (event) => {
     const { name, value } = event.target;
@@ -118,7 +125,6 @@ const useProfile = (toast) => {
         fullName: profileData.fullName,
         email: profileData.email,
         phone: profileData.phone,
-        address: profileData.address,
         avatar: profileData.avatar,
       });
 

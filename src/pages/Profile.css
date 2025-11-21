@@ -533,8 +533,20 @@
   background: #10b981;
 }
 
+.booking-card-accepted::before {
+  background: #3b82f6;
+}
+
+.booking-card-in-progress::before {
+  background: #9f7aea;
+}
+
 .booking-card-processing::before {
   background: #f59e0b;
+}
+
+.booking-card-pending::before {
+  background: #94a3b8;
 }
 
 .booking-card-cancelled::before {
@@ -566,10 +578,28 @@
   border-color: #10b981;
 }
 
+.booking-card-accepted .booking-card-status {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #3b82f6;
+}
+
+.booking-card-in-progress .booking-card-status {
+  background: #f3e8ff;
+  color: #6b21a8;
+  border-color: #9f7aea;
+}
+
 .booking-card-processing .booking-card-status {
   background: #fef3c7;
   color: #78350f;
   border-color: #f59e0b;
+}
+
+.booking-card-pending .booking-card-status {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #94a3b8;
 }
 
 .booking-card-cancelled .booking-card-status {

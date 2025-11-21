@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import "./BookingPage.css";
 import {
   createAppointment,
   getVehicles,
   getVehicleByVin,
+  getServiceTypes,
 } from "../api";
-import { services, serviceCenters, timeSlots } from "../constants/booking";
+import { serviceCenters, timeSlots } from "../constants/booking";
 import BookingVehicleStep from "../components/booking/BookingVehicleStep";
 import BookingBranchStep from "../components/booking/BookingBranchStep";
 import BookingServicesStep from "../components/booking/BookingServicesStep";
@@ -30,8 +31,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
     selectedDate: null,
     selectedTime: '',   
     // Step 5: Personal Info (thông tin khách hàng)
-    firstName: '',
-    lastName: '',
+    fullName: '',
     email: '',
     phone: '',
     agreeToTerms: false
@@ -44,6 +44,11 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
   const [showVehicleDropdown, setShowVehicleDropdown] = useState(false);
   const [clientIp, setClientIp] = useState('127.0.0.1');
   const [expandedServices, setExpandedServices] = useState([]);
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
+  const hasCheckedAuth = useRef(false);
+  const [services, setServices] = useState([]);
+  const [servicesLoading, setServicesLoading] = useState(true);
+  const [servicesError, setServicesError] = useState(null);
   const [today] = useState(() => {
     const date = new Date();
     date.setHours(0, 0, 0, 0);
@@ -76,6 +81,88 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
 
     return () => {
       isMounted = false;
+    };
+  }, []);
+
+  // Fetch service types from API
+  useEffect(() => {
+    let isMounted = true;
+    let timeoutId;
+
+    const fetchServiceTypes = async () => {
+      try {
+        setServicesLoading(true);
+        setServicesError(null);
+        console.log('📤 [BookingPage] Fetching service types from API...');
+        
+        // Set timeout for API call (8 seconds)
+        const timeoutPromise = new Promise((_, reject) => {
+          timeoutId = setTimeout(() => {
+            reject(new Error('Request timeout: API không phản hồi sau 8 giây. Vui lòng kiểm tra kết nối mạng hoặc thử lại.'));
+          }, 8000);
+        });
+
+        const apiPromise = getServiceTypes();
+        const data = await Promise.race([apiPromise, timeoutPromise]);
+        
+        clearTimeout(timeoutId);
+        
+        if (isMounted) {
+          console.log('✅ [BookingPage] Service types loaded:', data);
+          if (Array.isArray(data) && data.length > 0) {
+            setServices(data);
+            setServicesError(null);
+          } else {
+            console.warn('⚠️ [BookingPage] Service types array is empty or invalid');
+            setServices([]);
+            setServicesError('Không có gói dịch vụ nào');
+          }
+        }
+      } catch (err) {
+        clearTimeout(timeoutId);
+        console.error('❌ [BookingPage] Lỗi khi tải danh sách gói dịch vụ:', err);
+        console.error('❌ [BookingPage] Error details:', {
+          message: err.message,
+          status: err.response?.status,
+          data: err.response?.data,
+          url: err.config?.url
+        });
+        
+        let errorMessage = 'Không thể tải danh sách gói dịch vụ';
+        if (err.message) {
+          errorMessage = err.message;
+        } else if (err.response?.data?.message) {
+          errorMessage = err.response.data.message;
+        } else if (err.response?.status) {
+          if (err.response.status === 404) {
+            errorMessage = 'API endpoint không tồn tại (/api/service-types). Vui lòng kiểm tra backend.';
+          } else if (err.response.status === 401 || err.response.status === 403) {
+            errorMessage = 'Cần đăng nhập để xem danh sách dịch vụ';
+          } else {
+            errorMessage = `Lỗi server (${err.response.status})`;
+          }
+        } else if (err.request) {
+          errorMessage = 'Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng hoặc backend có đang chạy không.';
+        }
+        
+        if (isMounted) {
+          setServicesError(errorMessage);
+          setServices([]);
+        }
+      } finally {
+        if (isMounted) {
+          setServicesLoading(false);
+        }
+      }
+    };
+
+    fetchServiceTypes();
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
   }, []);
 
@@ -148,8 +235,24 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
     });
   };
 
-  // Fetch danh sách xe của user khi component mount
+  // Check đăng nhập và fetch data khi component mount
   useEffect(() => {
+    // Chỉ check 1 lần để tránh popup hiển thị 2 lần
+    if (hasCheckedAuth.current) return;
+    hasCheckedAuth.current = true;
+
+    // Kiểm tra đăng nhập trước
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setShowLoginPopup(true);
+      toast.showWarning('Bạn cần đăng nhập để đặt lịch hẹn');
+      // Tự động redirect sau 2 giây
+      setTimeout(() => {
+        onNavigate('login');
+      }, 2000);
+      return;
+    }
+
     const fetchMyVehicles = async () => {
       try {
         const data = await getVehicles();
@@ -165,18 +268,28 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
       const userString = localStorage.getItem('user');
       if (userString) {
         const user = JSON.parse(userString);
+        // Lấy số điện thoại từ nhiều field có thể có
+        const phoneNumber = user.phone || user.phoneNumber || user.mobile || '';
+        // Loại bỏ country code nếu có (ví dụ: +84, 84) để chỉ giữ lại số
+        const cleanPhone = phoneNumber ? phoneNumber.replace(/^(\+84|84)/, '').trim() : '';
+        
         setFormData(prev => ({
           ...prev,
-          firstName: user.firstName || user.name?.split(' ')[0] || '',
-          lastName: user.lastName || user.name?.split(' ').slice(1).join(' ') || '',
+          fullName: user.fullName || user.name || '',
           email: user.email || '',
-          phone: user.phone || ''
+          phone: cleanPhone || phoneNumber || ''
         }));
+        
+        console.log('✅ Auto-filled user data:', {
+          fullName: user.fullName || user.name || '',
+          email: user.email || '',
+          phone: cleanPhone || phoneNumber || ''
+        });
       }
     } catch (err) {
       console.error('Lỗi khi tải thông tin user:', err);
     }
-  }, []);
+  }, [onNavigate]);
 
   // Cập nhật formData khi có thông tin xe được truyền vào
   useEffect(() => {
@@ -195,6 +308,25 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
     const searchVehicleByVin = async () => {
       const vin = formData.licensePlate.trim();
       if (vin.length >= 3) {
+        // Trước tiên tìm trong danh sách xe đã có
+        const foundInList = myVehicles.find(v => 
+          v.vin?.toLowerCase() === vin.toLowerCase() ||
+          v.licensePlate?.toLowerCase() === vin.toLowerCase() ||
+          v.vin === vin ||
+          v.licensePlate === vin
+        );
+
+        if (foundInList) {
+          setSelectedVehicleInfo(foundInList);
+          setFormData(prev => ({
+            ...prev,
+            vehicleModel: foundInList.model || ''
+          }));
+          setVehicleLoading(false);
+          return;
+        }
+
+        // Nếu không tìm thấy trong list, thử gọi API
         try {
           setVehicleLoading(true);
           const vehicle = await getVehicleByVin(vin);
@@ -204,13 +336,24 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
               ...prev,
               vehicleModel: vehicle.model || ''
             }));
-          }
-        } catch (err) {
-          // Không tìm thấy xe, reset thông tin
-          if (err.response?.status === 404) {
+          } else {
             setSelectedVehicleInfo(null);
           }
-          console.error('Lỗi khi tìm xe:', err);
+        } catch (err) {
+          // Xử lý lỗi không làm logout
+          if (err.response?.status === 404) {
+            // Không tìm thấy xe - đây là trường hợp bình thường
+            setSelectedVehicleInfo(null);
+            console.log('ℹ️ Không tìm thấy xe với VIN/biển số:', vin);
+          } else if (err.response?.status === 401 || err.response?.status === 403) {
+            // Lỗi authentication - không nên tự động logout ở đây
+            console.warn('⚠️ Lỗi xác thực khi tìm xe:', err.response?.status);
+            setSelectedVehicleInfo(null);
+          } else {
+            // Lỗi khác - chỉ log, không làm gì
+            console.error('Lỗi khi tìm xe:', err);
+            setSelectedVehicleInfo(null);
+          }
         } finally {
           setVehicleLoading(false);
         }
@@ -222,7 +365,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
     // Debounce để tránh gọi API quá nhiều
     const timeoutId = setTimeout(searchVehicleByVin, 500);
     return () => clearTimeout(timeoutId);
-  }, [formData.licensePlate]);
+  }, [formData.licensePlate, myVehicles]);
 
   // Handler để chọn xe từ dropdown
   const handleSelectVehicle = (vehicle) => {
@@ -299,15 +442,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
         userRole: user?.role
       });
       
-      if (!token) {
-        const confirmLogin = window.confirm(
-          '⚠️ Bạn cần đăng nhập để đặt lịch hẹn.\n\nBạn có muốn đăng nhập ngay bây giờ không?'
-        );
-        if (confirmLogin) {
-          onNavigate('login');
-        }
-        return;
-      }
+   
 
       // Chuẩn bị dữ liệu theo format API backend
       // Kết hợp date và time thành ISO string
@@ -564,6 +699,21 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
   // Hàm để lấy khuyến nghị gói dịch vụ dựa trên số km
   return (
     <div className="tesla-booking-container">
+      {/* Login Required Popup */}
+      {showLoginPopup && (
+        <div className="login-popup-overlay">
+          <div className="login-popup">
+            <div className="login-popup-icon">🔒</div>
+            <h3>Yêu cầu đăng nhập</h3>
+            <p>Bạn cần đăng nhập để đặt lịch hẹn</p>
+            <p className="login-popup-subtitle">Đang chuyển đến trang đăng nhập...</p>
+            <div className="login-popup-spinner">
+              <div className="spinner"></div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Back to Home Button */}
       <button 
         className="back-to-home-btn"
@@ -590,7 +740,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
               (currentStep === 2 && !formData.serviceCenterId) ||
               (currentStep === 3 && formData.selectedServices.length === 0) ||
               (currentStep === 4 && (!formData.selectedDate || !formData.selectedTime)) ||
-              (currentStep === 5 && (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.agreeToTerms))
+              (currentStep === 5 && (!formData.fullName || !formData.email || !formData.phone || !formData.agreeToTerms))
             }
           >
             {currentStep === totalSteps ? 'Hoàn thành' : 'Tiếp tục'}
@@ -631,6 +781,8 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
             <BookingServicesStep
               formData={formData}
               services={services}
+              servicesLoading={servicesLoading}
+              servicesError={servicesError}
               expandedServices={expandedServices}
               toggleServiceDetails={toggleServiceDetails}
               handleServiceToggle={handleServiceToggle}

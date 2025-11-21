@@ -7,13 +7,20 @@ import {
   FaCheckCircle,
   FaClock,
   FaTimesCircle,
+  FaCheck,
 } from "react-icons/fa";
 
 const getStatusIcon = (status) => {
   switch (status) {
     case "Hoàn thành":
       return <FaCheckCircle />;
+    case "Đã xác nhận":
+      return <FaCheck />;
+    case "Đang thực hiện":
+      return <FaTools />;
     case "Đang xử lý":
+      return <FaClock />;
+    case "Chờ xác nhận":
       return <FaClock />;
     case "Đã hủy":
       return <FaTimesCircle />;
@@ -26,8 +33,14 @@ const getStatusClass = (status) => {
   switch (status) {
     case "Hoàn thành":
       return "booking-card-completed";
+    case "Đã xác nhận":
+      return "booking-card-accepted";
+    case "Đang thực hiện":
+      return "booking-card-in-progress";
     case "Đang xử lý":
       return "booking-card-processing";
+    case "Chờ xác nhận":
+      return "booking-card-pending";
     case "Đã hủy":
       return "booking-card-cancelled";
     default:
