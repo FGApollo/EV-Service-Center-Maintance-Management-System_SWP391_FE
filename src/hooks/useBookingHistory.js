@@ -4,20 +4,51 @@ import { getAppointments } from "../api";
 // Map status từ API sang tiếng Việt
 const mapStatusToVietnamese = (status) => {
   const statusMap = {
+    // Uppercase
     COMPLETED: "Hoàn thành",
     DONE: "Hoàn thành",
-    IN_PROGRESS: "Đang xử lý",
-    INPROGRESS: "Đang xử lý",
-    PENDING: "Đang xử lý",
-    ACCEPTED: "Đang xử lý",
+    IN_PROGRESS: "Đang thực hiện",
+    INPROGRESS: "Đang thực hiện",
+    PENDING: "Chờ xác nhận",
+    ACCEPTED: "Đã xác nhận",
     CANCELLED: "Đã hủy",
     CANCELED: "Đã hủy",
+    // Lowercase
+    completed: "Hoàn thành",
+    done: "Hoàn thành",
+    in_progress: "Đang thực hiện",
+    inprogress: "Đang thực hiện",
+    pending: "Chờ xác nhận",
+    accepted: "Đã xác nhận",
+    cancelled: "Đã hủy",
+    canceled: "Đã hủy",
   };
 
   if (!status) return "Chưa xác định";
   
-  const upperStatus = status.toString().toUpperCase();
-  return statusMap[upperStatus] || status;
+  // Normalize: trim và convert to string
+  const normalizedStatus = String(status).trim();
+  
+  // Thử tìm trực tiếp trước (giữ nguyên case)
+  if (statusMap[normalizedStatus]) {
+    return statusMap[normalizedStatus];
+  }
+  
+  // Thử uppercase
+  const upperStatus = normalizedStatus.toUpperCase();
+  if (statusMap[upperStatus]) {
+    return statusMap[upperStatus];
+  }
+  
+  // Thử lowercase
+  const lowerStatus = normalizedStatus.toLowerCase();
+  if (statusMap[lowerStatus]) {
+    return statusMap[lowerStatus];
+  }
+  
+  // Log để debug
+  console.warn('⚠️ Status không được map:', status, '(normalized:', normalizedStatus + ')');
+  return normalizedStatus;
 };
 
 // Format cost thành VNĐ
@@ -57,20 +88,31 @@ const useBookingHistory = () => {
       
       const data = await getAppointments();
       
+      // Debug: Log raw data để kiểm tra
+      console.log('📋 Raw appointments data:', data);
+      if (data && data.length > 0) {
+        console.log('📋 First appointment status:', data[0].status, 'Type:', typeof data[0].status);
+      }
+      
       // Transform API data to match component format
-      const transformedData = (data || []).map((appointment) => ({
-        id: appointment.appointmentId,
-        date: formatDate(appointment.appointmentDate),
-        service: appointment.serviceTypeName || "Dịch vụ bảo trì",
-        status: mapStatusToVietnamese(appointment.status),
-        price: formatCost(appointment.cost),
-        // Additional fields for details view
-        rawStatus: appointment.status,
-        rawDate: appointment.appointmentDate,
-        rawCost: appointment.cost,
-        serviceCenterName: appointment.serviceCenterName || "Chưa xác định",
-        vehicleModel: appointment.vehicleModel || "Chưa xác định",
-      }));
+      const transformedData = (data || []).map((appointment) => {
+        const mappedStatus = mapStatusToVietnamese(appointment.status);
+        console.log(`📋 Mapping status: "${appointment.status}" → "${mappedStatus}"`);
+        
+        return {
+          id: appointment.appointmentId,
+          date: formatDate(appointment.appointmentDate),
+          service: appointment.serviceTypeName || "Dịch vụ bảo trì",
+          status: mappedStatus,
+          price: formatCost(appointment.cost),
+          // Additional fields for details view
+          rawStatus: appointment.status,
+          rawDate: appointment.appointmentDate,
+          rawCost: appointment.cost,
+          serviceCenterName: appointment.serviceCenterName || "Chưa xác định",
+          vehicleModel: appointment.vehicleModel || "Chưa xác định",
+        };
+      });
       
       // Sort by date descending (newest first)
       transformedData.sort((a, b) => {

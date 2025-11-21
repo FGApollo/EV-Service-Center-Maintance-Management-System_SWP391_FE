@@ -137,8 +137,35 @@ export const getMaintainedVehicles = async () => {
 
 // Tìm xe theo VIN (✅)
 export const getVehicleByVin = async (vin) => {
-  const res = await axiosClient.get(`/api/vehicles/vin/${vin}`);
-  return res.data;
+  // Encode VIN để xử lý ký tự đặc biệt
+  const encodedVin = encodeURIComponent(vin);
+  try {
+    // Thử endpoint với path parameter trước
+    const res = await axiosClient.get(`/api/vehicles/vin/${encodedVin}`);
+    return res.data;
+  } catch (error) {
+    // Nếu endpoint không tồn tại, thử query parameter
+    if (error.response?.status === 404) {
+      try {
+        const res = await axiosClient.get(`/api/vehicles`, {
+          params: { vin: vin }
+        });
+        // Tìm vehicle có VIN hoặc licensePlate khớp
+        const vehicles = Array.isArray(res.data) ? res.data : [];
+        const found = vehicles.find(v => 
+          v.vin === vin || 
+          v.licensePlate === vin ||
+          v.vin?.toLowerCase() === vin.toLowerCase() ||
+          v.licensePlate?.toLowerCase() === vin.toLowerCase()
+        );
+        return found || null;
+      } catch (fallbackError) {
+        console.error('Error finding vehicle by VIN:', fallbackError);
+        throw fallbackError;
+      }
+    }
+    throw error;
+  }
 };
 
 // Lấy thông tin xe theo ID (✅)
@@ -250,6 +277,27 @@ export const usePart = async (data) => {
 export const getAppointments = async () => {
   const res = await axiosClient.get("/api/appointments");
   return res.data;
+};
+
+// Lấy danh sách service types (gói bảo dưỡng) (✅)
+// Note: API này có thể không cần token (public endpoint)
+export const getServiceTypes = async () => {
+  try {
+    console.log('📤 API Request: GET /api/service-types');
+    const res = await axiosClient.get("/api/service-types");
+    console.log('📥 API Response:', res.data);
+    console.log('📊 Total service types:', Array.isArray(res.data) ? res.data.length : 0);
+    return res.data;
+  } catch (error) {
+    console.error('❌ Error fetching service types:', error);
+    console.error('❌ Error details:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+      url: error.config?.url
+    });
+    throw error;
+  }
 };
 
 // Customer: Đặt lịch bảo dưỡng mới (✅)

@@ -16,7 +16,7 @@ const BookingSummarySidebar = ({
     formData.selectedServices.includes(service.id)
   );
   const totalPrice = selectedServicesData.reduce(
-    (sum, service) => sum + (service.priceValue || 0),
+    (sum, service) => sum + (service.price || service.priceValue || 0),
     0
   );
   const selectedCenter = serviceCenters.find(
@@ -112,7 +112,7 @@ const BookingSummarySidebar = ({
                     color: "#4b5563",
                   }}
                 >
-                  {service.priceText || formatCurrency(service.priceValue)}
+                  {formatCurrency(service.price || service.priceValue || 0)}
                 </p>
               </div>
               {currentStep > 3 && (
@@ -151,9 +151,26 @@ const BookingSummarySidebar = ({
         </div>
       )}
 
-      {formData.firstName && formData.lastName && (
+      {formData.fullName && (
         <div className="sidebar-section">
           <h3>Chi tiết cá nhân</h3>
+          <div className="sidebar-item">
+            <div className="sidebar-item-content">
+              <h4>{formData.fullName}</h4>
+              {formData.email && <p style={{ fontSize: "14px", color: "#666", margin: "4px 0 0" }}>{formData.email}</p>}
+              {formData.phone && <p style={{ fontSize: "14px", color: "#666", margin: "4px 0 0" }}>{formData.phone}</p>}
+            </div>
+            {currentStep > 5 && (
+              <button
+                className="sidebar-edit-btn"
+                onClick={() => setCurrentStep(5)}
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       )}
 

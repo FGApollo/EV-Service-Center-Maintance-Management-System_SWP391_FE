@@ -69,21 +69,6 @@ const ProfileInfoForm = ({
             <p className="form-value">{profileData.phone}</p>
           )}
         </div>
-
-        <div className="form-group full-width">
-          <label>Địa chỉ</label>
-          {isEditing ? (
-            <input
-              type="text"
-              name="address"
-              value={profileData.address}
-              onChange={onChange}
-              required
-            />
-          ) : (
-            <p className="form-value">{profileData.address}</p>
-          )}
-        </div>
       </div>
 
       {isEditing && (
