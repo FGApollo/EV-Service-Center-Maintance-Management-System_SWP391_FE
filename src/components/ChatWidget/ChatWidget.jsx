@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaPaperPlane, FaTimes, FaComments, FaCircle } from 'react-icons/fa';
 import './ChatWidget.css';
 
 function ChatWidget() {
@@ -20,23 +19,18 @@ function ChatWidget() {
   const stompRef = useRef(null);
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 
-  // Debug: Log khi component mount
-  useEffect(() => {
-    console.log('✅ ChatWidget mounted!');
-    return () => console.log('❌ ChatWidget unmounted');
-  }, []);
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   useEffect(() => {
+    // Scroll ngay lập tức và sau một delay nhỏ để đảm bảo DOM đã update
     scrollToBottom();
     const timer = setTimeout(() => scrollToBottom(), 50);
     return () => clearTimeout(timer);
   }, [messages]);
 
-  // Kết nối WebSocket
+  // Kết nối WebSocket khi mở chat lần đầu
   useEffect(() => {
     if (!isOpen || connected || sessionId) return;
 
@@ -47,22 +41,24 @@ function ChatWidget() {
 
         if (!SockJS || !Stomp) {
           console.error('❌ SockJS hoặc Stomp chưa được load');
-          console.log('💡 Đang chạy ở chế độ DEMO');
+          console.log('💡 Đang chạy ở chế độ DEMO (không có WebSocket)');
           return;
         }
 
         console.log('🔌 Đang kết nối WebSocket...');
         const socket = new SockJS('http://localhost:8080/ws');
         const stomp = Stomp.over(socket);
-        stomp.debug = () => {};
+        stomp.debug = () => {}; // Tắt debug logs
 
         stomp.connect({}, () => {
           console.log('✅ WebSocket connected');
           setConnected(true);
 
+          // Tạo session mới
           const newSessionId = `customer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           setSessionId(newSessionId);
 
+          // Subscribe để nhận tin nhắn từ staff
           stomp.subscribe(`/topic/chat/${newSessionId}`, (frame) => {
             try {
               const msg = JSON.parse(frame.body);
@@ -81,6 +77,7 @@ function ChatWidget() {
             }
           });
 
+          // Notify staff về session mới
           const createPayload = {
             sessionId: newSessionId,
             customerId: currentUser.user_id || 'guest',
@@ -89,7 +86,12 @@ function ChatWidget() {
           };
           
           console.log('📤 Creating new chat session:', createPayload);
-          stomp.send('/app/chat.create', {}, JSON.stringify(createPayload));
+          stomp.send(
+            '/app/chat.create',
+            {},
+            JSON.stringify(createPayload)
+          );
+
           stompRef.current = stomp;
         }, (err) => {
           console.error('❌ WebSocket connection error:', err);
@@ -106,8 +108,13 @@ function ChatWidget() {
     return () => {
       if (stompRef.current?.connected) {
         try {
+          // Đóng session khi component unmount
           if (sessionId) {
-            stompRef.current.send('/app/chat.close', {}, JSON.stringify({ sessionId }));
+            stompRef.current.send(
+              '/app/chat.close',
+              {},
+              JSON.stringify({ sessionId })
+            );
           }
           stompRef.current.disconnect(() => {
             console.log('🔌 WebSocket disconnected');
@@ -123,6 +130,7 @@ function ChatWidget() {
     e.preventDefault();
     if (!inputMessage.trim()) return;
 
+    // Add user message
     const newMessage = {
       id: Date.now(),
       sender: 'user',
@@ -133,12 +141,16 @@ function ChatWidget() {
     const messageToSend = inputMessage;
     setInputMessage('');
     
+    // Update messages và force scroll
     setMessages(prev => {
       const updated = [...prev, newMessage];
+      console.log('📝 Messages updated:', updated.length, 'messages');
+      // Force scroll sau khi update
       setTimeout(() => scrollToBottom(), 100);
       return updated;
     });
 
+    // Gửi tin nhắn qua WebSocket
     if (connected && stompRef.current?.connected && sessionId) {
       try {
         const msgPayload = {
@@ -148,12 +160,22 @@ function ChatWidget() {
           timestamp: Date.now()
         };
         console.log('📤 Sending message:', msgPayload);
-        stompRef.current.send('/app/chat.send', {}, JSON.stringify(msgPayload));
+        stompRef.current.send(
+          '/app/chat.send',
+          {},
+          JSON.stringify(msgPayload)
+        );
         console.log('✅ Message sent successfully');
       } catch (err) {
         console.error('❌ Error sending message:', err);
       }
     } else {
+      console.log('⚠️ Cannot send - Not connected or no sessionId', {
+        connected,
+        hasStompConnection: !!stompRef.current?.connected,
+        sessionId
+      });
+      // Demo mode - simulate staff reply
       console.log('💡 DEMO mode: Simulating staff reply');
       setIsTyping(true);
       setTimeout(() => {
@@ -161,7 +183,7 @@ function ChatWidget() {
         const staffReply = {
           id: Date.now() + 1,
           sender: 'staff',
-          text: 'Cảm ơn bạn đã liên hệ! Nhân viên sẽ phản hồi trong giây lát. 😊',
+          text: 'Cảm ơn bạn đã liên hệ! Nhân viên của chúng tôi sẽ phản hồi trong giây lát. 😊',
           time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
         };
         setMessages(prev => [...prev, staffReply]);
@@ -172,123 +194,100 @@ function ChatWidget() {
   const toggleChat = () => {
     const newIsOpen = !isOpen;
     setIsOpen(newIsOpen);
+    // Scroll xuống cuối khi mở chat
     if (newIsOpen) {
       setTimeout(() => scrollToBottom(), 100);
     }
   };
 
-  console.log('🎨 ChatWidget rendering, isOpen:', isOpen);
-
   return (
     <>
-      {/* Chat Window */}
-      <div className={`modern-chat-window ${isOpen ? 'open' : ''}`}>
+      {/* Chat Popup */}
+      <div className={`chat-widget-popup ${isOpen ? 'open' : ''}`}>
         {/* Header */}
-        <div className="modern-chat-header">
-          <div className="header-left">
-            <div className="header-avatar">
-              <div className="avatar-icon">💬</div>
-              <span className={`status-indicator ${connected ? 'online' : 'offline'}`}>
-                <FaCircle />
-              </span>
+        <div className="chat-widget-header">
+          <div className="chat-widget-header-info">
+            <div className="chat-widget-avatar">
+              <span className="avatar-icon">👨‍💼</span>
+              <span className="status-dot"></span>
             </div>
-            <div className="header-info">
-              <h3>Hỗ trợ trực tuyến</h3>
+            <div className="chat-widget-title">
+              <h4>Hỗ trợ khách hàng</h4>
               <p className="status-text">
-                {connected ? 'Đang hoạt động' : 'Chế độ demo'}
+                {connected ? '🟢 Đang kết nối' : '🔴 Chế độ demo'}
               </p>
             </div>
           </div>
-          <button className="close-button" onClick={toggleChat} aria-label="Đóng chat">
-            <FaTimes />
+          <button className="chat-widget-close" onClick={toggleChat}>
+            ✕
           </button>
         </div>
 
-        {/* Messages Area */}
-        <div className="modern-chat-messages">
-          <div className="messages-container">
-            {messages.map((msg, index) => (
-              <div key={`${msg.id}-${index}`} className={`message-wrapper ${msg.sender}`}>
-                {msg.sender === 'staff' && (
-                  <div className="message-avatar staff">
-                    <span>👨‍💼</span>
-                  </div>
-                )}
-                <div className="message-group">
-                  <div className="message-bubble">
-                    <p>{msg.text}</p>
-                  </div>
-                  <span className="message-timestamp">{msg.time}</span>
+        {/* Messages */}
+        <div className="chat-widget-messages">
+          {console.log('🎨 Rendering messages:', messages.length, messages)}
+          {messages.map((msg, index) => (
+            <div key={`${msg.id}-${index}`} className={`chat-message ${msg.sender}`}>
+              {msg.sender === 'staff' && (
+                <div className="message-avatar">👨‍💼</div>
+              )}
+              <div className="message-content">
+                <div className="message-bubble">
+                  <p>{msg.text}</p>
                 </div>
-                {msg.sender === 'user' && (
-                  <div className="message-avatar user">
-                    <span>👤</span>
-                  </div>
-                )}
+                <span className="message-time">{msg.time}</span>
               </div>
-            ))}
-            
-            {isTyping && (
-              <div className="message-wrapper staff">
-                <div className="message-avatar staff">
-                  <span>👨‍💼</span>
-                </div>
-                <div className="message-group">
-                  <div className="message-bubble typing">
-                    <div className="typing-dots">
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                    </div>
+            </div>
+          ))}
+          
+          {isTyping && (
+            <div className="chat-message staff">
+              <div className="message-avatar">👨‍💼</div>
+              <div className="message-content">
+                <div className="message-bubble typing">
+                  <div className="typing-indicator">
+                    <span></span>
+                    <span></span>
+                    <span></span>
                   </div>
                 </div>
               </div>
-            )}
-            
-            <div ref={messagesEndRef} />
-          </div>
+            </div>
+          )}
+          
+          <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Area */}
-        <form className="modern-chat-input" onSubmit={handleSendMessage}>
-          <div className="input-container">
-            <input
-              type="text"
-              placeholder="Nhập tin nhắn của bạn..."
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              className="message-input"
-            />
-            <button 
-              type="submit" 
-              className="send-button"
-              disabled={!inputMessage.trim()}
-              aria-label="Gửi tin nhắn"
-            >
-              <FaPaperPlane />
-            </button>
-          </div>
+        {/* Input */}
+        <form className="chat-widget-input" onSubmit={handleSendMessage}>
+          <input
+            type="text"
+            placeholder="Nhập tin nhắn..."
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+          />
+          <button type="submit" disabled={!inputMessage.trim()}>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z" />
+            </svg>
+          </button>
         </form>
       </div>
 
       {/* Floating Button */}
       <button 
-        className={`modern-chat-button ${isOpen ? 'hidden' : ''}`}
+        className={`chat-widget-button ${isOpen ? 'hidden' : ''}`}
         onClick={toggleChat}
-        aria-label="Mở chat hỗ trợ"
-        style={{
-          position: 'fixed',
-          bottom: '32px',
-          right: '32px',
-          zIndex: 99999,
-          display: 'flex'
-        }}
+        title="Chat với chúng tôi"
       >
-        <FaComments className="button-icon" />
-        <span className="notification-badge">1</span>
+        <svg className="chat-icon" viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+          <path d="M12,3C6.5,3 2,6.58 2,11C2.05,13.15 3.06,15.17 4.75,16.5C4.75,17.1 4.33,18.67 2,21C4.37,20.89 6.64,20 8.47,18.5C9.61,18.83 10.81,19 12,19C17.5,19 22,15.42 22,11C22,6.58 17.5,3 12,3M12,17C7.58,17 4,14.31 4,11C4,7.69 7.58,5 12,5C16.42,5 20,7.69 20,11C20,14.31 16.42,17 12,17Z" />
+        </svg>
+        <span className="chat-badge">1</span>
       </button>
     </>
   );
 }
 
 export default ChatWidget;
+

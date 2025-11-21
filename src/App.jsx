@@ -244,9 +244,10 @@ function App() {
             {toast.message}
           </div>
         )}
-        {/* Chat Widget - Hiển thị cho tất cả user */}
-        {console.log('🔍 ChatWidget check:', { isLoggedIn, user: user?.role })}
-        <ChatWidget />
+        {/* Chat Widget - Chỉ hiển thị cho khách hàng (customer) */}
+        {(!isLoggedIn || !user || user?.role?.toLowerCase() === 'customer') && (
+          <ChatWidget />
+        )}
       </div>
     </ToastProvider>
   );
