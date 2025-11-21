@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './ManagerDashboard.css';
 import { 
-  FaUserTie, FaWarehouse, FaMoneyBillWave, FaChartLine, FaClipboardList, FaTools
+  FaUserTie, FaWarehouse, FaMoneyBillWave, FaChartLine, FaClipboardList, FaTools,
+  FaSearch, FaSignOutAlt, FaBars, FaTimes, FaHome
 } from 'react-icons/fa';
 import { getCurrentUser, getCurrentCenterId } from '../../utils/centerFilter';
 import { ROLES } from '../../constants/roles';
@@ -86,6 +87,9 @@ function ManagerDashboard({ onNavigate }) {
     return tab;
   });
   
+  // State for sidebar
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
   // Listen to hash changes để update activeTab
   useEffect(() => {
     const handleHashChange = () => {
@@ -106,88 +110,159 @@ function ManagerDashboard({ onNavigate }) {
     setActiveTab(tab);
     window.location.hash = `manager/${tab}`;
   };
+  
+  // Toggle sidebar
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
 
   return (
-    <div className="manager-dashboard">
-      {/* Header */}
-      <div className="manager-header">
-        <div className="header-left">
-          <button className="back-btn" onClick={() => onNavigate('home')}>
-            <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
-              <path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"/>
-            </svg>
-            Quay lại
-          </button>
-          <h1>Manager Dashboard - Center #{centerId}</h1>
-        </div>
-        <div className="header-right">
-          <div className="manager-info">
-            <div className="manager-avatar">
-              <FaUserTie />
-            </div>
-            <div className="manager-details">
-              <p className="manager-name">{displayName}</p>
-              <p className="manager-role">Manager - Quản lý trung tâm</p>
-            </div>
+    <div className="modern-dashboard">
+      {/* Sidebar Navigation */}
+      <aside className={`dashboard-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        <div className="sidebar-header">
+          <div className="logo">
+            <FaChartLine className="logo-icon" />
+            {!sidebarCollapsed && <span className="logo-text">CarCare Manager</span>}
           </div>
+          <button className="sidebar-toggle" onClick={toggleSidebar}>
+            {sidebarCollapsed ? <FaBars /> : <FaTimes />}
+          </button>
         </div>
-      </div>
 
-      {/* Tab Navigation */}
-      <div className="tab-navigation">
-        <button 
-          className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
-          onClick={() => handleTabChange('overview')}
-        >
-          <FaChartLine />
-          Tổng quan
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'staff' ? 'active' : ''}`}
-          onClick={() => handleTabChange('staff')}
-        >
-          <FaUserTie />
-          Nhân sự
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'worklog' ? 'active' : ''}`}
-          onClick={() => handleTabChange('worklog')}
-        >
-          <FaClipboardList />
-          WorkLog
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'maintenance' ? 'active' : ''}`}
-          onClick={() => handleTabChange('maintenance')}
-        >
-          <FaTools />
-          Bảo dưỡng
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'parts' ? 'active' : ''}`}
-          onClick={() => handleTabChange('parts')}
-        >
-          <FaWarehouse />
-          Phụ tùng
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'finance' ? 'active' : ''}`}
-          onClick={() => handleTabChange('finance')}
-        >
-          <FaMoneyBillWave />
-          Tài chính & Báo cáo
-        </button>
-      </div>
+        <div className="sidebar-center-info">
+          {!sidebarCollapsed && (
+            <>
+              <p className="center-label">Trung tâm</p>
+              <p className="center-id">#{centerId}</p>
+            </>
+          )}
+        </div>
 
-      {/* Content Area */}
-      <div className="dashboard-content" key={activeTab}>
-        {activeTab === 'overview' && <OverviewTab />}
-        {activeTab === 'staff' && <StaffList />}
-        {activeTab === 'worklog' && <WorkLogTab />}
-        {activeTab === 'maintenance' && <MaintenanceRecordTab />}
-        {activeTab === 'parts' && <PartsTab />}
-        {activeTab === 'finance' && <FinanceTab />}
-      </div>
+        <nav className="sidebar-nav">
+          <button 
+            className={`nav-item ${activeTab === 'overview' ? 'active' : ''}`}
+            onClick={() => handleTabChange('overview')}
+            title="Tổng quan"
+          >
+            <FaChartLine className="nav-icon" />
+            {!sidebarCollapsed && <span>Tổng quan</span>}
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'staff' ? 'active' : ''}`}
+            onClick={() => handleTabChange('staff')}
+            title="Nhân sự"
+          >
+            <FaUserTie className="nav-icon" />
+            {!sidebarCollapsed && <span>Nhân sự</span>}
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'worklog' ? 'active' : ''}`}
+            onClick={() => handleTabChange('worklog')}
+            title="WorkLog"
+          >
+            <FaClipboardList className="nav-icon" />
+            {!sidebarCollapsed && <span>WorkLog</span>}
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'maintenance' ? 'active' : ''}`}
+            onClick={() => handleTabChange('maintenance')}
+            title="Bảo dưỡng"
+          >
+            <FaTools className="nav-icon" />
+            {!sidebarCollapsed && <span>Bảo dưỡng</span>}
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'parts' ? 'active' : ''}`}
+            onClick={() => handleTabChange('parts')}
+            title="Phụ tùng"
+          >
+            <FaWarehouse className="nav-icon" />
+            {!sidebarCollapsed && <span>Phụ tùng</span>}
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'finance' ? 'active' : ''}`}
+            onClick={() => handleTabChange('finance')}
+            title="Tài chính & Báo cáo"
+          >
+            <FaMoneyBillWave className="nav-icon" />
+            {!sidebarCollapsed && <span>Tài chính</span>}
+          </button>
+        </nav>
+
+        <div className="sidebar-footer">
+          <button 
+            className="nav-item"
+            onClick={() => onNavigate('home')}
+            title="Quay về trang chủ"
+          >
+            <FaHome className="nav-icon" />
+            {!sidebarCollapsed && <span>Trang chủ</span>}
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="dashboard-main">
+        {/* Top Header */}
+        <header className="dashboard-header">
+          <div className="header-left">
+            <h1 className="page-title">
+              {activeTab === 'overview' && 'Tổng quan'}
+              {activeTab === 'staff' && 'Quản lý Nhân sự'}
+              {activeTab === 'worklog' && 'Nhật ký Công việc'}
+              {activeTab === 'maintenance' && 'Quy trình Bảo dưỡng'}
+              {activeTab === 'parts' && 'Quản lý Phụ tùng'}
+              {activeTab === 'finance' && 'Tài chính & Báo cáo'}
+            </h1>
+          </div>
+
+          <div className="header-right">
+            <div className="search-wrapper">
+              <FaSearch className="search-icon" />
+              <input 
+                type="text" 
+                placeholder="Tìm kiếm..." 
+                className="header-search"
+              />
+            </div>
+
+            <div className="user-menu">
+              <div className="user-menu-trigger">
+                <div className="user-avatar">
+                  <FaUserTie />
+                </div>
+                <div className="user-info">
+                  <p className="user-name">{displayName}</p>
+                  <p className="user-role">Manager</p>
+                </div>
+              </div>
+            </div>
+
+            <button 
+              className="logout-btn" 
+              onClick={() => {
+                localStorage.clear();
+                onNavigate('login');
+              }}
+              title="Đăng xuất"
+            >
+              <FaSignOutAlt />
+              <span>Đăng xuất</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Content Area */}
+        <div className="dashboard-content" key={activeTab}>
+          {activeTab === 'overview' && <OverviewTab />}
+          {activeTab === 'staff' && <StaffList />}
+          {activeTab === 'worklog' && <WorkLogTab />}
+          {activeTab === 'maintenance' && <MaintenanceRecordTab />}
+          {activeTab === 'parts' && <PartsTab />}
+          {activeTab === 'finance' && <FinanceTab />}
+        </div>
+      </main>
     </div>
   );
 }

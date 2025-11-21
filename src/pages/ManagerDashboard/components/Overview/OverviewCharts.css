@@ -4,21 +4,22 @@
 
 .charts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
   width: 100%;
 }
 
 .chart-card {
   background: white;
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .chart-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 .chart-header {
@@ -26,18 +27,18 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 2px solid #f5f5f5;
-  background: #fafafa;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8f9fc;
 }
 
 .chart-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: #000000;
+  gap: 8px;
+  color: #475569;
 }
 
 .btn-refresh {
@@ -140,11 +141,11 @@
 }
 
 .bar-revenue {
-  background: linear-gradient(180deg, #4CAF50 0%, #45a049 100%);
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
 }
 
 .bar-profit {
-  background: linear-gradient(180deg, #2196F3 0%, #1976D2 100%);
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
 }
 
 .bar-label {
@@ -186,11 +187,11 @@
 }
 
 .revenue-chart {
-  border-top: 3px solid #4CAF50;
+  border-top: 3px solid #10b981;
 }
 
 .profit-chart {
-  border-top: 3px solid #2196F3;
+  border-top: 3px solid #3b82f6;
 }
 
 /* Responsive */

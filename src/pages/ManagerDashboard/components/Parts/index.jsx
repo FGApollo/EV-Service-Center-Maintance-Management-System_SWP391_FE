@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
-import { FaSearch, FaPlus, FaWarehouse, FaEdit, FaTrash } from 'react-icons/fa';
+import React, { useState, useMemo } from 'react';
+import { FaSearch, FaPlus, FaWarehouse } from 'react-icons/fa';
 import { useParts } from '../../hooks/useParts';
 import { PartModal } from './PartModal';
+import { PartsStats } from './PartsStats';
+import { PartsTable } from './PartsTable';
 import { showSuccess, showError } from '../../../../utils/toast';
+import './Parts.css';
 
 export const PartsTab = () => {
   const { parts, loading, addPart, updatePart, deletePart } = useParts();
@@ -84,103 +87,61 @@ export const PartsTab = () => {
     }
   };
 
-  const filteredParts = parts.filter(part =>
-    searchQuery === '' ||
-    part.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    part.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Calculate stats
+  const stats = useMemo(() => {
+    const totalParts = parts.length;
+    const lowStockParts = parts.filter(p => (p.quantityInStock || 0) < (p.minStockLevel || 0)).length;
+    const totalValue = parts.reduce((sum, p) => sum + ((p.unitPrice || 0) * (p.quantityInStock || 0)), 0);
+    const uniqueCategories = new Set(parts.map(p => p.category).filter(Boolean)).size;
+    
+    return {
+      totalParts,
+      lowStockParts,
+      totalValue,
+      uniqueCategories
+    };
+  }, [parts]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="parts-section">
+        <div className="parts-loading">
+          <p>⏳ Đang tải dữ liệu phụ tùng...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="parts-section">
-      <div className="section-toolbar">
-        <div className="search-box">
+      {/* Statistics Cards */}
+      {parts.length > 0 && <PartsStats stats={stats} />}
+
+      {/* Toolbar: Search and Add */}
+      <div className="parts-toolbar">
+        <div className="parts-search-box">
           <FaSearch />
           <input
             type="text"
-            placeholder="Tìm kiếm phụ tùng..."
+            placeholder="Tìm kiếm phụ tùng theo tên, mô tả hoặc mã..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <button className="add-btn" onClick={handleAddPart}>
+        <button className="parts-add-btn" onClick={handleAddPart}>
           <FaPlus />
-          Thêm phụ tùng
+          <span>Thêm phụ tùng</span>
         </button>
       </div>
 
-      {loading ? (
-        <div className="loading-message">
-          <p>⏳ Đang tải dữ liệu phụ tùng từ API...</p>
-        </div>
-      ) : parts.length === 0 ? (
-        <div className="empty-message" style={{padding: '60px 20px', textAlign: 'center'}}>
-          <FaWarehouse size={60} style={{color: '#ccc', marginBottom: '20px'}} />
-          <h3>Chưa có phụ tùng nào trong kho</h3>
-          <p>Bấm "Thêm phụ tùng" để thêm phụ tùng mới</p>
-        </div>
-      ) : (
-        <>
-          <div className="parts-stats">
-            <div className="stat-card">
-              <FaWarehouse />
-              <div>
-                <h4>{parts.length}</h4>
-                <p>Tổng phụ tùng</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="parts-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Mã PT</th>
-                  <th>Tên phụ tùng</th>
-                  <th>Mô tả</th>
-                  <th>Đơn giá</th>
-                  <th>Tồn tối thiểu</th>
-                  <th>Hành động</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredParts.map(part => {
-                  return (
-                    <tr key={part.id}>
-                      <td><strong>#{part.id}</strong></td>
-                      <td>{part.name || 'N/A'}</td>
-                      <td style={{maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
-                        {part.description || '-'}
-                      </td>
-                      <td><strong>{part.unitPrice?.toLocaleString()} VNĐ</strong></td>
-                      <td>{part.minStockLevel || 0}</td>
-                      <td>
-                        <div className="action-buttons" style={{display: 'flex', gap: '8px'}}>
-                          <button 
-                            className="btn-edit" 
-                            onClick={() => handleEditPart(part)}
-                            title="Chỉnh sửa"
-                            style={{padding: '6px 12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer'}}
-                          >
-                            <FaEdit />
-                          </button>
-                          <button 
-                            className="btn-delete" 
-                            onClick={() => handleDeletePart(part)}
-                            title="Xóa"
-                            style={{padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer'}}
-                          >
-                            <FaTrash />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
+      {/* Parts Table or Empty State */}
+      <PartsTable
+        parts={parts}
+        searchQuery={searchQuery}
+        onEdit={handleEditPart}
+        onDelete={handleDeletePart}
+      />
 
       {/* Modal for Add/Edit */}
       <PartModal

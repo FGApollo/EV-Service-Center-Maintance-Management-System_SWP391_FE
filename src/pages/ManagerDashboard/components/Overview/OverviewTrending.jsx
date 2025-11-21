@@ -1,16 +1,15 @@
 import React from 'react';
 import { FaTools, FaCalendarWeek, FaWarehouse } from 'react-icons/fa';
-import { AccordionSection } from './Accordion';
+import { SimpleSection } from './SimpleSection';
 import './OverviewTrending.css';
 
 export const OverviewTrending = ({ stats }) => {
   const renderTrendingServiceTable = (services, label) => {
     return (
-      <AccordionSection 
+      <SimpleSection 
         title={label} 
         icon={<FaTools />}
-        defaultOpen={true}
-        className="trending-accordion"
+        className="trending-section-item compact"
       >
         {services.length > 0 ? (
           <div className="table-wrapper">
@@ -53,7 +52,7 @@ export const OverviewTrending = ({ stats }) => {
             <p>Chưa có dữ liệu</p>
           </div>
         )}
-      </AccordionSection>
+      </SimpleSection>
     );
   };
 
@@ -62,11 +61,10 @@ export const OverviewTrending = ({ stats }) => {
       {renderTrendingServiceTable(stats.trendingServices, 'Dịch vụ phổ biến (All Time)')}
       {renderTrendingServiceTable(stats.trendingServicesLastMonth, 'Dịch vụ phổ biến (Tháng trước)')}
       
-      <AccordionSection 
+      <SimpleSection 
         title="Phụ tùng trong kho" 
         icon={<FaWarehouse />}
-        defaultOpen={true}
-        className="trending-accordion"
+        className="trending-section-item compact"
       >
         {Array.isArray(stats.trendingParts) && stats.trendingParts.length > 0 ? (
           <div className="table-wrapper">
@@ -96,7 +94,7 @@ export const OverviewTrending = ({ stats }) => {
             <p>Chưa có dữ liệu</p>
           </div>
         )}
-      </AccordionSection>
+      </SimpleSection>
     </div>
   );
 };

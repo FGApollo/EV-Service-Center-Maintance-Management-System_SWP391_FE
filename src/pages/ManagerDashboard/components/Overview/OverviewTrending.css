@@ -1,38 +1,53 @@
 .trending-section {
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
 }
 
-.trending-accordion {
-  margin-bottom: 0 !important;
+.trending-section-item {
+  margin-bottom: 0;
+}
+
+@media (max-width: 1200px) {
+  .trending-section {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .trending-section {
+    grid-template-columns: 1fr;
+  }
 }
 
 .table-wrapper {
   overflow-x: auto;
-  border-radius: 8px;
+  border-radius: 12px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .trending-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .trending-table thead {
-  background: #f5f5f5;
-  border-bottom: 2px solid #e0e0e0;
+  background: linear-gradient(135deg, #f8f9fc 0%, #f1f5f9 100%);
+  border-bottom: 2px solid #e2e8f0;
 }
 
 .trending-table th {
-  padding: 12px 16px;
+  padding: 14px 16px;
   text-align: left;
-  font-weight: 600;
-  color: #666;
+  font-weight: 700;
+  color: #475569;
   text-transform: uppercase;
   font-size: 12px;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
 }
 
 .trending-table tbody tr {
@@ -41,8 +56,8 @@
 }
 
 .trending-table tbody tr:hover {
-  background: #fafafa;
-  box-shadow: inset 3px 0 0 #000000;
+  background: linear-gradient(90deg, rgba(79, 157, 255, 0.05) 0%, transparent 100%);
+  box-shadow: inset 3px 0 0 #4f9dff;
 }
 
 .trending-table tbody tr:last-child {
@@ -50,8 +65,8 @@
 }
 
 .trending-table td {
-  padding: 14px 16px;
-  color: #333;
+  padding: 12px 16px;
+  color: #475569;
 }
 
 .rank {
@@ -100,8 +115,11 @@
 
 .count-badge {
   font-weight: 700;
-  font-size: 15px;
-  color: #5b5ef5;
+  font-size: 16px;
+  background: linear-gradient(135deg, #4f9dff 0%, #7b68ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   text-align: right;
   width: 80px;
 }
@@ -111,13 +129,17 @@
   align-items: center;
   justify-content: center;
   padding: 40px 20px;
-  color: #999;
+  color: #94a3b8;
   text-align: center;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
 }
 
 .empty-state p {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .empty-state-small {

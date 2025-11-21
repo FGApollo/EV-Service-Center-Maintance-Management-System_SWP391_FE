@@ -132,8 +132,14 @@ const useAuthForm = ({ onNavigate, onLogin, toast }) => {
       }
     } catch (error) {
       console.error("Lỗi khi gọi API:", error.response?.data || error.message);
-      const errorMessage = error.response?.data?.message || error.message || "Lỗi khi gọi API";
-      showMessage(errorMessage, 'error');
+      
+      // Check if it's a login authentication error (401 Unauthorized or similar)
+      if (!isSignUp && (error.response?.status === 401 || error.response?.status === 400)) {
+        showMessage("Sai email hoặc password, vui lòng thử lại", 'error');
+      } else {
+        const errorMessage = error.response?.data?.message || error.message || "Lỗi khi gọi API";
+        showMessage(errorMessage, 'error');
+      }
     } finally {
       setLoading(false);
     }
