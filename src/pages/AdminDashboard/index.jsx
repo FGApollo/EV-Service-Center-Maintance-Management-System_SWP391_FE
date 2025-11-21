@@ -65,35 +65,35 @@ function AdminDashboard({ onNavigate }) {
   
   // State for active tab
   const [activeTab, setActiveTab] = useState(() => {
-    const hash = window.location.hash.slice(1);
-    const parts = hash.split('/');
-    const tab = parts[1] || 'overview';
-    console.log('📍 Initial tab from URL:', hash, '→', tab);
+    const path = window.location.pathname;
+    const parts = path.split('/');
+    const tab = parts[2] || 'overview'; // /admin/overview -> parts[2] = 'overview'
+    console.log('📍 Initial tab from URL:', path, '→', tab);
     return tab;
   });
   
   // State for sidebar
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
-  // Listen to hash changes
+  // Listen to popstate để update activeTab khi back/forward
   useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.slice(1);
-      const parts = hash.split('/');
-      const tab = parts[1] || 'overview';
-      console.log('📍 Hash changed:', hash, '→', tab);
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      const parts = path.split('/');
+      const tab = parts[2] || 'overview';
+      console.log('📍 Path changed:', path, '→', tab);
       setActiveTab(tab);
     };
     
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   // Handle tab change
   const handleTabChange = (tab) => {
     console.log('🔄 Switching to tab:', tab);
     setActiveTab(tab);
-    window.location.hash = `admin/${tab}`;
+    window.history.pushState({}, '', `/admin/${tab}`);
   };
   
   // Toggle sidebar
@@ -125,7 +125,7 @@ function AdminDashboard({ onNavigate }) {
           {!sidebarCollapsed && (
             <>
               <p className="center-label">Administrator</p>
-              <p className="center-id">Toàn quyền hệ thống</p>
+              <p className="center-id">CARCARE SYSTEM </p>
             </>
           )}
         </div>

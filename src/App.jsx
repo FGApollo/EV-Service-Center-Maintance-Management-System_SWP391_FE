@@ -225,13 +225,13 @@ function App() {
           <Navbar 
             onNavigate={handleNavigate} 
             isLoggedIn={isLoggedIn} 
-            onLogout={() => { 
-              setIsLoggedIn(false); 
-              setUser(null); 
-              localStorage.removeItem('token'); 
-              localStorage.removeItem('user');
-              window.location.hash = 'home'; // ✅ Update hash
-            }} 
+          onLogout={() => { 
+            setIsLoggedIn(false); 
+            setUser(null); 
+            localStorage.removeItem('token'); 
+            localStorage.removeItem('user');
+            navigate('home');
+          }}
             user={user} 
           />
         )}

@@ -4,7 +4,7 @@ import {
   createAppointment,
   getVehicles,
   getVehicleByVin,
-  getServiceTypes,
+  getAllServiceTypes,
 } from "../api";
 import { serviceCenters, timeSlots } from "../constants/booking";
 import BookingVehicleStep from "../components/booking/BookingVehicleStep";
@@ -102,7 +102,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
           }, 8000);
         });
 
-        const apiPromise = getServiceTypes();
+        const apiPromise = getAllServiceTypes();
         const data = await Promise.race([apiPromise, timeoutPromise]);
         
         clearTimeout(timeoutId);
