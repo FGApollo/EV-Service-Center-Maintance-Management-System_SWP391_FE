@@ -3,10 +3,13 @@
   width: 280px;
   background: white;
   border-right: 2px solid #e2e8f0;
-  height: calc(100vh - 88px); /* Trừ chiều cao navbar */
+  height: calc(100vh - 88px);
   position: sticky;
-  top: 0;
+  top: 88px;
+  left: 0;
+  z-index: 50;
   overflow-y: auto;
+  align-self: flex-start;
 }
 
 .sidebar-nav {

@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { useOverview } from '../../hooks/useOverview';
 import { OverviewStats } from './OverviewStats';
+import { OverviewCharts } from './OverviewCharts';
+import { OverviewActivity } from './OverviewActivity';
 import { OverviewComparison } from './OverviewComparison';
 import './Overview.css';
 
@@ -37,6 +39,12 @@ export const OverviewTab = () => {
     <div className="overview-section">
       {/* Stats Cards */}
       <OverviewStats data={overviewData} />
+
+      {/* Charts Section */}
+      <OverviewCharts data={overviewData} />
+
+      {/* Recent Activity */}
+      <OverviewActivity />
 
       {/* Revenue Comparison */}
       <OverviewComparison revenue={overviewData.revenue} />

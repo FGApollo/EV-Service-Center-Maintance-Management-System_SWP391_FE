@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { FaSyncAlt } from 'react-icons/fa';
 import { getMaintainedVehicles } from '../../../../api';
 import './VehicleManagement.css';
 
@@ -10,6 +11,8 @@ function VehicleManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [sortBy, setSortBy] = useState('closetTime'); // closetTime, maintenanceCount, model
+  const [filterModel, setFilterModel] = useState(''); // Filter theo model
+  const [filterColor, setFilterColor] = useState(''); // Filter theo màu sắc
 
   // Load dữ liệu xe khi component mount
   useEffect(() => {
@@ -19,7 +22,19 @@ function VehicleManagement() {
   // Filter và search khi searchTerm hoặc vehicles thay đổi
   useEffect(() => {
     filterAndSortVehicles();
-  }, [searchTerm, vehicles, sortBy]);
+  }, [searchTerm, vehicles, sortBy, filterModel, filterColor]);
+
+  // Lấy danh sách unique models
+  const uniqueModels = useMemo(() => {
+    const models = vehicles.map(v => v.model).filter(Boolean);
+    return [...new Set(models)].sort();
+  }, [vehicles]);
+
+  // Lấy danh sách unique colors
+  const uniqueColors = useMemo(() => {
+    const colors = vehicles.map(v => v.color).filter(Boolean);
+    return [...new Set(colors)].sort();
+  }, [vehicles]);
 
   const loadVehicles = async () => {
     setLoading(true);
@@ -47,6 +62,16 @@ function VehicleManagement() {
         v.licensePlate?.toLowerCase().includes(term) ||
         v.ownerName?.toLowerCase().includes(term)
       );
+    }
+
+    // Filter theo model
+    if (filterModel) {
+      filtered = filtered.filter(v => v.model === filterModel);
+    }
+
+    // Filter theo màu sắc
+    if (filterColor) {
+      filtered = filtered.filter(v => v.color === filterColor);
     }
 
     // Sắp xếp
@@ -120,29 +145,52 @@ function VehicleManagement() {
           <span className="vehicle-count">{filteredVehicles.length} xe</span>
         </div>
         <button onClick={loadVehicles} className="refresh-btn" title="Làm mới">
-          🔄
+          <FaSyncAlt />
+          <span>Làm mới</span>
         </button>
       </div>
 
       {/* Filters & Search */}
       <div className="vm-filters">
         <div className="search-box">
+          <span className="search-icon">🔍</span>
           <input
             type="text"
             placeholder="Tìm kiếm theo tên xe, VIN, biển số, chủ xe..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <span className="search-icon">🔍</span>
         </div>
 
-        <div className="sort-controls">
-          <label>Sắp xếp:</label>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-            <option value="closetTime">Mới nhất</option>
-            <option value="maintenanceCount">Số lần bảo dưỡng</option>
-            <option value="model">Tên xe (A-Z)</option>
-          </select>
+        <div className="filter-group">
+          <div className="filter-item">
+            <label>Model:</label>
+            <select value={filterModel} onChange={(e) => setFilterModel(e.target.value)}>
+              <option value="">Tất cả</option>
+              {uniqueModels.map(model => (
+                <option key={model} value={model}>{model}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-item">
+            <label>Màu sắc:</label>
+            <select value={filterColor} onChange={(e) => setFilterColor(e.target.value)}>
+              <option value="">Tất cả</option>
+              {uniqueColors.map(color => (
+                <option key={color} value={color}>{color}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-item">
+            <label>Sắp xếp:</label>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+              <option value="closetTime">Mới nhất</option>
+              <option value="maintenanceCount">Số lần bảo dưỡng</option>
+              <option value="model">Tên xe (A-Z)</option>
+            </select>
+          </div>
         </div>
       </div>
 

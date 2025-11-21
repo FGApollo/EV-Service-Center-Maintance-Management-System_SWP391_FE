@@ -23,6 +23,7 @@ function AppointmentManagement() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('newest'); // newest (ID lớn) hoặc oldest (ID bé)
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [appointmentDetail, setAppointmentDetail] = useState(null); // Chi tiết appointment với thông tin kỹ thuật viên
   const [detailLoading, setDetailLoading] = useState(false);
@@ -301,11 +302,20 @@ function AppointmentManagement() {
   };
 
   // Lọc appointments theo search query
-  const filteredAppointments = appointments.filter((apt) =>
+  let filteredAppointments = appointments.filter((apt) =>
     apt.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     apt.phone.includes(searchQuery) ||
     apt.licensePlate.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Sắp xếp theo ID
+  filteredAppointments = [...filteredAppointments].sort((a, b) => {
+    if (sortBy === 'newest') {
+      return b.id - a.id; // ID lớn trước
+    } else {
+      return a.id - b.id; // ID bé trước
+    }
+  });
 
   // Get current tab info
   const currentTab = statusTabs.find(tab => tab.key === activeStatus);
@@ -321,8 +331,18 @@ function AppointmentManagement() {
       <div className="appointment-header">
         <h2>Quản lý lịch hẹn</h2>
         
-        {/* Search Box */}
-        <div className="search-box">
+        <div className="header-actions">
+          {/* Sort Dropdown */}
+          <div className="sort-dropdown">
+            <label>Sắp xếp:</label>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+              <option value="newest">ID mới nhất</option>
+              <option value="oldest">ID cũ nhất</option>
+            </select>
+          </div>
+
+          {/* Search Box */}
+          <div className="search-box">
           <FaSearch />
           <input
             type="text"
@@ -330,6 +350,7 @@ function AppointmentManagement() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+        </div>
         </div>
       </div>
 
@@ -407,8 +428,10 @@ function AppointmentManagement() {
                         {appointmentStatus.icon}
                       </div>
                       <div className="appointment-basic-info">
-                        <h4>{appointment.customerName}</h4>
-                        <p className="appointment-id">#{appointment.id}</p>
+                        <div className="appointment-name-id">
+                          <h4>{appointment.customerName}</h4>
+                          <span className="appointment-id">#{appointment.id}</span>
+                        </div>
                       </div>
                       {activeStatus === 'all' && (
                         <span 
