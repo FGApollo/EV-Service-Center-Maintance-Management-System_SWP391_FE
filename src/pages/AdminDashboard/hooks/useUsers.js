@@ -41,17 +41,25 @@ export const useUsers = () => {
         ...technicians
       ];
 
-      setUsers(allUsers);
+      // ✅ Filter bỏ users đã bị soft delete (status !== 'active')
+      // Backend trả về lowercase 'active', không phải 'ACTIVE'
+      const activeUsers = allUsers.filter(user => 
+        user.status?.toLowerCase() === 'active'
+      );
+
+      setUsers(activeUsers);
       
       console.log('✅ [Admin Users] Loaded users:', {
-        total: allUsers.length,
-        managers: managers.length,
-        customers: customers.length,
-        staff: staff.length,
-        technicians: technicians.length
+        total: activeUsers.length,
+        totalIncludingInactive: allUsers.length,
+        inactive: allUsers.length - activeUsers.length,
+        managers: managers.filter(u => u.status?.toLowerCase() === 'active').length,
+        customers: customers.filter(u => u.status?.toLowerCase() === 'active').length,
+        staff: staff.filter(u => u.status?.toLowerCase() === 'active').length,
+        technicians: technicians.filter(u => u.status?.toLowerCase() === 'active').length
       });
       setLoading(false);
-      return allUsers;
+      return activeUsers;
     } catch (err) {
       console.error('❌ [Admin Users] Error fetching users:', err);
       const errorMsg = err.response?.data?.message || err.message || 'Failed to fetch users';

@@ -100,11 +100,11 @@ export const UsersTable = ({ users, searchQuery, onEdit, onDelete }) => {
                     <span 
                       className="status-badge"
                       style={{
-                        background: user.status === 'ACTIVE' ? '#d1fae5' : '#fee2e2',
-                        color: user.status === 'ACTIVE' ? '#065f46' : '#991b1b'
+                        background: user.status?.toLowerCase() === 'active' ? '#d1fae5' : '#fee2e2',
+                        color: user.status?.toLowerCase() === 'active' ? '#065f46' : '#991b1b'
                       }}
                     >
-                      {user.status === 'ACTIVE' ? 'Hoạt động' : 'Không hoạt động'}
+                      {user.status?.toLowerCase() === 'active' ? 'Hoạt động' : 'Không hoạt động'}
                     </span>
                   </td>
                   <td className="text-center">

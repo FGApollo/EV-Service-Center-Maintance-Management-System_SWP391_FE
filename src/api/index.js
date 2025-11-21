@@ -137,35 +137,8 @@ export const getMaintainedVehicles = async () => {
 
 // Tìm xe theo VIN (✅)
 export const getVehicleByVin = async (vin) => {
-  // Encode VIN để xử lý ký tự đặc biệt
-  const encodedVin = encodeURIComponent(vin);
-  try {
-    // Thử endpoint với path parameter trước
-    const res = await axiosClient.get(`/api/vehicles/vin/${encodedVin}`);
-    return res.data;
-  } catch (error) {
-    // Nếu endpoint không tồn tại, thử query parameter
-    if (error.response?.status === 404) {
-      try {
-        const res = await axiosClient.get(`/api/vehicles`, {
-          params: { vin: vin }
-        });
-        // Tìm vehicle có VIN hoặc licensePlate khớp
-        const vehicles = Array.isArray(res.data) ? res.data : [];
-        const found = vehicles.find(v => 
-          v.vin === vin || 
-          v.licensePlate === vin ||
-          v.vin?.toLowerCase() === vin.toLowerCase() ||
-          v.licensePlate?.toLowerCase() === vin.toLowerCase()
-        );
-        return found || null;
-      } catch (fallbackError) {
-        console.error('Error finding vehicle by VIN:', fallbackError);
-        throw fallbackError;
-      }
-    }
-    throw error;
-  }
+  const res = await axiosClient.get(`/api/vehicles/vin/${vin}`);
+  return res.data;
 };
 
 // Lấy thông tin xe theo ID (✅)
@@ -277,27 +250,6 @@ export const usePart = async (data) => {
 export const getAppointments = async () => {
   const res = await axiosClient.get("/api/appointments");
   return res.data;
-};
-
-// Lấy danh sách service types (gói bảo dưỡng) (✅)
-// Note: API này có thể không cần token (public endpoint)
-export const getServiceTypes = async () => {
-  try {
-    console.log('📤 API Request: GET /api/service-types');
-    const res = await axiosClient.get("/api/service-types");
-    console.log('📥 API Response:', res.data);
-    console.log('📊 Total service types:', Array.isArray(res.data) ? res.data.length : 0);
-    return res.data;
-  } catch (error) {
-    console.error('❌ Error fetching service types:', error);
-    console.error('❌ Error details:', {
-      message: error.message,
-      status: error.response?.status,
-      data: error.response?.data,
-      url: error.config?.url
-    });
-    throw error;
-  }
 };
 
 // Customer: Đặt lịch bảo dưỡng mới (✅)
@@ -707,6 +659,92 @@ export const deleteCenter = async (id) => {
   console.log('📥 API Response:', res.data);
   return res.data;
 };
+
+/* --------------------------------
+   📦 SERVICE TYPES (Gói bảo dưỡng)
+---------------------------------- */
+
+// Lấy tất cả gói bảo dưỡng (✅ Cần token)
+// API: GET /api/service-types
+export const getAllServiceTypes = async () => {
+  console.log('📊 [API] GET /api/service-types');
+  const res = await axiosClient.get('/api/service-types');
+  console.log('✅ [API] Response:', res.data);
+  return res.data;
+};
+
+// Lấy chi tiết gói bảo dưỡng (✅ Cần token)
+// API: GET /api/service-types/{id}
+export const getServiceTypeById = async (id) => {
+  console.log(`📊 [API] GET /api/service-types/${id}`);
+  const res = await axiosClient.get(`/api/service-types/${id}`);
+  console.log('✅ [API] Response:', res.data);
+  return res.data;
+};
+
+// Tạo gói bảo dưỡng mới (✅ Cần token)
+// API: POST /api/service-types
+// Body: { name, description, price, durationEst } hoặc snake_case
+export const createServiceType = async (data) => {
+  console.log('📤 [API] POST /api/service-types');
+  console.log('📤 Request Data (original):', data);
+  console.log('📤 Data type:', typeof data, 'Is Array?', Array.isArray(data));
+  
+  // Ensure data is an object, not an array
+  if (Array.isArray(data)) {
+    console.error('❌ ERROR: Data is an array! Expected object.');
+    throw new Error('Invalid data format: expected object, got array');
+  }
+  
+  // Try both camelCase and snake_case for backend compatibility
+  const payload = {
+    name: data.name,
+    description: data.description,
+    price: data.price,
+    durationEst: data.durationEst // Try camelCase first
+  };
+  
+  console.log('📤 Request Payload (camelCase):', payload);
+  console.log('📤 Payload type:', typeof payload, 'Is Array?', Array.isArray(payload));
+  console.log('📤 Stringified:', JSON.stringify(payload));
+  
+  const res = await axiosClient.post('/api/service-types', payload);
+  console.log('✅ [API] Response:', res.data);
+  return res.data;
+};
+
+// Cập nhật gói bảo dưỡng (✅ Cần token)
+// API: PUT /api/service-types/{id}
+// Body: { name, description, price, durationEst } hoặc snake_case
+export const updateServiceType = async (id, data) => {
+  console.log(`📤 [API] PUT /api/service-types/${id}`);
+  console.log('📤 Request Data (original):', data);
+  
+  // Try snake_case format for backend compatibility
+  const payload = {
+    name: data.name,
+    description: data.description,
+    price: data.price,
+    duration_est: data.durationEst // snake_case
+  };
+  
+  console.log('📤 Request Data (snake_case):', payload);
+  const res = await axiosClient.put(`/api/service-types/${id}`, payload);
+  console.log('✅ [API] Response:', res.data);
+  return res.data;
+};
+
+// Xóa gói bảo dưỡng (✅ Cần token)
+// API: DELETE /api/service-types/{id}
+export const deleteServiceType = async (id) => {
+  console.log(`🗑️ [API] DELETE /api/service-types/${id}`);
+  const res = await axiosClient.delete(`/api/service-types/${id}`);
+  console.log('✅ [API] Response:', res.data);
+  return res.data;
+};
+
+// Alias để tương thích ngược với code cũ (BookingPage)
+export const getServiceTypes = getAllServiceTypes;
 
 /* --------------------------------
    🧹 TIỆN ÍCH
