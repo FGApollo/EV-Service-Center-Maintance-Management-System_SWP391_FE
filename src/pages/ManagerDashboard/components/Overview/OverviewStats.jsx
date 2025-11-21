@@ -11,7 +11,7 @@ import {
   FaUsers,
   FaChartPie
 } from 'react-icons/fa';
-import { AccordionSection } from './Accordion';
+import { SimpleSection } from './SimpleSection';
 import './OverviewStats.css';
 
 const formatCurrency = (value) => {
@@ -23,10 +23,9 @@ const formatCurrency = (value) => {
 
 export const OverviewStats = ({ stats }) => {
   return (
-    <AccordionSection 
+    <SimpleSection 
       title="Thống kê nhanh" 
       icon={<FaChartPie />}
-      defaultOpen={true}
     >
       <div className="stats-grid">
         <div className="stat-card revenue">
@@ -106,6 +105,6 @@ export const OverviewStats = ({ stats }) => {
           </div>
         </div>
       </div>
-    </AccordionSection>
+    </SimpleSection>
   );
 };

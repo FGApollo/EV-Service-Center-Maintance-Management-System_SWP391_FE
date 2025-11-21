@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FaChartBar, FaChartLine, FaSync } from 'react-icons/fa';
-import { AccordionSection } from './Accordion';
+import { SimpleSection } from './SimpleSection';
 import './OverviewCharts.css';
 
 const formatCurrency = (value) => {
@@ -24,10 +24,9 @@ export const OverviewCharts = ({ stats, onRefresh }) => {
 
   return (
     <div className="charts-section">
-      <AccordionSection 
+      <SimpleSection 
         title="Báo cáo doanh thu & lợi nhuận" 
         icon={<FaChartBar />}
-        defaultOpen={true}
       >
         <div className="charts-grid">
           {/* Revenue Chart */}
@@ -112,7 +111,7 @@ export const OverviewCharts = ({ stats, onRefresh }) => {
             </div>
           </div>
         </div>
-      </AccordionSection>
+      </SimpleSection>
     </div>
   );
 };
