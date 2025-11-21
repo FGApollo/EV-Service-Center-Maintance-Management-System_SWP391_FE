@@ -222,10 +222,10 @@
   align-items: center;
   gap: 14px;
   padding: 16px 20px;
-  background: transparent;
-  border: 2px solid transparent;
+  background: rgba(241, 245, 249, 0.5);
+  border: 2px solid rgba(226, 232, 240, 0.5);
   border-radius: 14px;
-  color: #4a5568;
+  color: #0f172a !important;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
@@ -233,6 +233,22 @@
   text-align: left;
   position: relative;
   overflow: hidden;
+}
+
+/* Đảm bảo text trong button có màu đậm - nhưng không ảnh hưởng SVG */
+.profile-nav .nav-item:not(.active) {
+  color: #0f172a !important;
+}
+
+/* Text content (không phải SVG) */
+.profile-nav .nav-item:not(.active) {
+  color: #0f172a !important;
+}
+
+.profile-nav .nav-item svg {
+  color: #475569 !important;
+  fill: #475569 !important;
+  transition: color 0.3s ease, fill 0.3s ease;
 }
 
 .nav-item::before {
@@ -248,38 +264,41 @@
   transition: height 0.3s ease;
 }
 
-.nav-item:hover {
-  background: #f8fafc;
-  color: #1e293b;
+.profile-nav .nav-item:hover {
+  background: rgba(241, 245, 249, 0.8);
+  color: #0f172a !important;
   transform: translateX(4px);
   border-color: #cbd5e0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-.nav-item:hover::before {
+.profile-nav .nav-item:hover::before {
   height: 60%;
 }
 
-.nav-item svg {
-  transition: transform 0.3s ease;
-  flex-shrink: 0;
-}
-
-.nav-item:hover svg {
+.profile-nav .nav-item:hover svg {
+  color: #334155 !important;
+  fill: #334155 !important;
   transform: scale(1.1);
 }
 
 .nav-item.active {
-  background: #1e293b;
-  color: white;
-  border-color: #1e293b;
-  box-shadow: 0 4px 12px rgba(30, 41, 59, 0.4);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(147, 51, 234, 0.15) 100%) !important;
+  color: #2563eb !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2) !important;
   transform: translateX(4px);
+  font-weight: 700;
 }
 
 .nav-item.active::before {
-  height: 100%;
-  background: #3b82f6;
+  height: 100% !important;
+  background: linear-gradient(135deg, #3b82f6, #9333ea) !important;
   width: 4px;
+}
+
+.nav-item.active svg {
+  color: #2563eb !important;
 }
 
 /* Main Content */

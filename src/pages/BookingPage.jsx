@@ -401,8 +401,8 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
     setFormData(prev => ({
       ...prev,
       selectedServices: prev.selectedServices.includes(serviceId)
-        ? [] // Bỏ chọn nếu click lại
-        : [serviceId] // Chỉ chọn 1 dịch vụ duy nhất
+        ? prev.selectedServices.filter(id => id !== serviceId) // Bỏ chọn dịch vụ này
+        : [...prev.selectedServices, serviceId] // Thêm dịch vụ vào danh sách đã chọn
     }));
   };
 
@@ -465,7 +465,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
         formData.selectedServices.includes(service.id)
       );
       const totalSelectedPrice = selectedServiceDetails.reduce((sum, service) => (
-        sum + (service.priceValue || 0)
+        sum + (service.price || service.priceValue || 0)
       ), 0);
 
       const appointmentData = {
@@ -787,6 +787,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
               toggleServiceDetails={toggleServiceDetails}
               handleServiceToggle={handleServiceToggle}
               formatCurrency={formatCurrency}
+              selectedVehicleInfo={selectedVehicleInfo}
             />
           )}
           {currentStep === 4 && (

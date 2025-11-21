@@ -22,19 +22,6 @@ const ProfileSidebar = ({
             </svg>
           </div>
         )}
-        <label htmlFor="avatar-upload" className="avatar-upload-btn">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-            <path d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z" />
-          </svg>
-          Đổi ảnh
-        </label>
-        <input
-          type="file"
-          id="avatar-upload"
-          accept="image/*"
-          onChange={onAvatarChange}
-          style={{ display: "none" }}
-        />
       </div>
       <h2>{profileData.fullName}</h2>
       <p className="profile-email">{profileData.email}</p>
