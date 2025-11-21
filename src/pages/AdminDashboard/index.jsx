@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './AdminDashboard.css';
 import { 
   FaChartLine, FaUsers, FaWarehouse, FaCog, FaSignOutAlt, 
-  FaBars, FaTimes, FaHome, FaSearch, FaUserShield
+  FaBars, FaTimes, FaHome, FaUserShield
 } from 'react-icons/fa';
 import { getCurrentUser } from '../../utils/centerFilter';
 import { ROLES } from '../../constants/roles';
@@ -191,15 +191,6 @@ function AdminDashboard({ onNavigate }) {
           </div>
 
           <div className="header-right">
-            <div className="search-wrapper">
-              <FaSearch className="search-icon" />
-              <input 
-                type="text" 
-                placeholder="Tìm kiếm..." 
-                className="header-search"
-              />
-            </div>
-
             <div className="user-menu">
               <div className="user-menu-trigger">
                 <div className="user-avatar">

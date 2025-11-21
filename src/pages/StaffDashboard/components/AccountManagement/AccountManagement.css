@@ -2,87 +2,99 @@
 .account-management {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: calc(100vh - 88px);
   background: #f5f7fa;
+  overflow: hidden;
 }
 
 /* Header */
 .account-header {
-  padding: 30px;
+  padding: 20px 30px;
   background: white;
   border-bottom: 2px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
 }
 
 .account-header h2 {
-  font-size: 28px;
+  font-size: 24px;
   color: #2d3748;
-  margin: 0 0 20px 0;
+  margin: 0;
   font-weight: 700;
 }
 
 /* Search Box */
-.search-box {
+.account-header .search-box {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: #f7fafc;
-  padding: 12px 20px;
-  border-radius: 12px;
+  padding: 10px 16px;
+  border-radius: 10px;
   border: 2px solid #e2e8f0;
   transition: all 0.3s ease;
+  max-width: 400px;
+  flex: 0 1 auto;
 }
 
-.search-box:focus-within {
+.account-header .search-box:focus-within {
   border-color: #3b82f6;
   background: white;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.search-box svg {
+.account-header .search-box svg {
   color: #cbd5e0;
-  font-size: 18px;
+  font-size: 16px;
 }
 
-.search-box input {
-  flex: 1;
+.account-header .search-box input {
+  width: 280px;
   border: none;
   outline: none;
   background: transparent;
-  font-size: 15px;
+  font-size: 14px;
   color: #2d3748;
 }
 
-.search-box input::placeholder {
+.account-header .search-box input::placeholder {
   color: #a0aec0;
 }
 
 /* Content Layout */
 .account-content {
   display: grid;
-  grid-template-columns: 400px 1fr;
-  gap: 25px;
-  padding: 25px;
+  grid-template-columns: 380px 1fr;
+  gap: 20px;
+  padding: 20px;
   flex: 1;
   overflow: hidden;
+  min-height: 0;
 }
 
 /* Customer List */
 .customer-list {
   background: white;
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: 12px;
+  padding: 16px;
   box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 
 .customer-list h3 {
-  font-size: 18px;
+  font-size: 16px;
   color: #2d3748;
-  margin: 0 0 20px 0;
-  padding-bottom: 15px;
+  margin: 0 0 16px 0;
+  padding-bottom: 12px;
   border-bottom: 2px solid #e2e8f0;
   font-weight: 600;
+  flex-shrink: 0;
 }
 
 .customer-items {
@@ -91,6 +103,26 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding-right: 8px;
+}
+
+/* Custom Scrollbar */
+.customer-items::-webkit-scrollbar {
+  width: 6px;
+}
+
+.customer-items::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.customer-items::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-radius: 10px;
+}
+
+.customer-items::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
 }
 
 /* Customer Item */
@@ -158,10 +190,30 @@
 /* Customer Detail */
 .customer-detail {
   background: white;
-  border-radius: 16px;
-  padding: 30px;
+  border-radius: 12px;
+  padding: 20px;
   box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
   overflow-y: auto;
+  min-height: 0;
+}
+
+/* Custom Scrollbar for Detail */
+.customer-detail::-webkit-scrollbar {
+  width: 6px;
+}
+
+.customer-detail::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.customer-detail::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-radius: 10px;
+}
+
+.customer-detail::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
 }
 
 /* Detail Header */
@@ -415,6 +467,18 @@
 @media (max-width: 768px) {
   .account-header {
     padding: 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+
+  .account-header .search-box {
+    width: 100%;
+    max-width: none;
+  }
+
+  .account-header .search-box input {
+    width: 100%;
   }
 
   .account-content {
