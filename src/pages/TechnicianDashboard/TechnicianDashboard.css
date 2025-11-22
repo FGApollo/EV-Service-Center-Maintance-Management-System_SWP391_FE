@@ -14,11 +14,53 @@
   box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
 }
 
+.tech-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
 .tech-header h1 {
   color: white;
   font-size: 28px;
   font-weight: 700;
-  margin: 0 0 20px 0;
+  margin: 0;
+}
+
+/* Logout Button */
+.tech-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.tech-logout-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.tech-logout-btn:active {
+  transform: translateY(0);
+}
+
+.tech-logout-btn svg {
+  font-size: 16px;
+}
+
+.tech-logout-btn span {
+  white-space: nowrap;
 }
 
 /* Search Box */
@@ -1003,8 +1045,19 @@
     padding: 20px;
   }
 
+  .tech-header-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+
   .tech-header h1 {
     font-size: 22px;
+  }
+
+  .tech-logout-btn {
+    width: 100%;
+    justify-content: center;
   }
 
   .tech-stats-cards {

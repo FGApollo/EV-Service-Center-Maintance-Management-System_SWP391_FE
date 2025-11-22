@@ -103,12 +103,6 @@ export default function Navbar({ onNavigate, isLoggedIn, onLogout, user }) {
             Dịch Vụ
           </button>
           <button 
-            onClick={() => scrollToSection('about')}
-            className="px-4 py-2 border border-white/30 rounded hover:bg-white/10 transition-colors duration-200"
-          >
-            Về Chúng Tôi
-          </button>
-          <button 
             onClick={() => scrollToSection('branches')}
             className="px-4 py-2 border border-white/30 rounded hover:bg-white/10 transition-colors duration-200"
           >
@@ -219,12 +213,6 @@ export default function Navbar({ onNavigate, isLoggedIn, onLogout, user }) {
               className="block w-full text-left text-black font-medium hover:text-gray-600 transition-colors"
             >
               Dịch Vụ
-            </button>
-            <button 
-              onClick={() => scrollToSection('about')}
-              className="block w-full text-left text-black font-medium hover:text-gray-600 transition-colors"
-            >
-              Về Chúng Tôi
             </button>
             <button 
               onClick={() => scrollToSection('branches')}

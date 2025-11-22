@@ -91,6 +91,53 @@ const getServiceRecommendation = (mileage, services) => {
   return null;
 };
 
+// Extract model from vehicle model string (e.g., "Loin Model A" -> "Model A")
+const extractModelFromVehicle = (vehicleModel) => {
+  if (!vehicleModel) return null;
+  // Tìm "Model A", "Model B", "Model C" trong tên xe
+  const modelMatch = vehicleModel.match(/Model\s+[A-Z]/i);
+  if (modelMatch) {
+    return modelMatch[0].trim(); // "Model A", "Model B", "Model C"
+  }
+  return null;
+};
+
+// Filter services based on vehicle model
+const filterServicesByModel = (services, vehicleModel) => {
+  if (!vehicleModel || !services || services.length === 0) {
+    console.log('🔍 Filter: No vehicle model or services, returning all services');
+    return services; // Return all if no vehicle selected
+  }
+
+  const modelKey = extractModelFromVehicle(vehicleModel);
+  if (!modelKey) {
+    console.log('🔍 Filter: Could not extract model from:', vehicleModel);
+    return services; // Return all if can't extract model
+  }
+
+  console.log('🔍 Filter: Vehicle model:', vehicleModel, '→ Extracted:', modelKey);
+  console.log('🔍 Filter: Total services before filter:', services.length);
+
+  // Filter services that contain the model in name or description
+  const filtered = services.filter(service => {
+    const serviceName = (service.name || '').toLowerCase();
+    const serviceDesc = (service.description || '').toLowerCase();
+    const modelLower = modelKey.toLowerCase();
+    
+    // Check if service name or description contains the model
+    const matches = serviceName.includes(modelLower) || serviceDesc.includes(modelLower);
+    
+    if (matches) {
+      console.log('✅ Service matches:', service.name);
+    }
+    
+    return matches;
+  });
+
+  console.log('🔍 Filter: Services after filter:', filtered.length);
+  return filtered;
+};
+
 const BookingServicesStep = ({
   formData,
   services,
@@ -100,26 +147,111 @@ const BookingServicesStep = ({
   toggleServiceDetails,
   handleServiceToggle,
   formatCurrency,
+  selectedVehicleInfo,
 }) => {
   // Transform API data to match component format
   const transformedServices = useMemo(() => {
-    if (!services || !Array.isArray(services)) return [];
-    
-    return services.map((service) => ({
-      id: service.id,
-      name: service.name || 'Dịch vụ không tên',
-      description: parseDescription(service.description),
-      price: service.price || 0,
-      durationEst: service.durationEst || 0,
-      icon: getServiceIcon(service),
-      // Use description as summary if available
-      summary: service.description && typeof service.description === 'string' 
-        ? service.description.split('\n')[0].substring(0, 150) + (service.description.length > 150 ? '...' : '')
-        : null,
-      // Use description as details
-      details: parseDescription(service.description),
-    }));
-  }, [services]);
+    try {
+      if (!services || !Array.isArray(services)) {
+        console.log('⚠️ Services is not an array:', services);
+        return [];
+      }
+      
+      // Filter by vehicle model BEFORE transforming (filter on original API data)
+      let servicesToTransform = services;
+      const vehicleModel = selectedVehicleInfo?.model || formData.vehicleModel;
+      
+      if (vehicleModel) {
+        const modelKey = extractModelFromVehicle(vehicleModel);
+        if (modelKey) {
+          console.log('🔍 Filter: Vehicle model:', vehicleModel, '→ Extracted:', modelKey);
+          console.log('🔍 Filter: Total services before filter:', services.length);
+          
+        servicesToTransform = services.filter(service => {
+          try {
+            if (!service) return false;
+            
+            const serviceName = (service?.name || '').toLowerCase();
+            // Handle description - could be string, array, or null
+            let serviceDesc = '';
+            if (typeof service?.description === 'string') {
+              serviceDesc = service.description.toLowerCase();
+            } else if (Array.isArray(service?.description)) {
+              serviceDesc = service.description.join(' ').toLowerCase();
+            }
+            
+            const modelLower = modelKey.toLowerCase();
+            
+            const matches = serviceName.includes(modelLower) || serviceDesc.includes(modelLower);
+            
+            if (matches) {
+              console.log('✅ Service matches:', service.name);
+            }
+            
+            return matches;
+          } catch (err) {
+            console.error('❌ Error filtering service:', err, service);
+            // If error, include the service to be safe
+            return true;
+          }
+        });
+          
+          console.log('🔍 Filter: Services after filter:', servicesToTransform.length);
+          
+          // If no services match, show all (fallback)
+          if (servicesToTransform.length === 0) {
+            console.warn('⚠️ No services match vehicle model, showing all services');
+            servicesToTransform = services;
+          }
+        }
+      }
+      
+      // Transform filtered services
+      const transformed = servicesToTransform.map((service) => {
+        try {
+          return {
+            id: service.id,
+            name: service.name || 'Dịch vụ không tên',
+            description: parseDescription(service.description),
+            price: service.price || 0,
+            durationEst: service.durationEst || 0,
+            icon: getServiceIcon(service),
+            // Use description as summary if available
+            summary: service.description && typeof service.description === 'string' 
+              ? service.description.split('\n')[0].substring(0, 150) + (service.description.length > 150 ? '...' : '')
+              : null,
+            // Use description as details
+            details: parseDescription(service.description),
+          };
+        } catch (err) {
+          console.error('❌ Error transforming service:', err, service);
+          return null;
+        }
+      }).filter(Boolean); // Remove null values
+
+      // Sort services: Cơ bản → Tiêu chuẩn → Cao cấp
+      const getServiceOrder = (serviceName) => {
+        const name = (serviceName || '').toLowerCase();
+        if (name.includes('cơ bản') || name.includes('basic')) return 1;
+        if (name.includes('tiêu chuẩn') || name.includes('standard')) return 2;
+        if (name.includes('cao cấp') || name.includes('premium') || name.includes('full')) return 3;
+        return 4; // Other services go last
+      };
+
+      return transformed.sort((a, b) => {
+        const orderA = getServiceOrder(a.name);
+        const orderB = getServiceOrder(b.name);
+        if (orderA !== orderB) {
+          return orderA - orderB;
+        }
+        // If same order, sort by price (ascending)
+        return (a.price || 0) - (b.price || 0);
+      });
+    } catch (error) {
+      console.error('❌ Error in transformedServices useMemo:', error);
+      return [];
+    }
+  }, [services, selectedVehicleInfo?.model, formData.vehicleModel]);
 
   const recommendation = useMemo(() => getServiceRecommendation(formData.mileage, transformedServices), [formData.mileage, transformedServices]);
 

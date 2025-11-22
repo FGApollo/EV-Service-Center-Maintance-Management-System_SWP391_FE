@@ -92,9 +92,6 @@ const AuthForm = ({
           <span className="checkmark"></span>
           Ghi nhớ đăng nhập
         </label>
-        <a href="#forgot" className="forgot-password">
-          Quên mật khẩu?
-        </a>
       </div>
     )}
 

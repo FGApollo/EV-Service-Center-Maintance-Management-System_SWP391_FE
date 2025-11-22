@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { changePassword } from "../api";
+import { updateUserProfile } from "../api";
 
 const initialPassword = {
   currentPassword: "",
@@ -10,6 +10,20 @@ const initialPassword = {
 const usePasswordChange = (toast) => {
   const [passwordData, setPasswordData] = useState(initialPassword);
   const [saving, setSaving] = useState(false);
+  
+  // Lấy userId từ localStorage
+  const getUserId = () => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const userData = JSON.parse(userStr);
+        return userData.user_id || userData.id || userData.userId;
+      }
+    } catch (err) {
+      console.error('❌ Lỗi khi lấy userId:', err);
+    }
+    return null;
+  };
   
   const showMessage = (message, type = 'info') => {
     if (toast) {
@@ -36,20 +50,57 @@ const usePasswordChange = (toast) => {
     setPasswordData(initialPassword);
   };
 
-  const submitPasswordChange = async () => {
+  const submitPasswordChange = async (userInfo = null) => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       showMessage("Mật khẩu xác nhận không khớp!", 'error');
       return;
     }
 
+    if (!passwordData.newPassword || passwordData.newPassword.length < 6) {
+      showMessage("Mật khẩu mới phải có ít nhất 6 ký tự!", 'error');
+      return;
+    }
+
     try {
       setSaving(true);
-      await changePassword({
-        currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword,
-      });
+      
+      const userId = getUserId();
+      if (!userId) {
+        showMessage("Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại!", 'error');
+        return;
+      }
+
+      // Lấy thông tin user hiện tại từ localStorage hoặc từ userInfo prop
+      let currentUserInfo = userInfo;
+      if (!currentUserInfo) {
+        try {
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            currentUserInfo = JSON.parse(userStr);
+          }
+        } catch (err) {
+          console.error('❌ Lỗi khi lấy thông tin user:', err);
+        }
+      }
+
+      // Chuẩn bị data theo API spec: { fullName, email, phone, password }
+      const updateData = {
+        fullName: currentUserInfo?.fullName || currentUserInfo?.name || '',
+        email: currentUserInfo?.email || '',
+        phone: currentUserInfo?.phone || currentUserInfo?.phoneNumber || '',
+        password: passwordData.newPassword // Chỉ gửi password mới
+      };
+
+      console.log('📤 Updating user profile with password:', { userId, updateData: { ...updateData, password: '***' } });
+      
+      const response = await updateUserProfile(userId, updateData);
+      
+      console.log('✅ Password updated successfully:', response);
+      
       resetPasswordForm();
       showMessage("Đổi mật khẩu thành công!", 'success');
+      
+      return response;
     } catch (error) {
       console.error("❌ Lỗi khi đổi mật khẩu:", error);
       const errorMessage =
