@@ -262,7 +262,6 @@ export const getAllVehicles = async () => {
 // Lấy tất cả parts (✅ Cần token)
 export const getAllParts = async () => {
   const res = await axiosClient.get("/api/management2/parts");
-  const res = await axiosClient.get("/api/management2/parts");
   return res.data;
 };
 
