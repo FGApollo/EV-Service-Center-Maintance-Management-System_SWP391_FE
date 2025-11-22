@@ -3,16 +3,21 @@ import './TechnicianDashboard.css';
 import { 
   FaClock, FaCheckCircle, FaTools, FaCheck, 
   FaCalendarAlt, FaUser, FaCar, FaPhone,
-  FaSpinner, FaSearch, FaClipboardList, FaPlus, FaTimesCircle
+  FaSpinner, FaSearch, FaClipboardList, FaPlus, FaTimesCircle,
+  FaSignOutAlt
 } from 'react-icons/fa';
 import { 
   getAppointmentsForStaff,
   startAppointment, 
   completeAppointment,
   createMaintenanceRecord,
-  markAppointmentAsDone
+  markAppointmentAsDone,
+  getServiceTypes,
+  updatePartUsage
 } from '../../api';
 import { showSuccess, showError, showWarning } from '../../utils/toast';
+import { getCurrentCenterId } from '../../utils/centerFilter';
+import MaintenanceChecklist from '../../components/maintenance/MaintenanceChecklist';
 
 function TechnicianDashboard() {
   const [activeStatus, setActiveStatus] = useState('all');
@@ -31,21 +36,24 @@ function TechnicianDashboard() {
     tires: ''
   });
   
+  // Service Types State
+  const [serviceTypes, setServiceTypes] = useState([]);
+  const [selectedServiceDescription, setSelectedServiceDescription] = useState('');
+  const [selectedServiceName, setSelectedServiceName] = useState('');
+  
   // Maintenance Record State
   const [maintenanceRecord, setMaintenanceRecord] = useState({
     vehicleCondition: '',
-    checklist: '',
+    checklist: [],
+    vehicleConditions: {},
     remarks: '',
     partsUsed: [],
     staffIds: []
   });
   
-  // Part being added
-  const [newPart, setNewPart] = useState({
-    partId: '',
-    quantityUsed: '',
-    unitCost: ''
-  });
+  // Maintenance Record ID (sau khi tạo record)
+  const [currentRecordId, setCurrentRecordId] = useState(null);
+  const [originalPartsUsed, setOriginalPartsUsed] = useState([]); // Lưu parts ban đầu để so sánh
 
   // Định nghĩa các trạng thái
   const statusTabs = [
@@ -81,7 +89,73 @@ function TechnicianDashboard() {
 
   useEffect(() => {
     fetchAppointments();
+    loadServiceTypes();
   }, [activeStatus]);
+
+  // Load service types
+  const loadServiceTypes = async () => {
+    try {
+      const data = await getServiceTypes();
+      setServiceTypes(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('❌ Lỗi khi tải service types:', err);
+      setServiceTypes([]);
+    }
+  };
+
+  // Update service description when appointment changes
+  useEffect(() => {
+    if (selectedAppointment) {
+      // Priority 1: Use description from appointment if available
+      if (selectedAppointment.description) {
+        setSelectedServiceDescription(selectedAppointment.description);
+        setSelectedServiceName(selectedAppointment.services?.[0] || 'Dịch vụ bảo dưỡng');
+        console.log('✅ Using description from appointment');
+        return;
+      }
+      
+      // Priority 2: Find matching service type by name
+      if (selectedAppointment.services && serviceTypes.length > 0) {
+        let matchedService = null;
+        
+        // Try to find matching service type by name
+        for (const serviceName of selectedAppointment.services) {
+          matchedService = serviceTypes.find(st => {
+            const stName = (st.name || '').toLowerCase();
+            const aptName = serviceName.toLowerCase();
+            // Check if names match or contain each other
+            return stName === aptName || 
+                   stName.includes(aptName) || 
+                   aptName.includes(stName) ||
+                   // Also check for key words like "Cơ bản", "Tiêu chuẩn", "Cao cấp"
+                   (stName.includes('cơ bản') && aptName.includes('cơ bản')) ||
+                   (stName.includes('tiêu chuẩn') && aptName.includes('tiêu chuẩn')) ||
+                   (stName.includes('cao cấp') && aptName.includes('cao cấp'));
+          });
+          
+          if (matchedService) break;
+        }
+        
+        if (matchedService) {
+          setSelectedServiceDescription(matchedService.description || '');
+          setSelectedServiceName(matchedService.name || '');
+          console.log('✅ Matched service from service types:', matchedService.name);
+        } else {
+          // If no match found, use first service name
+          const firstServiceName = selectedAppointment.services[0] || '';
+          setSelectedServiceDescription('');
+          setSelectedServiceName(firstServiceName);
+          console.warn('⚠️ No matching service type found for:', selectedAppointment.services);
+        }
+      } else {
+        setSelectedServiceDescription('');
+        setSelectedServiceName(selectedAppointment.services?.[0] || '');
+      }
+    } else {
+      setSelectedServiceDescription('');
+      setSelectedServiceName('');
+    }
+  }, [selectedAppointment, serviceTypes]);
 
   const fetchAppointments = async () => {
     try {
@@ -138,7 +212,8 @@ function TechnicianDashboard() {
         notes: item.note || '',
         checkList: item.checkList || [],
         serviceCenterName: item.serviceCenterName,
-        assignedTechs: item.users || []
+        assignedTechs: item.users || [],
+        description: item.description || '' // Service description from appointment
       }));
       
       setAllAppointmentsData(mappedData);
@@ -226,16 +301,138 @@ function TechnicianDashboard() {
     }
   };
 
+  const handleChecklistChange = (checklist) => {
+    setMaintenanceRecord(prev => ({
+      ...prev,
+      checklist: checklist
+    }));
+  };
+
+  const handleVehicleConditionChange = (index, value) => {
+    setMaintenanceRecord(prev => ({
+      ...prev,
+      vehicleConditions: {
+        ...prev.vehicleConditions,
+        [index]: value
+      }
+    }));
+  };
+
+  const handleReplaceClick = (item) => {
+    console.log('🔄 Item needs replacement:', item);
+    // Could show a modal or additional UI here
+  };
+
+  const handlePartsChange = async (parts) => {
+    const oldParts = maintenanceRecord.partsUsed;
+    
+    // Cập nhật state trước
+    setMaintenanceRecord(prev => ({
+      ...prev,
+      partsUsed: parts
+    }));
+    
+    // So sánh với parts ban đầu để cập nhật database (chỉ khi đã có recordId)
+    // Chỉ update khi đã lưu record (có recordId) và có thay đổi
+    if (currentRecordId && selectedAppointment) {
+      // Chỉ update nếu có thay đổi thực sự
+      const hasChanges = JSON.stringify(oldParts) !== JSON.stringify(parts);
+      if (hasChanges) {
+        // Nếu oldParts rỗng, tất cả parts mới là thêm mới (status = 1)
+        // Nếu có oldParts, so sánh để biết thêm hay xóa
+        await updatePartsUsage(currentRecordId, parts, oldParts);
+      }
+    }
+  };
+
+  // Hàm cập nhật parts usage vào database
+  const updatePartsUsage = async (recordId, newParts, oldParts) => {
+    if (!recordId || !selectedAppointment) {
+      console.log('⚠️ Cannot update parts: missing recordId or appointment');
+      return;
+    }
+    
+    try {
+      const centerId = getCurrentCenterId();
+      if (!centerId) {
+        console.warn('⚠️ No centerId found');
+        showWarning('Không tìm thấy thông tin chi nhánh. Vui lòng đăng nhập lại.');
+        return;
+      }
+
+      // Tạo map để so sánh
+      const oldPartsMap = new Map();
+      oldParts.forEach(part => {
+        oldPartsMap.set(part.partId, part.quantityUsed);
+      });
+
+      const newPartsMap = new Map();
+      newParts.forEach(part => {
+        newPartsMap.set(part.partId, part.quantityUsed);
+      });
+
+      // Tìm các parts đã thay đổi
+      const allPartIds = new Set([...oldPartsMap.keys(), ...newPartsMap.keys()]);
+      const updates = [];
+
+      for (const partId of allPartIds) {
+        const oldQty = oldPartsMap.get(partId) || 0;
+        const newQty = newPartsMap.get(partId) || 0;
+        const diff = newQty - oldQty;
+
+        if (diff !== 0) {
+          // Status: 0 = xóa/trả lại kho (diff < 0), 1 = thêm/lấy từ kho (diff > 0)
+          const status = diff > 0 ? 1 : 0;
+          const quantityChange = Math.abs(diff);
+
+          const updateData = {
+            status: status,
+            partId: parseInt(partId),
+            centerId: centerId,
+            recordId: parseInt(recordId),
+            appointmentId: selectedAppointment.id,
+            quantityUsed: quantityChange
+          };
+
+          updates.push(updateData);
+        }
+      }
+
+      // Thực hiện tất cả updates
+      if (updates.length > 0) {
+        console.log(`🔧 Updating ${updates.length} part(s):`, updates);
+        for (const updateData of updates) {
+          await updatePartUsage(updateData);
+        }
+        console.log('✅ All parts updated successfully');
+      } else {
+        console.log('ℹ️ No parts changes detected');
+      }
+    } catch (err) {
+      console.error('❌ Lỗi khi cập nhật parts usage:', err);
+      showError(err.response?.data?.message || 'Không thể cập nhật linh kiện. Vui lòng thử lại.');
+    }
+  };
+
+  const handleRemarksChange = (remarks) => {
+    setMaintenanceRecord(prev => ({
+      ...prev,
+      remarks: remarks
+    }));
+  };
+
   const handleSaveCondition = async () => {
     try {
       // Validate required fields
-      if (!maintenanceRecord.vehicleCondition.trim()) {
-        showWarning('Vui lòng nhập tình trạng xe');
+      if (!maintenanceRecord.checklist || maintenanceRecord.checklist.length === 0) {
+        showWarning('Vui lòng hoàn thành checklist');
         return;
       }
       
-      if (!maintenanceRecord.checklist.trim()) {
-        showWarning('Vui lòng nhập checklist');
+      // Check if at least one item is completed
+      const hasCompletedItem = maintenanceRecord.checklist.some(item => item.completed);
+      if (!hasCompletedItem) {
+        showWarning('Vui lòng đánh dấu ít nhất một công việc đã hoàn thành');
         return;
       }
       
@@ -268,17 +465,41 @@ function TechnicianDashboard() {
         return;
       }
       
-      const recordData = {
-        vehicleCondition: maintenanceRecord.vehicleCondition,
-        checklist: maintenanceRecord.checklist,
-        remarks: maintenanceRecord.remarks || '',
-        partsUsed: maintenanceRecord.partsUsed.map(part => ({
+      // Format checklist as string (pipe-separated)
+      const checklistString = maintenanceRecord.checklist
+        .filter(item => item.completed)
+        .map(item => `${item.section}: ${item.item}${item.needsReplacement ? ' (Cần thay thế)' : ''}`)
+        .join('|');
+      
+      // Format vehicle conditions as string
+      const vehicleConditionString = Object.entries(maintenanceRecord.vehicleConditions)
+        .filter(([_, value]) => value && value.trim())
+        .map(([index, value]) => {
+          const item = maintenanceRecord.checklist[parseInt(index)];
+          return item ? `${item.item}: ${value}` : value;
+        })
+        .join('|');
+      
+      // Map parts với giá tiền đã được tự động fill
+      const partsUsedData = maintenanceRecord.partsUsed.map(part => {
+        const unitCost = parseFloat(part.unitCost) || 0;
+        console.log(`📦 Part ${part.partId}: quantity=${part.quantityUsed}, unitCost=${unitCost}`);
+        return {
           partId: parseInt(part.partId),
           quantityUsed: parseInt(part.quantityUsed),
-          unitCost: parseFloat(part.unitCost)
-        })),
+          unitCost: unitCost // Giá tiền đã được tự động fill khi thêm part
+        };
+      });
+      
+      const recordData = {
+        vehicleCondition: vehicleConditionString || '',
+        checklist: checklistString,
+        remarks: maintenanceRecord.remarks || '',
+        partsUsed: partsUsedData,
         staffIds: staffIds
       };
+      
+      console.log('💾 Saving maintenance record with parts:', partsUsedData);
       
       console.log('💾 Saving maintenance record:', recordData);
       console.log('👥 Staff IDs:', staffIds);
@@ -287,6 +508,19 @@ function TechnicianDashboard() {
       const response = await createMaintenanceRecord(selectedAppointment.id, recordData);
       
       console.log('✅ Maintenance record saved:', response);
+      
+      // Lưu recordId từ response
+      const recordId = response?.id || response?.recordId || response?.maintenanceRecordId;
+      if (recordId) {
+        setCurrentRecordId(recordId);
+        console.log('📝 Record ID saved:', recordId);
+        
+        // Lưu parts ban đầu để so sánh sau này
+        setOriginalPartsUsed([...maintenanceRecord.partsUsed]);
+      } else {
+        console.warn('⚠️ No recordId in response:', response);
+      }
+      
       showSuccess('Đã lưu thông tin bảo dưỡng thành công!');
       setIsEditingCondition(false);
       
@@ -304,41 +538,11 @@ function TechnicianDashboard() {
     // Reset về giá trị ban đầu
     setMaintenanceRecord({
       vehicleCondition: '',
-      checklist: '',
+      checklist: [],
+      vehicleConditions: {},
       remarks: '',
       partsUsed: [],
       staffIds: []
-    });
-    setNewPart({
-      partId: '',
-      quantityUsed: '',
-      unitCost: ''
-    });
-  };
-  
-  const handleAddPart = () => {
-    if (!newPart.partId || !newPart.quantityUsed || !newPart.unitCost) {
-      showWarning('Vui lòng điền đầy đủ thông tin linh kiện');
-      return;
-    }
-    
-    setMaintenanceRecord({
-      ...maintenanceRecord,
-      partsUsed: [...maintenanceRecord.partsUsed, { ...newPart }]
-    });
-    
-    // Reset form
-    setNewPart({
-      partId: '',
-      quantityUsed: '',
-      unitCost: ''
-    });
-  };
-  
-  const handleRemovePart = (index) => {
-    setMaintenanceRecord({
-      ...maintenanceRecord,
-      partsUsed: maintenanceRecord.partsUsed.filter((_, i) => i !== index)
     });
   };
 
@@ -356,11 +560,31 @@ function TechnicianDashboard() {
     return statusTabs.find(tab => tab.key === status) || statusTabs[0];
   };
 
+  // Handle logout
+  const handleLogout = () => {
+    if (window.confirm('Bạn có chắc muốn đăng xuất?')) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      sessionStorage.clear();
+      window.location.href = '/';
+    }
+  };
+
   return (
     <div className="technician-dashboard">
       {/* Header */}
       <div className="tech-header">
-        <h1>Quy trình Bảo dưỡng - Kỹ Thuật Viên</h1>
+        <div className="tech-header-top">
+          <h1>Quy trình Bảo dưỡng - Kỹ Thuật Viên</h1>
+          <button 
+            className="tech-logout-btn"
+            onClick={handleLogout}
+            title="Đăng xuất"
+          >
+            <FaSignOutAlt />
+            <span>Đăng xuất</span>
+          </button>
+        </div>
         
         {/* Search Box */}
         <div className="tech-search-box">
@@ -569,137 +793,27 @@ function TechnicianDashboard() {
                 </div>
               )}
 
-              {/* Checklist */}
-              {selectedAppointment.checkList && selectedAppointment.checkList.length > 0 && (
-                <div className="detail-section">
-                  <h3>Checklist EV - Gói bảo dưỡng Cơ bản</h3>
-                  <div className="checklist-items">
-                    {selectedAppointment.checkList.map((item, index) => (
-                      <div key={index} className="checklist-item">
-                        <FaCheckCircle style={{ color: '#48bb78' }} />
-                        <span>{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Thông tin bảo dưỡng */}
-              {isEditingCondition && (
+              {/* Maintenance Checklist - Dynamic from Service Description */}
+              {isEditingCondition && selectedServiceDescription && (
                 <div className="detail-section maintenance-form">
-                  <h3>📝 Thông tin bảo dưỡng</h3>
-                  
-                  {/* Vehicle Condition */}
-                  <div className="form-group">
-                    <label className="form-label">
-                      <span className="required">*</span> Tình trạng xe:
-                    </label>
-                    <textarea
-                      className="form-textarea"
-                      placeholder="Mô tả chi tiết tình trạng xe (ngoại thất, nội thất, pin, lốp...)"
-                      rows="4"
-                      value={maintenanceRecord.vehicleCondition}
-                      onChange={(e) => setMaintenanceRecord({
-                        ...maintenanceRecord,
-                        vehicleCondition: e.target.value
-                      })}
-                    />
-                  </div>
-
-                  {/* Checklist */}
-                  <div className="form-group">
-                    <label className="form-label">
-                      <span className="required">*</span> Checklist thực hiện:
-                    </label>
-                    <textarea
-                      className="form-textarea"
-                      placeholder="Danh sách các công việc đã thực hiện (mỗi mục 1 dòng)"
-                      rows="4"
-                      value={maintenanceRecord.checklist}
-                      onChange={(e) => setMaintenanceRecord({
-                        ...maintenanceRecord,
-                        checklist: e.target.value
-                      })}
-                    />
-                  </div>
-
-                  {/* Remarks */}
-                  <div className="form-group">
-                    <label className="form-label">Ghi chú thêm:</label>
-                    <textarea
-                      className="form-textarea"
-                      placeholder="Ghi chú hoặc lưu ý đặc biệt..."
-                      rows="3"
-                      value={maintenanceRecord.remarks}
-                      onChange={(e) => setMaintenanceRecord({
-                        ...maintenanceRecord,
-                        remarks: e.target.value
-                      })}
-                    />
-                  </div>
-
-                  {/* Parts Used */}
-                  <div className="form-group parts-section">
-                    <label className="form-label">Linh kiện đã sử dụng:</label>
-                    
-                    {/* List of added parts */}
-                    {maintenanceRecord.partsUsed.length > 0 && (
-                      <div className="parts-list">
-                        {maintenanceRecord.partsUsed.map((part, index) => (
-                          <div key={index} className="part-item">
-                            <div className="part-info">
-                              <span className="part-id">ID: {part.partId}</span>
-                              <span className="part-qty">SL: {part.quantityUsed}</span>
-                              <span className="part-cost">{parseFloat(part.unitCost).toLocaleString('vi-VN')} VNĐ</span>
-                            </div>
-                            <button 
-                              className="btn-remove-part"
-                              onClick={() => handleRemovePart(index)}
-                              type="button"
-                            >
-                              <FaTimesCircle />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Add new part form */}
-                    <div className="add-part-form">
-                      <input
-                        type="number"
-                        className="form-input"
-                        placeholder="ID Linh kiện"
-                        value={newPart.partId}
-                        onChange={(e) => setNewPart({...newPart, partId: e.target.value})}
-                      />
-                      <input
-                        type="number"
-                        className="form-input"
-                        placeholder="Số lượng"
-                        value={newPart.quantityUsed}
-                        onChange={(e) => setNewPart({...newPart, quantityUsed: e.target.value})}
-                      />
-                      <input
-                        type="number"
-                        className="form-input"
-                        placeholder="Đơn giá (VNĐ)"
-                        value={newPart.unitCost}
-                        onChange={(e) => setNewPart({...newPart, unitCost: e.target.value})}
-                      />
-                      <button 
-                        className="btn-add-part"
-                        onClick={handleAddPart}
-                        type="button"
-                      >
-                        <FaPlus /> Thêm
-                      </button>
-                    </div>
-                  </div>
+                  <MaintenanceChecklist
+                    serviceDescription={selectedServiceDescription}
+                    serviceName={selectedServiceName}
+                    checklist={maintenanceRecord.checklist}
+                    vehicleConditions={maintenanceRecord.vehicleConditions}
+                    onChecklistChange={handleChecklistChange}
+                    onVehicleConditionChange={handleVehicleConditionChange}
+                    onReplaceClick={handleReplaceClick}
+                    partsUsed={maintenanceRecord.partsUsed}
+                    onPartsChange={handlePartsChange}
+                    remarks={maintenanceRecord.remarks}
+                    onRemarksChange={handleRemarksChange}
+                    vehicleModel={selectedAppointment?.vehicleModel}
+                  />
 
                   {/* Staff Info (Read-only) */}
                   {selectedAppointment.assignedTechs && selectedAppointment.assignedTechs.length > 0 && (
-                    <div className="form-group">
+                    <div className="form-group" style={{ marginTop: '24px' }}>
                       <label className="form-label">Kỹ thuật viên thực hiện:</label>
                       <div className="staff-chips">
                         {selectedAppointment.assignedTechs.map((tech) => (
@@ -737,6 +851,21 @@ function TechnicianDashboard() {
                     >
                       Hủy
                     </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Fallback: Show old checklist if no service description available */}
+              {!isEditingCondition && selectedAppointment.checkList && selectedAppointment.checkList.length > 0 && (
+                <div className="detail-section">
+                  <h3>Checklist</h3>
+                  <div className="checklist-items">
+                    {selectedAppointment.checkList.map((item, index) => (
+                      <div key={index} className="checklist-item">
+                        <FaCheckCircle style={{ color: '#48bb78' }} />
+                        <span>{item}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

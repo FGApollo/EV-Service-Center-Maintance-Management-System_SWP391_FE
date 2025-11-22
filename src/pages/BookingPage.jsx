@@ -397,13 +397,62 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
     }));
   };
 
+  // Helper function to identify service type
+  const getServiceType = (serviceId) => {
+    const service = services.find(s => s.id === serviceId);
+    if (!service) return null;
+    
+    const name = (service.name || '').toLowerCase();
+    if (name.includes('cao cấp') || name.includes('premium') || name.includes('full')) {
+      return 'premium';
+    } else if (name.includes('tiêu chuẩn') || name.includes('standard')) {
+      return 'standard';
+    } else if (name.includes('cơ bản') || name.includes('basic')) {
+      return 'basic';
+    }
+    return null;
+  };
+
   const handleServiceToggle = (serviceId) => {
-    setFormData(prev => ({
-      ...prev,
-      selectedServices: prev.selectedServices.includes(serviceId)
-        ? prev.selectedServices.filter(id => id !== serviceId) // Bỏ chọn dịch vụ này
-        : [...prev.selectedServices, serviceId] // Thêm dịch vụ vào danh sách đã chọn
-    }));
+    setFormData(prev => {
+      const isCurrentlySelected = prev.selectedServices.includes(serviceId);
+      const serviceType = getServiceType(serviceId);
+      
+      // If deselecting, just remove it
+      if (isCurrentlySelected) {
+        return {
+          ...prev,
+          selectedServices: prev.selectedServices.filter(id => id !== serviceId)
+        };
+      }
+      
+      // If selecting
+      let newSelectedServices = [...prev.selectedServices];
+      
+      if (serviceType === 'premium') {
+        // If selecting premium, remove basic and standard
+        newSelectedServices = prev.selectedServices.filter(id => {
+          const type = getServiceType(id);
+          return type !== 'basic' && type !== 'standard';
+        });
+        newSelectedServices.push(serviceId);
+      } else if (serviceType === 'basic' || serviceType === 'standard') {
+        // If selecting basic or standard, remove premium if it's selected
+        newSelectedServices = prev.selectedServices.filter(id => {
+          const type = getServiceType(id);
+          return type !== 'premium';
+        });
+        newSelectedServices.push(serviceId);
+      } else {
+        // For other service types, just add it
+        newSelectedServices.push(serviceId);
+      }
+      
+      return {
+        ...prev,
+        selectedServices: newSelectedServices
+      };
+    });
   };
 
   const toggleServiceDetails = (serviceId) => {
