@@ -1,8 +1,7 @@
-/* Parts Stats Container */
+/* Parts Stats Container - Single card */
 .parts-stats-container {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
+  display: flex;
+  justify-content: center;
   margin-bottom: 28px;
 }
 
@@ -21,6 +20,19 @@
   overflow: hidden;
   min-height: 160px;
   justify-content: center;
+}
+
+/* Single card - larger and more prominent */
+.parts-stat-card.single-card {
+  width: 100%;
+  max-width: 600px;
+  padding: 40px 48px;
+  min-height: 200px;
+  flex-direction: row;
+  text-align: left;
+  gap: 32px;
+  background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+  border: 2px solid rgba(139, 92, 246, 0.1);
 }
 
 .parts-stat-card::before {
@@ -63,6 +75,27 @@
   transform: scale(1.05);
 }
 
+/* Large icon for single card */
+.parts-stat-card .stat-icon-large {
+  width: 100px;
+  height: 100px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  color: white;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3);
+  transition: all 0.3s ease;
+}
+
+.parts-stat-card.single-card:hover .stat-icon-large {
+  transform: scale(1.08) rotate(5deg);
+  box-shadow: 0 12px 32px rgba(139, 92, 246, 0.4);
+}
+
 /* Content Styling */
 .parts-stat-card .stat-content {
   width: 100%;
@@ -84,72 +117,81 @@
   letter-spacing: 0.8px;
 }
 
-/* Card Variations */
+/* Large content for single card */
+.parts-stat-card .stat-content-large {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.parts-stat-card .stat-value-large {
+  font-size: 56px;
+  font-weight: 900;
+  color: #8b5cf6;
+  line-height: 1;
+  margin-bottom: 4px;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.parts-stat-card .stat-label-large {
+  font-size: 18px;
+  color: #1a1a2e;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.parts-stat-card .stat-description {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+/* Card Variations - Single card */
 .parts-stat-card.total-parts::before {
   background: linear-gradient(90deg, #8b5cf6, #7c3aed);
 }
 
-.parts-stat-card.total-parts .stat-icon {
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-}
-
-.parts-stat-card.low-stock-parts::before {
-  background: linear-gradient(90deg, #10b981, #059669);
-}
-
-.parts-stat-card.low-stock-parts .stat-icon {
-  background: linear-gradient(135deg, #10b981, #059669);
-}
-
-.parts-stat-card.total-value::before {
-  background: linear-gradient(90deg, #f59e0b, #d97706);
-}
-
-.parts-stat-card.total-value .stat-icon {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-}
-
-.parts-stat-card.total-value .stat-value {
-  font-size: 28px;
-}
-
-.parts-stat-card.categories-count::before {
-  background: linear-gradient(90deg, #3b82f6, #2563eb);
-}
-
-.parts-stat-card.categories-count .stat-icon {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+.parts-stat-card.single-card::before {
+  height: 4px;
+  background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+  opacity: 1;
 }
 
 /* Responsive */
-@media (max-width: 1400px) {
-  .parts-stats-container {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 @media (max-width: 768px) {
   .parts-stats-container {
-    grid-template-columns: 1fr;
-    gap: 16px;
+    padding: 0 16px;
   }
 
-  .parts-stat-card {
-    padding: 20px;
+  .parts-stat-card.single-card {
+    flex-direction: column;
+    padding: 32px 24px;
+    max-width: 100%;
+    gap: 20px;
+    text-align: center;
   }
 
-  .parts-stat-card .stat-icon {
-    width: 48px;
-    height: 48px;
-    font-size: 20px;
+  .parts-stat-card .stat-icon-large {
+    width: 80px;
+    height: 80px;
+    font-size: 40px;
   }
 
-  .parts-stat-card .stat-value {
-    font-size: 24px;
+  .parts-stat-card .stat-value-large {
+    font-size: 48px;
   }
 
-  .parts-stat-card .stat-label {
-    font-size: 12px;
+  .parts-stat-card .stat-label-large {
+    font-size: 16px;
+  }
+
+  .parts-stat-card .stat-description {
+    font-size: 13px;
   }
 }
 

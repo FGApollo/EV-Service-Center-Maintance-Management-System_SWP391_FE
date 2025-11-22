@@ -87,18 +87,12 @@ export const PartsTab = () => {
     }
   };
 
-  // Calculate stats
+  // Calculate stats (chỉ tính tổng phụ tùng)
   const stats = useMemo(() => {
     const totalParts = parts.length;
-    const lowStockParts = parts.filter(p => (p.quantityInStock || 0) < (p.minStockLevel || 0)).length;
-    const totalValue = parts.reduce((sum, p) => sum + ((p.unitPrice || 0) * (p.quantityInStock || 0)), 0);
-    const uniqueCategories = new Set(parts.map(p => p.category).filter(Boolean)).size;
     
     return {
-      totalParts,
-      lowStockParts,
-      totalValue,
-      uniqueCategories
+      totalParts
     };
   }, [parts]);
 

@@ -58,8 +58,8 @@ export const OverviewTrending = ({ stats }) => {
 
   return (
     <div className="trending-section">
-      {renderTrendingServiceTable(stats.trendingServices, 'Dịch vụ phổ biến (All Time)')}
-      {renderTrendingServiceTable(stats.trendingServicesLastMonth, 'Dịch vụ phổ biến (Tháng trước)')}
+      {renderTrendingServiceTable(stats.trendingServices, 'Dịch vụ phổ biến (ALL TIME)')}
+      {renderTrendingServiceTable(stats.trendingServicesLastMonth, 'Dịch vụ phổ biến (THÁNG NÀY)')}
       
       <SimpleSection 
         title="Phụ tùng trong kho" 

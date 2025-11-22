@@ -104,10 +104,51 @@ export const getAllUsersByRole = async (role) => {
 };
 
 // Tạo employee mới (Admin/Staff) (✅ Cần token)
-export const createEmployee = async (role, data) => {
-  const res = await axiosClient.post("/api/users/employees", data, {
-    params: { role }
+// Backend expect multipart/form-data với 2 parts: user (JSON) + file (optional)
+export const createEmployee = async (role, data, file = null) => {
+  console.log('📤 [createEmployee] Creating employee with role:', role);
+  console.log('📤 [createEmployee] Data:', data);
+  console.log('📤 [createEmployee] File:', file);
+  
+  // ✅ Create FormData for multipart/form-data
+  const formData = new FormData();
+  
+  // ✅ Add user data as JSON blob (part name: "user")
+  const userDto = {
+    fullName: data.fullName,
+    email: data.email,
+    phone: data.phoneNumber || data.phone,  // ✅ Transform phoneNumber → phone
+    password: data.password,
+    address: data.address || ''
+  };
+  
+  // ✅ Add serviceCenterId only for employee roles (not customer)
+  if (data.serviceCenterId && parseInt(data.serviceCenterId) > 0) {
+    userDto.serviceCenterId = parseInt(data.serviceCenterId);
+  }
+  
+  console.log('📤 [createEmployee] UserDto:', userDto);
+  
+  // Backend expect "user" part as JSON
+  const userBlob = new Blob([JSON.stringify(userDto)], { type: 'application/json' });
+  formData.append('user', userBlob);
+  
+  // ✅ Add file if provided (optional)
+  if (file) {
+    formData.append('file', file);
+    console.log('📤 [createEmployee] File attached:', file.name);
+  }
+  
+  console.log('📤 [createEmployee] Sending multipart/form-data to /api/users/employees?role=' + role);
+  
+  const res = await axiosClient.post("/api/users/employees", formData, {
+    params: { role },
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
   });
+  
+  console.log('✅ [createEmployee] Success:', res.data);
   return res.data;
 };
 
@@ -226,25 +267,25 @@ export const getAllParts = async () => {
 
 // Lấy part theo ID (✅ Cần token)
 export const getPartById = async (id) => {
-  const res = await axiosClient.get(`/api/management/parts/${id}`);
+  const res = await axiosClient.get(`/api/management2/parts/${id}`);
   return res.data;
 };
 
 // Tạo part mới (✅ Cần token)
 export const createPart = async (data) => {
-  const res = await axiosClient.post("/api/management/parts/create", data);
+  const res = await axiosClient.post("/api/management2/parts/create", data);
   return res.data;
 };
 
 // Cập nhật part (✅ Cần token)
 export const updatePart = async (id, data) => {
-  const res = await axiosClient.put(`/api/management/parts/update/${id}`, data);
+  const res = await axiosClient.put(`/api/management2/parts/update/${id}`, data);
   return res.data;
 };
 
 // Xóa part (✅ Cần token)
 export const deletePart = async (id) => {
-  const res = await axiosClient.delete(`/api/management/parts/delete/${id}`);
+  const res = await axiosClient.delete(`/api/management2/parts/delete/${id}`);
   return res.data;
 };
 
