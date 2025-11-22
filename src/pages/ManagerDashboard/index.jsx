@@ -6,6 +6,7 @@ import {
 } from 'react-icons/fa';
 import { getCurrentUser, getCurrentCenterId } from '../../utils/centerFilter';
 import { ROLES } from '../../constants/roles';
+import { showWarning } from '../../utils/toast';
 
 // ✅ Import Refactored Components
 import { StaffList } from './components/Staff';
@@ -73,6 +74,16 @@ function ManagerDashboard({ onNavigate }) {
         onNavigate && onNavigate('login');
       }
       return;
+    }
+    
+    // Đảm bảo URL đúng khi reload - nếu đang ở /manager hoặc /manager/* thì giữ nguyên
+    if (typeof window !== 'undefined') {
+      const currentPath = window.location.pathname;
+      if (!currentPath.startsWith('/manager')) {
+        // Nếu URL không đúng, cập nhật lại về /manager hoặc /manager/overview
+        const defaultPath = currentPath === '/manager' ? '/manager' : '/manager/overview';
+        window.history.replaceState({}, '', defaultPath);
+      }
     }
     
     console.log('✅ Manager authorized:', { role, centerId, fullName });

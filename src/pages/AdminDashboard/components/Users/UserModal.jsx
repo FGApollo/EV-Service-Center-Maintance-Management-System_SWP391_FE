@@ -214,17 +214,7 @@ export const UserModal = ({ mode, user, onSave, onClose }) => {
             {errors.phoneNumber && <span className="error-message">{errors.phoneNumber}</span>}
           </div>
 
-          {/* Address */}
-          <div className="form-group">
-            <label>Địa chỉ</label>
-            <textarea
-              name="address"
-              value={formData.address}
-              onChange={handleChange}
-              placeholder="Địa chỉ đầy đủ"
-              rows={3}
-            />
-          </div>
+          
 
           {/* Role */}
           <div className="form-group">
@@ -236,7 +226,7 @@ export const UserModal = ({ mode, user, onSave, onClose }) => {
               value={formData.role}
               onChange={handleChange}
             >
-              <option value="CUSTOMER">Khách hàng (Customer)</option>
+            
               <option value="STAFF">Nhân viên (Staff)</option>
               <option value="MANAGER">Quản lý (Manager)</option>
               <option value="TECHNICIAN">Kỹ thuật viên (Technician)</option>

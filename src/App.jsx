@@ -32,12 +32,22 @@ const PATH_TO_PAGE = Object.entries(PAGE_TO_PATH).reduce((acc, [page, path]) => 
   return acc;
 }, {});
 
-const getPageFromPath = (path) => PATH_TO_PAGE[path] || 'home';
+const getPageFromPath = (path) => {
+  // Xử lý đặc biệt cho manager routes: /manager hoặc /manager/*
+  if (path.startsWith('/manager')) {
+    return 'manager';
+  }
+  // Xử lý các routes khác
+  return PATH_TO_PAGE[path] || 'home';
+};
 
 function App() {
   const [currentPage, setCurrentPage] = useState(() => {
     if (typeof window !== 'undefined') {
-      return getPageFromPath(window.location.pathname);
+      const path = window.location.pathname;
+      const page = getPageFromPath(path);
+      console.log('📍 Initial page from pathname:', path, '→', page);
+      return page;
     }
     return 'home';
   });
@@ -83,10 +93,28 @@ function App() {
     }
   }, []);
 
-  // Ensure history state reflects initial page
+  // Ensure history state reflects initial page and maintain current page on reload
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.history.replaceState({ page: currentPage }, '', window.location.pathname + window.location.search);
+      const path = window.location.pathname;
+      const page = getPageFromPath(path);
+      
+      // Đảm bảo currentPage khớp với URL khi reload
+      if (page !== currentPage) {
+        console.log('🔄 Syncing currentPage with URL on reload:', path, '→', page);
+        setCurrentPage(page);
+      }
+      
+      // Đảm bảo history state đúng và URL đúng
+      // Cho phép /manager và /manager/* giữ nguyên
+      const expectedPath = PAGE_TO_PATH[page] || '/';
+      if (path !== expectedPath && !path.startsWith('/manager')) {
+        // Nếu URL không khớp (trừ trường hợp manager có sub-routes), cập nhật lại
+        window.history.replaceState({ page }, '', expectedPath + window.location.search);
+      } else {
+        // Giữ nguyên URL hiện tại (bao gồm /manager và /manager/*)
+        window.history.replaceState({ page }, '', path + window.location.search);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

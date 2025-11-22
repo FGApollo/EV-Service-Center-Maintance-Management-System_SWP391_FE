@@ -8,7 +8,7 @@ import { showSuccess, showError } from '../../../../utils/toast';
 import './Parts.css';
 
 export const PartsTab = () => {
-  const { parts, loading, addPart, updatePart, deletePart } = useParts();
+  const { parts, loading, addPart, updatePart, deletePart, updateInventoryQuantity } = useParts();
   const [searchQuery, setSearchQuery] = useState('');
   
   // Modal states
@@ -135,6 +135,7 @@ export const PartsTab = () => {
         searchQuery={searchQuery}
         onEdit={handleEditPart}
         onDelete={handleDeletePart}
+        onUpdateInventory={updateInventoryQuantity}
       />
 
       {/* Modal for Add/Edit */}

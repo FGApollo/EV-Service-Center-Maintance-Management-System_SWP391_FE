@@ -194,13 +194,7 @@ export const FinanceTab = () => {
                     <p style={{margin: 0, fontSize: '14px', color: '#666'}}>
                       {stats.count} giao dịch • {formatCurrency(stats.amount)}
                     </p>
-                    <div style={{marginTop: '8px', height: '6px', background: '#e5e7eb', borderRadius: '3px', overflow: 'hidden'}}>
-                      <div style={{height: '100%', width: `${stats.percentage || 0}%`, background: '#667eea', transition: 'width 0.3s'}}></div>
-                    </div>
                   </div>
-                  <span style={{fontSize: '18px', fontWeight: '600', color: '#667eea'}}>
-                    {stats.percentage?.toFixed(1) || 0}%
-                  </span>
                 </div>
               ))}
             </div>

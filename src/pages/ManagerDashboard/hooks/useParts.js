@@ -11,19 +11,63 @@ export const useParts = () => {
   const [error, setError] = useState(null);
 
   /**
-   * Fetch all parts
+   * Fetch all parts and inventory
    */
   const fetchParts = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      console.log('🔄 [useParts] Fetching parts from API...');
-      const data = await API.getAllParts();
-      console.log('✅ [useParts] Parts loaded:', data.length);
-      setParts(Array.isArray(data) ? data : []);
+      console.log('🔄 [useParts] Fetching parts and inventory from API...');
+      
+      // Fetch parts and inventory in parallel
+      const [partsData, inventoryData] = await Promise.all([
+        API.getAllParts().catch(err => {
+          console.error('❌ [useParts] Error fetching parts:', err);
+          return [];
+        }),
+        API.getInventoryParts().catch(err => {
+          console.error('❌ [useParts] Error fetching inventory:', err);
+          return [];
+        })
+      ]);
+
+      // Create a map of partId -> quantity from inventory
+      const inventoryMap = {};
+      if (Array.isArray(inventoryData)) {
+        inventoryData.forEach(item => {
+          // Handle different possible response structures
+          const partId = item.partId || item.part?.id || item.id;
+          const quantity = item.quantityUsed || item.quantity || item.quantityInStock || 0;
+          
+          if (partId) {
+            inventoryMap[partId] = quantity;
+          }
+        });
+      } else if (inventoryData && typeof inventoryData === 'object') {
+        // Handle case where API returns object with partId as keys
+        Object.keys(inventoryData).forEach(key => {
+          const item = inventoryData[key];
+          const partId = item.partId || item.part?.id || key;
+          const quantity = item.quantityUsed || item.quantity || item.quantityInStock || 0;
+          if (partId) {
+            inventoryMap[partId] = quantity;
+          }
+        });
+      }
+      
+      console.log('📦 [useParts] Inventory map:', inventoryMap);
+
+      // Merge parts with inventory quantities
+      const mergedParts = Array.isArray(partsData) ? partsData.map(part => ({
+        ...part,
+        inventoryQuantity: inventoryMap[part.id] || 0
+      })) : [];
+
+      console.log('✅ [useParts] Parts loaded:', mergedParts.length);
+      setParts(mergedParts);
       setLoading(false);
-      return data;
+      return mergedParts;
     } catch (err) {
       console.error('❌ [useParts] Error loading parts:', err);
       setError(err.message || 'Failed to fetch parts');
@@ -85,6 +129,24 @@ export const useParts = () => {
     }
   };
 
+  /**
+   * Update inventory quantity
+   * @param {Number} partId - Part ID
+   * @param {Number} quantity - New quantity
+   */
+  const updateInventoryQuantity = async (partId, quantity) => {
+    try {
+      console.log('📦 [useParts] Updating inventory:', { partId, quantity });
+      await API.updateInventoryQuantity(partId, quantity);
+      console.log('✅ [useParts] Inventory updated successfully');
+      await fetchParts(); // Refresh list to get updated quantity
+      return { success: true };
+    } catch (err) {
+      console.error('❌ [useParts] Error updating inventory:', err);
+      return { success: false, error: err.message || 'Failed to update inventory' };
+    }
+  };
+
   useEffect(() => {
     fetchParts();
   }, []);
@@ -96,6 +158,7 @@ export const useParts = () => {
     fetchParts,
     addPart,
     updatePart,
-    deletePart
+    deletePart,
+    updateInventoryQuantity
   };
 };
