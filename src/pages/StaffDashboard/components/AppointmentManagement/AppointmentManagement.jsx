@@ -24,6 +24,7 @@ function AppointmentManagement() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('newest'); // newest (ID lớn) hoặc oldest (ID bé)
+  const [selectedDate, setSelectedDate] = useState(''); // Filter theo ngày đặt lịch
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [appointmentDetail, setAppointmentDetail] = useState(null); // Chi tiết appointment với thông tin kỹ thuật viên
   const [detailLoading, setDetailLoading] = useState(false);
@@ -301,12 +302,30 @@ function AppointmentManagement() {
     await fetchAppointments();
   };
 
-  // Lọc appointments theo search query
-  let filteredAppointments = appointments.filter((apt) =>
-    apt.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    apt.phone.includes(searchQuery) ||
-    apt.licensePlate.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Helper function để so sánh ngày (chỉ so sánh ngày, không so sánh giờ)
+  const isSameDate = (date1, date2) => {
+    if (!date1 || !date2) return false;
+    const d1 = new Date(date1);
+    const d2 = new Date(date2);
+    return d1.getFullYear() === d2.getFullYear() &&
+           d1.getMonth() === d2.getMonth() &&
+           d1.getDate() === d2.getDate();
+  };
+
+  // Lọc appointments theo search query và ngày đặt lịch
+  let filteredAppointments = appointments.filter((apt) => {
+    // Filter theo search query
+    const matchesSearch = searchQuery === '' || 
+      apt.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      apt.phone.includes(searchQuery) ||
+      apt.licensePlate.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Filter theo ngày đặt lịch
+    const matchesDate = selectedDate === '' || 
+      (apt.appointmentDate && isSameDate(apt.appointmentDate, selectedDate));
+    
+    return matchesSearch && matchesDate;
+  });
 
   // Sắp xếp theo ID
   filteredAppointments = [...filteredAppointments].sort((a, b) => {
@@ -332,6 +351,40 @@ function AppointmentManagement() {
         <h2>Quản lý lịch hẹn</h2>
         
         <div className="header-actions">
+          {/* Date Filter */}
+          <div className="date-filter" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <FaCalendarAlt style={{ color: '#667eea' }} />
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '14px',
+                cursor: 'pointer'
+              }}
+            />
+            {selectedDate && (
+              <button
+                onClick={() => setSelectedDate('')}
+                style={{
+                  padding: '8px 12px',
+                  background: '#f56565',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+                title="Xóa filter ngày"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
           {/* Sort Dropdown */}
           <div className="sort-dropdown">
             <label>Sắp xếp:</label>
