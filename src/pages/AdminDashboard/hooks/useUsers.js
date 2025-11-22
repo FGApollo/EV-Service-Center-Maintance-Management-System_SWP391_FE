@@ -71,21 +71,41 @@ export const useUsers = () => {
   }, []);
 
   // Add new employee (staff/manager/technician)
-  const addEmployee = useCallback(async (role, userData) => {
+  const addEmployee = useCallback(async (role, userData, file = null) => {
     try {
       setError(null);
-      console.log('➕ [Admin Users] Adding employee:', role, userData);
+      console.log('➕ [Admin Users] Adding employee with role:', role);
+      console.log('➕ [Admin Users] User data:', userData);
+      console.log('➕ [Admin Users] File:', file);
 
-      const result = await API.createEmployee(role, userData);
+      // ✅ Convert role to lowercase (STAFF → staff, MANAGER → manager)
+      const roleLowercase = role.toLowerCase();
+      console.log('➕ [Admin Users] Role converted to:', roleLowercase);
+
+      const result = await API.createEmployee(roleLowercase, userData, file);
+      
+      console.log('✅ [Admin Users] Employee added successfully:', result);
       
       // Refresh user list
       await fetchUsers();
       
-      console.log('✅ [Admin Users] Employee added successfully');
       return { success: true, data: result };
     } catch (err) {
       console.error('❌ [Admin Users] Error adding employee:', err);
-      const errorMsg = err.response?.data?.message || err.message || 'Failed to add employee';
+      console.error('❌ [Admin Users] Error response:', err.response?.data);
+      
+      let errorMsg = 'Không thể thêm người dùng';
+      
+      if (err.response?.status === 403) {
+        errorMsg = '⛔ Bạn không có quyền thêm người dùng';
+      } else if (err.response?.status === 409) {
+        errorMsg = '⚠️ Email đã tồn tại trong hệ thống';
+      } else if (err.response?.data?.message) {
+        errorMsg = err.response.data.message;
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      
       setError(errorMsg);
       return { success: false, error: errorMsg };
     }

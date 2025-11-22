@@ -108,14 +108,14 @@
   font-size: 14px;
 }
 
-.btn-edit {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+.btn-view {
+  background: linear-gradient(135deg, #10b981, #059669);
   color: white;
 }
 
-.btn-edit:hover {
+.btn-view:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
 }
 
 .btn-delete {

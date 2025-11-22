@@ -1,8 +1,8 @@
 import React from 'react';
-import { FaEdit, FaTrash, FaUserTie, FaUserCog, FaWrench, FaUser } from 'react-icons/fa';
+import { FaTrash, FaUserTie, FaUserCog, FaWrench, FaUser, FaEye } from 'react-icons/fa';
 import './UsersTable.css';
 
-export const UsersTable = ({ users, searchQuery, onEdit, onDelete }) => {
+export const UsersTable = ({ users, searchQuery, onView, onDelete }) => {
   const getRoleIcon = (role) => {
     switch (role?.toUpperCase()) {
       case 'MANAGER': return <FaUserTie />;
@@ -109,22 +109,23 @@ export const UsersTable = ({ users, searchQuery, onEdit, onDelete }) => {
                   </td>
                   <td className="text-center">
                     <div className="action-buttons">
+                      {/* 👁️ Xem chi tiết (View only - không edit) */}
                       <button
-                        className="btn-action btn-edit"
-                        onClick={() => onEdit(user)}
-                        title="Chỉnh sửa"
+                        className="btn-action btn-view"
+                        onClick={() => onView(user)}
+                        title="Xem chi tiết"
                       >
-                        <FaEdit />
+                        <FaEye />
                       </button>
-                      {user.role?.toUpperCase() !== 'CUSTOMER' && (
-                        <button
-                          className="btn-action btn-delete"
-                          onClick={() => onDelete(user)}
-                          title="Xóa"
-                        >
-                          <FaTrash />
-                        </button>
-                      )}
+                      
+                      {/* 🗑️ Xóa tài khoản */}
+                      <button
+                        className="btn-action btn-delete"
+                        onClick={() => onDelete(user)}
+                        title="Xóa tài khoản"
+                      >
+                        <FaTrash />
+                      </button>
                     </div>
                   </td>
                 </tr>

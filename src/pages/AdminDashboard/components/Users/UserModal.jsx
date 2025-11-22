@@ -10,22 +10,30 @@ export const UserModal = ({ mode, user, onSave, onClose }) => {
     address: '',
     role: 'STAFF',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    serviceCenterId: '',
+    certificateFile: null
   });
 
   const [errors, setErrors] = useState({});
+  const [filePreview, setFilePreview] = useState(null);
 
   useEffect(() => {
     if (mode === 'edit' && user) {
       setFormData({
         fullName: user.fullName || '',
         email: user.email || '',
-        phoneNumber: user.phoneNumber || '',
+        phoneNumber: user.phoneNumber || user.phone || '',
         address: user.address || '',
         role: user.role || 'STAFF',
         password: '',
-        confirmPassword: ''
+        confirmPassword: '',
+        serviceCenterId: user.serviceCenterId || user.centerId || '',
+        certificateFile: null
       });
+      if (user.certificateLink) {
+        setFilePreview(user.certificateLink);
+      }
     }
   }, [mode, user]);
 
@@ -46,6 +54,15 @@ export const UserModal = ({ mode, user, onSave, onClose }) => {
       newErrors.phoneNumber = 'Số điện thoại không được để trống';
     } else if (!/^[0-9]{10,11}$/.test(formData.phoneNumber)) {
       newErrors.phoneNumber = 'Số điện thoại không hợp lệ (10-11 chữ số)';
+    }
+
+    // ✅ Validate Service Center ID (chỉ bắt buộc với employee roles)
+    if (formData.role !== 'CUSTOMER') {
+      if (!formData.serviceCenterId || formData.serviceCenterId === '') {
+        newErrors.serviceCenterId = 'Service Center ID không được để trống';
+      } else if (parseInt(formData.serviceCenterId) < 1) {
+        newErrors.serviceCenterId = 'Service Center ID phải lớn hơn 0';
+      }
     }
 
     if (mode === 'add') {
@@ -71,15 +88,16 @@ export const UserModal = ({ mode, user, onSave, onClose }) => {
       return;
     }
 
-    // Remove confirmPassword before sending
-    const { confirmPassword, ...dataToSend } = formData;
+    // Remove confirmPassword and certificateFile before sending
+    const { confirmPassword, certificateFile, ...dataToSend } = formData;
     
     // Remove password if editing and password is empty
     if (mode === 'edit' && !formData.password) {
       delete dataToSend.password;
     }
 
-    onSave(dataToSend);
+    // ✅ Pass both data and file to parent
+    onSave(dataToSend, certificateFile);
   };
 
   const handleChange = (e) => {
@@ -97,11 +115,53 @@ export const UserModal = ({ mode, user, onSave, onClose }) => {
     }
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type (PDF, images)
+      const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+      if (!validTypes.includes(file.type)) {
+        setErrors(prev => ({
+          ...prev,
+          certificateFile: 'Chỉ chấp nhận file PDF hoặc ảnh (JPG, PNG)'
+        }));
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors(prev => ({
+          ...prev,
+          certificateFile: 'File không được vượt quá 5MB'
+        }));
+        return;
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        certificateFile: file
+      }));
+      
+      // Preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFilePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+      
+      // Clear error
+      setErrors(prev => ({
+        ...prev,
+        certificateFile: ''
+      }));
+    }
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto'}}>
         <div className="modal-header">
-          <h2>{mode === 'add' ? '➕ Thêm người dùng mới' : '✏️ Chỉnh sửa người dùng'}</h2>
+          <h2>{mode === 'add' ? 'Thêm người dùng mới' : 'Chỉnh sửa người dùng'}</h2>
           <button onClick={onClose} className="close-button">
             <FaTimes />
           </button>
@@ -176,11 +236,112 @@ export const UserModal = ({ mode, user, onSave, onClose }) => {
               value={formData.role}
               onChange={handleChange}
             >
+              <option value="CUSTOMER">Khách hàng (Customer)</option>
               <option value="STAFF">Nhân viên (Staff)</option>
               <option value="MANAGER">Quản lý (Manager)</option>
               <option value="TECHNICIAN">Kỹ thuật viên (Technician)</option>
             </select>
           </div>
+
+          {/* Service Center ID - only for employees (not customer) */}
+          {formData.role !== 'CUSTOMER' && (
+            <div className="form-group">
+              <label>
+                Service Center ID <span style={{color: 'red'}}>*</span>
+              </label>
+              <input
+                type="number"
+                name="serviceCenterId"
+                value={formData.serviceCenterId}
+                onChange={handleChange}
+                placeholder="Nhập ID của Service Center (VD: 1)"
+                min="1"
+              />
+              {errors.serviceCenterId && <span className="error-message">{errors.serviceCenterId}</span>}
+              <small style={{color: '#6b7280', display: 'block', marginTop: '4px'}}>
+                💡 Nhập ID của Service Center mà nhân viên này thuộc về
+              </small>
+            </div>
+          )}
+
+          {/* Certificate File Upload (for Technician) */}
+          {formData.role === 'TECHNICIAN' && (
+            <div className="form-group">
+              <label>
+                Chứng chỉ (Certificate)
+              </label>
+              <div style={{
+                border: '2px dashed #e5e7eb',
+                borderRadius: '8px',
+                padding: '20px',
+                textAlign: 'center',
+                background: '#f9fafb',
+                cursor: 'pointer',
+                transition: 'all 0.3s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#667eea';
+                e.currentTarget.style.background = '#f0f4ff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = '#e5e7eb';
+                e.currentTarget.style.background = '#f9fafb';
+              }}
+              onClick={() => document.getElementById('certificate-upload').click()}
+              >
+                <input
+                  id="certificate-upload"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={handleFileChange}
+                  style={{ display: 'none' }}
+                />
+                {filePreview ? (
+                  <div style={{marginTop: '8px'}}>
+                    {formData.certificateFile?.type?.startsWith('image/') || filePreview?.startsWith('data:image') ? (
+                      <div>
+                        <img 
+                          src={filePreview} 
+                          alt="Preview" 
+                          style={{maxWidth: '200px', maxHeight: '200px', objectFit: 'contain', borderRadius: '8px', marginBottom: '8px'}}
+                        />
+                        <p style={{color: '#667eea', fontSize: '14px', margin: '8px 0'}}>
+                          ✅ {formData.certificateFile?.name || 'Chứng chỉ đã tải lên'}
+                        </p>
+                        <p style={{color: '#6b7280', fontSize: '13px'}}>
+                          Click để thay đổi
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{fontSize: '48px', marginBottom: '8px'}}>📄</div>
+                        <p style={{color: '#667eea', fontSize: '14px', margin: '8px 0'}}>
+                          ✅ {formData.certificateFile?.name || 'File đã tải lên'}
+                        </p>
+                        <a href={filePreview} target="_blank" rel="noopener noreferrer" style={{color: '#667eea', fontSize: '13px'}}>
+                          Xem file
+                        </a>
+                        <p style={{color: '#6b7280', fontSize: '13px', marginTop: '8px'}}>
+                          Click để thay đổi
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{fontSize: '48px', marginBottom: '8px'}}>📤</div>
+                    <p style={{color: '#374151', fontSize: '16px', fontWeight: '600', margin: '8px 0'}}>
+                      Click để tải lên chứng chỉ
+                    </p>
+                    <p style={{color: '#6b7280', fontSize: '13px'}}>
+                      📎 PDF, JPG, PNG (tối đa 5MB)
+                    </p>
+                  </div>
+                )}
+              </div>
+              {errors.certificateFile && <span className="error-message">{errors.certificateFile}</span>}
+            </div>
+          )}
 
           {/* Password (only for add mode) */}
           {mode === 'add' && (
