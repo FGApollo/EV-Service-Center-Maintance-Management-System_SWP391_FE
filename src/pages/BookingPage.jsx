@@ -256,9 +256,23 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
     const fetchMyVehicles = async () => {
       try {
         const data = await getVehicles();
-        setMyVehicles(data || []);
+        const vehicles = data || [];
+        setMyVehicles(vehicles);
+        
+        // Kiểm tra nếu user không có xe
+        if (vehicles.length === 0) {
+          // Hiển thị thông báo popup
+          toast.showWarning('Bạn chưa có xe nào trong danh sách. Vui lòng thêm xe để đặt lịch hẹn.');
+          
+          // Tự động chuyển hướng đến trang thêm xe sau 2 giây
+          setTimeout(() => {
+            onNavigate('mycar');
+          }, 1000);
+          return;
+        }
       } catch (err) {
         console.error('Lỗi khi tải danh sách xe:', err);
+        // Nếu lỗi khi fetch vehicles, vẫn cho phép tiếp tục (có thể là lỗi API)
       }
     };
     fetchMyVehicles();

@@ -239,28 +239,6 @@ function VehicleManagement() {
                   <span className="label">Chủ xe:</span>
                   <span className="value">{vehicle.ownerName || 'N/A'}</span>
                 </div>
-                <div className="detail-row">
-                  <span className="label">Lần cuối:</span>
-                  <span className="value">{formatDate(vehicle.closetTime)}</span>
-                </div>
-              </div>
-
-              <div className="vehicle-services">
-                <p className="services-label">Dịch vụ đã thực hiện:</p>
-                <div className="services-tags">
-                  {vehicle.maintenanceServices && vehicle.maintenanceServices.length > 0 ? (
-                    vehicle.maintenanceServices.slice(0, 3).map((service, idx) => (
-                      <span key={idx} className="service-tag">{service}</span>
-                    ))
-                  ) : (
-                    <span className="no-services">Chưa có dịch vụ</span>
-                  )}
-                  {vehicle.maintenanceServices && vehicle.maintenanceServices.length > 3 && (
-                    <span className="more-services">
-                      +{vehicle.maintenanceServices.length - 3} khác
-                    </span>
-                  )}
-                </div>
               </div>
 
               <button 
@@ -324,22 +302,6 @@ function VehicleManagement() {
                     <span className="stat-value">{selectedVehicle.maintenanceCount}</span>
                     <span className="stat-label">Tổng số lần bảo dưỡng</span>
                   </div>
-                </div>
-              </div>
-
-              <div className="modal-section">
-                <h4>Các dịch vụ đã thực hiện</h4>
-                <div className="all-services-list">
-                  {selectedVehicle.maintenanceServices && selectedVehicle.maintenanceServices.length > 0 ? (
-                    selectedVehicle.maintenanceServices.map((service, idx) => (
-                      <div key={idx} className="service-item">
-                        <span className="service-number">{idx + 1}</span>
-                        <span className="service-name">{service}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="no-data">Chưa có dịch vụ nào được thực hiện</p>
-                  )}
                 </div>
               </div>
             </div>

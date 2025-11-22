@@ -26,6 +26,7 @@ function TechnicianDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('newest'); // newest (ID lớn) hoặc oldest (ID bé)
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [isEditingCondition, setIsEditingCondition] = useState(false);
@@ -259,11 +260,25 @@ function TechnicianDashboard() {
       setActionLoading(true);
       console.log('🔧 [Technician] Bắt đầu làm phiếu #', appointmentId);
       
-      await startAppointment(appointmentId);
+      const updatedAppointment = await startAppointment(appointmentId);
       
-      console.log('✅ Đã bắt đầu làm việc');
+      console.log('✅ Đã bắt đầu làm việc:', updatedAppointment);
       showSuccess('Đã bắt đầu làm việc!');
       
+      // Cập nhật selectedAppointment với dữ liệu mới từ API
+      if (updatedAppointment && selectedAppointment?.id === appointmentId) {
+        // Map dữ liệu từ API response về format của selectedAppointment
+        const mappedAppointment = {
+          ...selectedAppointment,
+          status: updatedAppointment.status || 'in_progress',
+          appointmentDate: updatedAppointment.appointmentDate || selectedAppointment.appointmentDate,
+          serviceNames: updatedAppointment.serviceNames || selectedAppointment.services,
+          vehicle: updatedAppointment.vehicle || selectedAppointment.vehicle
+        };
+        setSelectedAppointment(mappedAppointment);
+      }
+      
+      // Refresh danh sách appointments
       await fetchAppointments();
       
     } catch (err) {
@@ -547,12 +562,21 @@ function TechnicianDashboard() {
   };
 
   // Lọc theo search
-  const filteredAppointments = appointments.filter((apt) =>
+  let filteredAppointments = appointments.filter((apt) =>
     apt.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     apt.phone.includes(searchQuery) ||
     apt.licensePlate.toLowerCase().includes(searchQuery.toLowerCase()) ||
     String(apt.id).includes(searchQuery)
   );
+
+  // Sắp xếp theo ID
+  filteredAppointments = [...filteredAppointments].sort((a, b) => {
+    if (sortBy === 'newest') {
+      return b.id - a.id; // ID lớn trước (mới nhất)
+    } else {
+      return a.id - b.id; // ID bé trước (cũ nhất)
+    }
+  });
 
   const currentTab = statusTabs.find(tab => tab.key === activeStatus);
   
@@ -586,15 +610,38 @@ function TechnicianDashboard() {
           </button>
         </div>
         
-        {/* Search Box */}
-        <div className="tech-search-box">
-          <FaSearch />
-          <input
-            type="text"
-            placeholder="Tìm kiếm phiếu dịch vụ..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        {/* Search Box and Sort */}
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Sort Dropdown */}
+          <div className="sort-dropdown" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={{ fontSize: '14px', fontWeight: '500', color: '#4a5568' }}>Sắp xếp:</label>
+            <select 
+              value={sortBy} 
+              onChange={(e) => setSortBy(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '14px',
+                cursor: 'pointer',
+                backgroundColor: 'white'
+              }}
+            >
+              <option value="newest">ID mới nhất</option>
+              <option value="oldest">ID cũ nhất</option>
+            </select>
+          </div>
+
+          {/* Search Box */}
+          <div className="tech-search-box">
+            <FaSearch />
+            <input
+              type="text"
+              placeholder="Tìm kiếm phiếu dịch vụ..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
