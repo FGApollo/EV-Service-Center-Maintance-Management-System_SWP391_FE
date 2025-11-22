@@ -48,7 +48,8 @@ function Profile({ onNavigate }) {
   const handleSubmitPassword = async (event) => {
     event.preventDefault();
     try {
-      await submitPasswordChange();
+      // Truyền profileData để hook có thể lấy fullName, email, phone
+      await submitPasswordChange(profileData);
     } catch (error) {
       // Errors are surfaced inside the hook via alert/logging
     }

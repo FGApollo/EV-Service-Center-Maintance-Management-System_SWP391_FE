@@ -44,10 +44,21 @@ export const getProfile = async () => {
   return res.data;
 };
 
-// Đổi mật khẩu (✅ Cần token)
-export const changePassword = async (data) => {
-  const res = await axiosClient.post("/api/auth/change-password", data);
+// Đổi mật khẩu và cập nhật thông tin (✅ Cần token)
+// API: PUT /api/update/{id}
+// Request body: { fullName, email, phone, password }
+// Response: { email, fullName, phone }
+export const updateUserProfile = async (userId, data) => {
+  console.log('📤 API Request: PUT /api/update/' + userId);
+  console.log('📤 Request Data:', data);
+  const res = await axiosClient.put(`/api/update/${userId}`, data);
+  console.log('📥 API Response:', res.data);
   return res.data;
+};
+
+// Alias cho tương thích ngược
+export const changePassword = async (userId, data) => {
+  return updateUserProfile(userId, data);
 };
 
 // Lấy danh sách users theo role (✅ Cần token)
@@ -209,31 +220,31 @@ export const getAllVehicles = async () => {
 
 // Lấy tất cả parts (✅ Cần token)
 export const getAllParts = async () => {
-  const res = await axiosClient.get("/api/auth/parts");
+  const res = await axiosClient.get("/api/management2/parts");
   return res.data;
 };
 
 // Lấy part theo ID (✅ Cần token)
 export const getPartById = async (id) => {
-  const res = await axiosClient.get(`/api/auth/parts/${id}`);
+  const res = await axiosClient.get(`/api/management/parts/${id}`);
   return res.data;
 };
 
 // Tạo part mới (✅ Cần token)
 export const createPart = async (data) => {
-  const res = await axiosClient.post("/api/auth/parts/create", data);
+  const res = await axiosClient.post("/api/management/parts/create", data);
   return res.data;
 };
 
 // Cập nhật part (✅ Cần token)
 export const updatePart = async (id, data) => {
-  const res = await axiosClient.put(`/api/auth/parts/update/${id}`, data);
+  const res = await axiosClient.put(`/api/management/parts/update/${id}`, data);
   return res.data;
 };
 
 // Xóa part (✅ Cần token)
 export const deletePart = async (id) => {
-  const res = await axiosClient.delete(`/api/auth/parts/delete/${id}`);
+  const res = await axiosClient.delete(`/api/management/parts/delete/${id}`);
   return res.data;
 };
 
@@ -378,6 +389,15 @@ export const startAppointment = async (appointmentId) => {
 // Technician: Hoàn thành appointment (✅ Cần token)
 export const completeAppointment = async (appointmentId) => {
   const res = await axiosClient.post(`/api/technician/appointments/${appointmentId}/complete`);
+  return res.data;
+};
+
+// Technician: Cập nhật sử dụng linh kiện (✅ Cần token)
+// Status: 0 = xóa/trả lại kho, 1 = thêm/lấy từ kho
+export const updatePartUsage = async (data) => {
+  console.log('🔧 [API] Updating part usage:', data);
+  const res = await axiosClient.put('/api/technician/part_usage/update', data);
+  console.log('✅ [API] Part usage updated:', res.data);
   return res.data;
 };
 
