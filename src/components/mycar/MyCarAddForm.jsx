@@ -54,15 +54,27 @@ const MyCarAddForm = ({ onAdd, saving }) => {
               <label htmlFor="model">
                 Model xe <span className="required">*</span>
               </label>
-              <input
-                type="text"
+              <select
                 id="model"
                 name="model"
                 value={formData.model}
                 onChange={handleChange}
-                placeholder="Ví dụ: Honda Civic"
                 required
-              />
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">-- Chọn Model xe --</option>
+                <option value="Loin Model A">Loin Model A</option>
+                <option value="Loin Model B">Loin Model B</option>
+                <option value="Loin Model C">Loin Model C</option>
+              </select>
             </div>
           </div>
 
@@ -86,16 +98,26 @@ const MyCarAddForm = ({ onAdd, saving }) => {
               <label htmlFor="year">
                 Năm sản xuất
               </label>
-              <input
-                type="number"
+              <select
                 id="year"
                 name="year"
                 value={formData.year}
                 onChange={handleChange}
-                placeholder="Ví dụ: 2020"
-                min="1900"
-                max={new Date().getFullYear() + 1}
-              />
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">-- Chọn năm sản xuất --</option>
+                {[2025, 2024, 2023, 2022, 2021, 2020].map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -104,6 +126,12 @@ const MyCarAddForm = ({ onAdd, saving }) => {
               type="submit"
               className="btn-primary"
               disabled={saving}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
             >
               {saving ? (
                 <>
@@ -112,8 +140,8 @@ const MyCarAddForm = ({ onAdd, saving }) => {
                 </>
               ) : (
                 <>
-                  <FaSave />
-                  Thêm xe
+                  <FaSave style={{ display: 'flex', alignItems: 'center' }} />
+                  <span>Thêm xe</span>
                 </>
               )}
             </button>

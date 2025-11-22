@@ -259,11 +259,25 @@ function TechnicianDashboard() {
       setActionLoading(true);
       console.log('🔧 [Technician] Bắt đầu làm phiếu #', appointmentId);
       
-      await startAppointment(appointmentId);
+      const updatedAppointment = await startAppointment(appointmentId);
       
-      console.log('✅ Đã bắt đầu làm việc');
+      console.log('✅ Đã bắt đầu làm việc:', updatedAppointment);
       showSuccess('Đã bắt đầu làm việc!');
       
+      // Cập nhật selectedAppointment với dữ liệu mới từ API
+      if (updatedAppointment && selectedAppointment?.id === appointmentId) {
+        // Map dữ liệu từ API response về format của selectedAppointment
+        const mappedAppointment = {
+          ...selectedAppointment,
+          status: updatedAppointment.status || 'in_progress',
+          appointmentDate: updatedAppointment.appointmentDate || selectedAppointment.appointmentDate,
+          serviceNames: updatedAppointment.serviceNames || selectedAppointment.services,
+          vehicle: updatedAppointment.vehicle || selectedAppointment.vehicle
+        };
+        setSelectedAppointment(mappedAppointment);
+      }
+      
+      // Refresh danh sách appointments
       await fetchAppointments();
       
     } catch (err) {

@@ -439,8 +439,11 @@ export const getAppointmentStatus = async (status) => {
 };
 
 // Technician: Bắt đầu appointment (✅ Cần token)
+// API: PUT /api/appointments/{id}/inProgress
 export const startAppointment = async (appointmentId) => {
-  const res = await axiosClient.post(`/api/technician/appointments/${appointmentId}/start`);
+  console.log(`🔧 [API] PUT /api/appointments/${appointmentId}/inProgress`);
+  const res = await axiosClient.put(`/api/appointments/${appointmentId}/inProgress`);
+  console.log('✅ [API] Appointment started:', res.data);
   return res.data;
 };
 

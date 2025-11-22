@@ -667,41 +667,11 @@ function AppointmentManagement() {
                         <FaUserPlus />
                         Giao việc cho Technician
                       </button>
-                      <button 
-                        className="btn-start"
-                        onClick={() => handleStartAppointment(selectedAppointment.id)}
-                        disabled={actionLoading}
-                      >
-                        {actionLoading ? <FaSpinner className="spinner" /> : <FaTools />}
-                        {actionLoading ? 'Đang xử lý...' : 'Bắt đầu thực hiện'}
-                      </button>
                     </>
                   )}
                   {activeStatus === 'in_progress' && (
                     <>
-                      <button 
-                        className="btn-assign"
-                        onClick={() => {
-                          if (!selectedAppointment?.id) {
-                            showError('Không tìm thấy ID lịch hẹn. Vui lòng chọn lại lịch hẹn.');
-                            return;
-                          }
-                          console.log('🔍 Opening edit modal for appointment ID:', selectedAppointment.id);
-                          setShowAssignModal(true);
-                        }}
-                        disabled={actionLoading}
-                      >
-                        <FaUserPlus />
-                        Chỉnh sửa Technician
-                      </button>
-                      <button 
-                        className="btn-complete"
-                        onClick={() => handleCompleteAppointment(selectedAppointment.id)}
-                        disabled={actionLoading}
-                      >
-                        {actionLoading ? <FaSpinner className="spinner" /> : <FaCheck />}
-                        {actionLoading ? 'Đang xử lý...' : 'Hoàn thành'}
-                      </button>
+                      {/* Không có nút action cho phần đang thực hiện */}
                     </>
                   )}
                 </div>
