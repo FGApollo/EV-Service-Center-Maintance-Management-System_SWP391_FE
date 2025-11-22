@@ -141,10 +141,6 @@ export const UsersTab = () => {
                   <p style={{color: '#6b7280', margin: 0}}>{selectedUser.phone || selectedUser.phoneNumber || 'N/A'}</p>
                 </div>
                 <div>
-                  <label style={{fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px'}}>Địa chỉ:</label>
-                  <p style={{color: '#6b7280', margin: 0}}>{selectedUser.address || 'N/A'}</p>
-                </div>
-                <div>
                   <label style={{fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px'}}>Vai trò:</label>
                   <p style={{color: '#6b7280', margin: 0}}>{selectedUser.role || 'N/A'}</p>
                 </div>

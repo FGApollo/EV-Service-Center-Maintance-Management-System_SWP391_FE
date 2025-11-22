@@ -24,7 +24,7 @@ export const WorkLogStats = ({ stats }) => {
           <FaClock />
         </div>
         <div className="stat-info">
-          <h3>{stats.totalHours || 0}</h3>
+          <h3>{typeof stats.totalHours === 'number' ? stats.totalHours.toFixed(2) : (stats.totalHours || 0)}</h3>
           <p>Tổng giờ làm</p>
         </div>
       </div>

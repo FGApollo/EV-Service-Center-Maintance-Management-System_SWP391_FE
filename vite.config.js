@@ -12,5 +12,13 @@ export default defineConfig({
         secure: false,
       }
     }
+  },
+  // Đảm bảo tất cả routes được xử lý bởi index.html (SPA routing)
+  build: {
+    rollupOptions: {
+      input: {
+        main: './index.html'
+      }
+    }
   }
 })

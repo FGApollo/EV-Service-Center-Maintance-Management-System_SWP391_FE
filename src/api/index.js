@@ -289,6 +289,23 @@ export const deletePart = async (id) => {
   return res.data;
 };
 
+// Lấy inventory của tất cả parts (✅ Cần token - Manager)
+export const getInventoryParts = async () => {
+  console.log('📦 [API] GET /api/management/inventory/parts');
+  const res = await axiosClient.get("/api/management/inventory/parts");
+  console.log('✅ [API] Inventory parts loaded:', res.data);
+  return res.data;
+};
+
+// Cập nhật số lượng trong inventory (✅ Cần token - Manager)
+// quantity là query parameter, không phải body
+export const updateInventoryQuantity = async (partId, quantity) => {
+  console.log(`📦 [API] PUT /api/management/inventory/${partId}?quantity=${quantity}`);
+  const res = await axiosClient.put(`/api/management/inventory/${partId}?quantity=${quantity}`);
+  console.log('✅ [API] Inventory updated:', res.data);
+  return res.data;
+};
+
 // Sử dụng part (✅ Cần token)
 export const usePart = async (data) => {
   const res = await axiosClient.post("/api/technician/part_usage", data);
