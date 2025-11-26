@@ -620,6 +620,88 @@
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
+.btn-handover {
+  background: #48bb78;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-handover:hover:not(:disabled) {
+  background: #38a169;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(72, 187, 120, 0.3);
+}
+
+.btn-handover:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-back-to-progress {
+  background: #9f7aea;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-back-to-progress:hover:not(:disabled) {
+  background: #805ad5;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(159, 122, 234, 0.3);
+}
+
+.btn-back-to-progress:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* View Invoice Button */
+.btn-view-invoice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+}
+
+.btn-view-invoice:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-view-invoice:active {
+  transform: translateY(0);
+}
+
+.btn-view-invoice svg {
+  font-size: 18px;
+}
+
 /* Empty States */
 .empty-state {
   display: flex;

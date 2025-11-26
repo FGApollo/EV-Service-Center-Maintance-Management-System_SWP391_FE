@@ -5,8 +5,9 @@ import {
   getVehicles,
   getVehicleByVin,
   getAllServiceTypes,
+  getAllCenters,
 } from "../api";
-import { serviceCenters, timeSlots } from "../constants/booking";
+import { timeSlots } from "../constants/booking";
 import BookingVehicleStep from "../components/booking/BookingVehicleStep";
 import BookingBranchStep from "../components/booking/BookingBranchStep";
 import BookingServicesStep from "../components/booking/BookingServicesStep";
@@ -49,6 +50,30 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
   const [services, setServices] = useState([]);
   const [servicesLoading, setServicesLoading] = useState(true);
   const [servicesError, setServicesError] = useState(null);
+  const [serviceCenters, setServiceCenters] = useState([]);
+  const [centersLoading, setCentersLoading] = useState(true);
+  const [centersError, setCentersError] = useState(null);
+
+  // Helper function để extract city từ address
+  const extractCityFromAddress = (address) => {
+    if (!address) return null;
+    
+    // Thử tìm các thành phố phổ biến trong address
+    const cities = ['Hồ Chí Minh', 'Hà Nội', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ'];
+    for (const city of cities) {
+      if (address.includes(city)) {
+        return city;
+      }
+    }
+    
+    // Nếu không tìm thấy, thử lấy phần cuối của address (có thể là thành phố)
+    const parts = address.split(',').map(p => p.trim());
+    if (parts.length > 1) {
+      return parts[parts.length - 1];
+    }
+    
+    return null;
+  };
   const [today] = useState(() => {
     const date = new Date();
     date.setHours(0, 0, 0, 0);
@@ -165,6 +190,105 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
       }
     };
   }, []);
+
+  // Fetch service centers from API
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchCenters = async () => {
+      try {
+        setCentersLoading(true);
+        setCentersError(null);
+        console.log('📤 [BookingPage] Fetching service centers from API...');
+        
+        const data = await getAllCenters();
+        
+        if (isMounted) {
+          console.log('✅ [BookingPage] Service centers loaded:', data);
+          if (Array.isArray(data) && data.length > 0) {
+            // Map dữ liệu từ API sang format component expect
+            const mappedCenters = data.map((center) => ({
+              id: center.centerId || center.id,
+              name: center.name || 'Chi nhánh dịch vụ',
+              address: center.address || '',
+              city: extractCityFromAddress(center.address) || 'Hồ Chí Minh',
+              phone: center.phone || '',
+              workingHours: 'Thứ 2 - Thứ 7: 8:00 - 18:00', // Default working hours
+              icon: '🏢', // Default icon
+              email: center.email || ''
+            }));
+            
+            setServiceCenters(mappedCenters);
+            setCentersError(null);
+          } else {
+            console.warn('⚠️ [BookingPage] Service centers array is empty');
+            setServiceCenters([]);
+            setCentersError('Không có chi nhánh nào');
+          }
+        }
+      } catch (err) {
+        console.error('❌ [BookingPage] Lỗi khi tải danh sách chi nhánh:', err);
+        
+        let errorMessage = 'Không thể tải danh sách chi nhánh';
+        if (err.response?.data?.message) {
+          errorMessage = err.response.data.message;
+        } else if (err.response?.status === 401 || err.response?.status === 403) {
+          errorMessage = 'Cần đăng nhập để xem danh sách chi nhánh';
+        } else if (err.response?.status) {
+          errorMessage = `Lỗi server (${err.response.status})`;
+        }
+        
+        if (isMounted) {
+          setCentersError(errorMessage);
+          setServiceCenters([]);
+        }
+      } finally {
+        if (isMounted) {
+          setCentersLoading(false);
+        }
+      }
+    };
+
+    fetchCenters();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Function để refresh centers (dùng khi vào step 2 hoặc retry)
+  const refreshCenters = async () => {
+    try {
+      setCentersLoading(true);
+      setCentersError(null);
+      const data = await getAllCenters();
+      if (Array.isArray(data) && data.length > 0) {
+            const mappedCenters = data.map((center) => ({
+              id: center.centerId || center.id,
+              name: center.name || 'Chi nhánh dịch vụ',
+              address: center.address || '',
+              city: extractCityFromAddress(center.address) || 'Hồ Chí Minh',
+              phone: center.phone || '',
+              icon: '🏢',
+              email: center.email || ''
+            }));
+        setServiceCenters(mappedCenters);
+      }
+    } catch (err) {
+      setCentersError('Không thể tải danh sách chi nhánh');
+    } finally {
+      setCentersLoading(false);
+    }
+  };
+
+  // Refresh centers khi vào step 2 (chọn chi nhánh) để đảm bảo có center mới
+  useEffect(() => {
+    if (currentStep === 2) {
+      console.log('🔄 [BookingPage] Refreshing centers when entering step 2...');
+      refreshCenters();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep]);
 
   const maxBookingDate = useMemo(() => {
     const limit = new Date(today);
@@ -838,6 +962,9 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
               formData={formData}
               handleInputChange={handleInputChange}
               serviceCenters={serviceCenters}
+              loading={centersLoading}
+              error={centersError}
+              onRetry={refreshCenters}
             />
           )}
           {currentStep === 3 && (

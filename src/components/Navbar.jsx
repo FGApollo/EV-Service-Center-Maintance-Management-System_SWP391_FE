@@ -1,6 +1,6 @@
 // Navbar.jsx - Tesla Style
 import { useState, useEffect, useRef } from "react";
-import { FaQuestionCircle, FaUserCircle, FaGlobe, FaCar, FaSignOutAlt, FaTachometerAlt } from "react-icons/fa";
+import { FaQuestionCircle, FaUserCircle, FaGlobe, FaCar, FaSignOutAlt, FaTachometerAlt, FaTools } from "react-icons/fa";
 import { useToastContext } from "../contexts/ToastContext";
 
 export default function Navbar({ onNavigate, isLoggedIn, onLogout, user }) {
@@ -159,6 +159,14 @@ export default function Navbar({ onNavigate, isLoggedIn, onLogout, user }) {
                   <span className="text-sm text-gray-800">Xe của tôi</span>
                 </button>
                 
+                <button 
+                  onClick={() => handleNavigate('suggested-parts')}
+                  className="w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors flex items-center gap-3"
+                >
+                  <FaTools size={16} className="text-gray-600" />
+                  <span className="text-sm text-gray-800">Linh kiện cần thay thế</span>
+                </button>
+                
                 {/* Dashboard Link - Only for staff/technician/manager/admin */}
                 {dashboardInfo && (
                   <>
@@ -241,6 +249,13 @@ export default function Navbar({ onNavigate, isLoggedIn, onLogout, user }) {
                 >
                   <FaCar size={16} />
                   Xe của tôi
+                </button>
+                <button 
+                  onClick={() => handleNavigate('suggested-parts')}
+                  className="block w-full text-left text-blue-600 font-medium hover:text-blue-800 transition-colors flex items-center gap-2"
+                >
+                  <FaTools size={16} />
+                  Linh kiện cần thay thế
                 </button>
                 
                 {/* Dashboard Link Mobile - Only for staff/technician/manager/admin */}

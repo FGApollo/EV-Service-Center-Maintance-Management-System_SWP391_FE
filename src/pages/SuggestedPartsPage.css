@@ -1,0 +1,85 @@
+/* Suggested Parts Page Layout */
+.suggested-parts-page-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+}
+
+.suggested-parts-page-main {
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.suggested-parts-page-header {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.suggested-parts-page-title {
+  margin: 0 0 12px 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.5px;
+}
+
+.suggested-parts-page-description {
+  margin: 0;
+  font-size: 15px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+/* Override CustomerSuggestedParts container for full-width in page */
+.suggested-parts-page-main .customer-suggested-parts-container {
+  margin-top: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.suggested-parts-page-main .suggested-parts-header {
+  display: none; /* Hide the header inside component since we have our own */
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .suggested-parts-page-content {
+    padding: 0 10px;
+  }
+  
+  .suggested-parts-page-main {
+    padding: 20px;
+    border-radius: 12px;
+  }
+  
+  .suggested-parts-page-title {
+    font-size: 24px;
+  }
+  
+  .suggested-parts-page-description {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .suggested-parts-page-main {
+    padding: 16px;
+  }
+  
+  .suggested-parts-page-title {
+    font-size: 20px;
+  }
+}
+

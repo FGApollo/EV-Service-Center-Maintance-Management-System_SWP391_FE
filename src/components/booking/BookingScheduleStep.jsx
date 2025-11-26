@@ -1,4 +1,5 @@
 import React from "react";
+import "./BookingScheduleStep.css";
 
 const BookingScheduleStep = ({
   calendarLabel,

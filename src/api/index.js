@@ -347,7 +347,26 @@ export const cancelAppointment = async (appointmentId) => {
 
 // Staff: Bắt đầu thực hiện lịch hẹn (✅ Cần token)
 export const startAppointmentProgress = async (appointmentId) => {
-  const res = await axiosClient.put(`/api/appointments/${appointmentId}/inProgress`);
+  const res = await axiosClient.put(`/api/appointments/${appointmentId}/inProgress`, {});
+  return res.data;
+};
+
+// Staff: Chuyển appointment về in_progress (✅ Cần token)
+// API: PUT /api/appointments/{id}/inProgress
+export const setAppointmentInProgress = async (appointmentId) => {
+  console.log(`🔧 [API] PUT /api/appointments/${appointmentId}/inProgress`);
+  // Gửi empty body để tránh lỗi validation
+  const res = await axiosClient.put(`/api/appointments/${appointmentId}/inProgress`, {});
+  console.log('✅ [API] Appointment set to in_progress:', res.data);
+  return res.data;
+};
+
+// Staff: Bàn giao và hoàn thành appointment (✅ Cần token)
+// API: PUT /api/appointments/{id}/handover
+export const handoverAppointment = async (appointmentId) => {
+  console.log(`📤 [API] PUT /api/appointments/${appointmentId}/handover`);
+  const res = await axiosClient.put(`/api/appointments/${appointmentId}/handover`);
+  console.log('✅ [API] Appointment handed over:', res.data);
   return res.data;
 };
 
@@ -382,6 +401,15 @@ export const getAppointmentsForStaff = async () => {
   return res.data;
 };
 
+// Lấy appointments theo status (✅ Cần token)
+// API: GET /api/appointments/appointments/status/{status}
+export const getAppointmentsByStatus = async (status) => {
+  console.log(`📤 [API] GET /api/appointments/appointments/status/${status}`);
+  const res = await axiosClient.get(`/api/appointments/appointments/status/${status}`);
+  console.log(`✅ [API] Appointments with status ${status} retrieved:`, res.data);
+  return res.data;
+};
+
 // Technician: Lấy chi tiết appointment (✅ Cần token)
 export const getAppointmentDetailWithTechs = async (appointmentId) => {
   const res = await axiosClient.get(`/api/appointments/${appointmentId}`);
@@ -397,9 +425,9 @@ export const createMaintenanceRecord = async (appointmentId, recordData) => {
   return res.data;
 };
 
-// Technician: Hoàn thành appointment (chuyển sang "done") (✅ Cần token)
-export const markAppointmentAsDone = async (appointmentId) => {
-  console.log('✔️ [API] Completing appointment (done):', appointmentId);
+// Technician: Chuyển appointment sang trạng thái "waiting" (✅ Cần token)
+export const markAppointmentAsWaiting = async (appointmentId) => {
+  console.log('✔️ [API] Marking appointment as waiting:', appointmentId);
   // Gửi data rỗng theo yêu cầu backend
   const emptyData = {
     vehicleCondition: "",
@@ -408,10 +436,13 @@ export const markAppointmentAsDone = async (appointmentId) => {
     partsUsed: [],
     staffIds: []
   };
-  const res = await axiosClient.put(`/api/appointments/${appointmentId}/done`, emptyData);
-  console.log('✅ [API] Appointment marked as done:', res.data);
+  const res = await axiosClient.put(`/api/appointments/${appointmentId}/waiting`, emptyData);
+  console.log('✅ [API] Appointment marked as waiting:', res.data);
   return res.data;
 };
+
+// Backward compatibility - giữ lại function cũ nhưng redirect sang function mới
+export const markAppointmentAsDone = markAppointmentAsWaiting;
 
 // Lấy maintenance records theo center (✅ Cần token)
 // API: GET /api/MaintainanceRecord/all/serviceCenter/{centerId}
@@ -432,9 +463,21 @@ export const getMaintenanceRecordsByCenter = async (centerId = null) => {
 // Alias cho tương thích ngược (Staff Dashboard vẫn dùng tên này)
 export const completeAppointmentDone = markAppointmentAsDone;
 
-// Staff: Lấy chi tiết appointment với thông tin kỹ thuật viên (✅ Cần token)
-export const getAppointmentStatus = async (status) => {
-  const res = await axiosClient.get(`/api/appointments/status/${status}`);
+// Staff/Technician: Lấy chi tiết appointment với thông tin kỹ thuật viên và hóa đơn (✅ Cần token)
+// API: GET /api/appointments/status/{id}
+export const getAppointmentStatus = async (appointmentId) => {
+  console.log(`📤 [API] GET /api/appointments/status/${appointmentId}`);
+  const res = await axiosClient.get(`/api/appointments/status/${appointmentId}`);
+  console.log('✅ [API] Appointment status retrieved:', res.data);
+  return res.data;
+};
+
+// Technician/Staff: Lấy linh kiện đã sử dụng cho appointment (✅ Cần token)
+// API: GET /api/{id}
+export const getAppointmentPartsUsed = async (appointmentId) => {
+  console.log(`📤 [API] GET /api/${appointmentId}`);
+  const res = await axiosClient.get(`/api/${appointmentId}`);
+  console.log('✅ [API] Appointment parts used retrieved:', res.data);
   return res.data;
 };
 
@@ -826,6 +869,89 @@ export const deleteServiceType = async (id) => {
 
 // Alias để tương thích ngược với code cũ (BookingPage)
 export const getServiceTypes = getAllServiceTypes;
+
+/* --------------------------------
+   🔧 SUGGESTED PARTS APIs (Technician & Customer)
+---------------------------------- */
+
+// Technician: Gửi danh sách linh kiện cần thay thế (✅ Cần token)
+// API: POST /api/suggested_part
+// Body: Array of { appointmentId, partId, quantity, technicianNote }
+export const submitSuggestedParts = async (suggestedParts) => {
+  console.log('📤 [API] POST /api/suggested_part');
+  console.log('📤 Request Data:', suggestedParts);
+  
+  if (!Array.isArray(suggestedParts) || suggestedParts.length === 0) {
+    throw new Error('Suggested parts must be a non-empty array');
+  }
+  
+  const res = await axiosClient.post('/api/suggested_part', suggestedParts);
+  console.log('✅ [API] Suggested parts submitted:', res.data);
+  return res.data;
+};
+
+// Customer/Technician: Lấy danh sách suggested parts theo appointmentId (✅ Cần token)
+// API: GET /api/suggested_part/{appointmentId}
+export const getSuggestedParts = async (appointmentId) => {
+  console.log(`📤 [API] GET /api/suggested_part/${appointmentId}`);
+  const res = await axiosClient.get(`/api/suggested_part/${appointmentId}`);
+  console.log('✅ [API] Suggested parts retrieved:', res.data);
+  return res.data;
+};
+
+// Customer: Lấy tất cả suggested parts đã xử lý của user (✅ Cần token)
+// API: GET /api/suggested_part/all
+export const getAllSuggestedParts = async () => {
+  console.log(`📤 [API] GET /api/suggested_part/all`);
+  const res = await axiosClient.get(`/api/suggested_part/all`);
+  console.log('✅ [API] All suggested parts retrieved:', res.data);
+  return res.data;
+};
+
+// Customer: Chấp nhận suggested part (✅ Cần token)
+// API: PUT /api/suggested_part/{id}/accept
+export const acceptSuggestedPart = async (id) => {
+  console.log(`📤 [API] PUT /api/suggested_part/${id}/accept`);
+  const res = await axiosClient.put(`/api/suggested_part/${id}/accept`);
+  console.log('✅ [API] Suggested part accepted:', res.data);
+  return res.data;
+};
+
+// Customer: Từ chối suggested part (✅ Cần token)
+// API: PUT /api/suggested_part/{id}/deny
+export const denySuggestedPart = async (id) => {
+  console.log(`📤 [API] PUT /api/suggested_part/${id}/deny`);
+  const res = await axiosClient.put(`/api/suggested_part/${id}/deny`);
+  console.log('✅ [API] Suggested part denied:', res.data);
+  return res.data;
+};
+
+// Staff/Customer: Lấy hóa đơn của customer theo appointmentId (✅ Cần token)
+// API: GET /api/auth/invoices/customer/{appointmentId}
+export const getCustomerInvoice = async (appointmentId) => {
+  console.log(`📤 [API] GET /api/auth/invoices/customer/${appointmentId}`);
+  const res = await axiosClient.get(`/api/auth/invoices/customer/${appointmentId}`);
+  console.log('✅ [API] Customer invoice retrieved:', res.data);
+  return res.data;
+};
+
+// Staff/Customer: Thanh toán tiền mặt (✅ Cần token)
+// API: PUT /api/cash-payment/{invoiceId}
+export const createCashPayment = async (invoiceId) => {
+  console.log(`💵 [API] PUT /api/cash-payment/${invoiceId}`);
+  const res = await axiosClient.put(`/api/cash-payment/${invoiceId}`);
+  console.log('✅ [API] Cash payment created:', res.data);
+  return res.data;
+};
+
+// Customer: Thanh toán chuyển khoản (tạo payment và redirect đến payment gateway) (✅ Cần token)
+// API: POST /api/part-payments/{appointmentId}
+export const createPartPayment = async (appointmentId) => {
+  console.log(`💳 [API] POST /api/part-payments/${appointmentId}`);
+  const res = await axiosClient.post(`/api/part-payments/${appointmentId}`);
+  console.log('✅ [API] Part payment created:', res.data);
+  return res.data;
+};
 
 /* --------------------------------
    🧹 TIỆN ÍCH

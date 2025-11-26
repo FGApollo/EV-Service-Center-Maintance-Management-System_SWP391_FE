@@ -8,16 +8,21 @@ import {
 } from 'react-icons/fa';
 import { 
   getAppointmentsForStaff,
+  getAppointmentsByStatus,
   startAppointment, 
   completeAppointment,
   createMaintenanceRecord,
-  markAppointmentAsDone,
+  markAppointmentAsWaiting,
   getServiceTypes,
   updatePartUsage
 } from '../../api';
 import { showSuccess, showError, showWarning } from '../../utils/toast';
 import { getCurrentCenterId } from '../../utils/centerFilter';
 import MaintenanceChecklist from '../../components/maintenance/MaintenanceChecklist';
+import SuggestedPartsForm from '../../components/maintenance/SuggestedPartsForm';
+import TechnicianSuggestedParts from '../../components/maintenance/TechnicianSuggestedParts';
+import AppointmentPartsUsed from '../../components/maintenance/AppointmentPartsUsed';
+import PartsUsedSection from '../../components/maintenance/PartsUsedSection';
 
 function TechnicianDashboard() {
   const [activeStatus, setActiveStatus] = useState('all');
@@ -30,6 +35,7 @@ function TechnicianDashboard() {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [isEditingCondition, setIsEditingCondition] = useState(false);
+  const [suggestedPartsRefreshKey, setSuggestedPartsRefreshKey] = useState(0);
   const [vehicleCondition, setVehicleCondition] = useState({
     exterior: '',
     interior: '',
@@ -80,11 +86,11 @@ function TechnicianDashboard() {
       apiStatus: 'in_progress'
     },
     { 
-      key: 'completed', 
-      label: 'Hoàn tất', 
-      icon: <FaCheck />, 
+      key: 'waiting', 
+      label: 'Chờ nhận xe', 
+      icon: <FaClock />, 
       color: '#48bb78',
-      apiStatus: 'completed'
+      apiStatus: 'waiting'
     },
   ];
 
@@ -179,7 +185,17 @@ function TechnicianDashboard() {
         console.error('❌ Không tìm thấy user trong localStorage');
       }
       
-      const data = await getAppointmentsForStaff();
+      let data;
+      
+      // Nếu activeStatus là 'waiting', dùng API mới để lấy appointments theo status
+      if (activeStatus === 'waiting') {
+        console.log('📤 [Technician] Fetching appointments with status: awaiting_pickup');
+        data = await getAppointmentsByStatus('awaiting_pickup');
+      } else {
+        // Các trạng thái khác, dùng API cũ
+        data = await getAppointmentsForStaff();
+      }
+      
       console.log('📦 [Technician] Dữ liệu từ API:', data);
       
       if (!Array.isArray(data)) {
@@ -195,35 +211,133 @@ function TechnicianDashboard() {
         console.log('🔍 Available fields:', Object.keys(data[0]));
       }
       
-      // Map data từ API mới
-      const mappedData = data.map(item => ({
-        id: item.appointmentId,
-        customerId: item.customerId,
-        customerName: item.customerName,
-        phone: item.phone,
-        email: item.email,
-        vehicleId: item.vehicle?.id,
-        vehicleModel: item.vehicleModel,
-        vehicleVin: item.vehicle?.vin,
-        licensePlate: item.vehicle?.licensePlate,
-        appointmentDate: item.appointmentDate,
-        status: (item.status || '').toLowerCase(),
-        services: item.serviceNames || [],
-        cost: item.total || 0,
-        notes: item.note || '',
-        checkList: item.checkList || [],
-        serviceCenterName: item.serviceCenterName,
-        assignedTechs: item.users || [],
-        description: item.description || '' // Service description from appointment
-      }));
+      // Map data từ API - xử lý cả 2 loại API response
+      const mappedData = data.map(item => {
+        // Map status từ API: 'awaiting_pickup' -> 'waiting' để phù hợp với tab key
+        let mappedStatus = (item.status || '').toLowerCase();
+        if (mappedStatus === 'awaiting_pickup') {
+          mappedStatus = 'waiting';
+        }
+        
+        return {
+          id: item.appointmentId,
+          customerId: item.customerId,
+          customerName: item.customerName,
+          phone: item.phone,
+          email: item.email,
+          vehicleId: item.vehicle?.id,
+          vehicleModel: item.vehicleModel || item.vehicle?.model,
+          vehicleVin: item.vehicle?.vin,
+          licensePlate: item.vehicle?.licensePlate,
+          appointmentDate: item.appointmentDate,
+          status: mappedStatus,
+          services: item.serviceNames || [],
+          cost: item.total || 0,
+          notes: item.note || '',
+          checkList: item.checkList || [],
+          serviceCenterName: item.serviceCenterName,
+          assignedTechs: item.users || [],
+          description: item.description || '', // Service description from appointment
+          vehicleCondition: item.vehicleCondition || '',
+          remarks: item.remarks || '',
+          partUsage: item.partUsage || []
+        };
+      });
       
-      setAllAppointmentsData(mappedData);
+      // Lưu tất cả data để tính count cho tabs
+      // Luôn cần lấy cả waiting appointments để tính count chính xác
+      let allDataForCount = [...mappedData];
       
+      // Nếu không phải 'waiting', cần lấy thêm waiting appointments từ API riêng
+      if (activeStatus !== 'waiting') {
+        try {
+          const waitingData = await getAppointmentsByStatus('awaiting_pickup');
+          const waitingMapped = (waitingData || []).map(item => {
+            let mappedStatus = (item.status || '').toLowerCase();
+            if (mappedStatus === 'awaiting_pickup') {
+              mappedStatus = 'waiting';
+            }
+            return {
+              id: item.appointmentId,
+              customerId: item.customerId,
+              customerName: item.customerName,
+              phone: item.phone,
+              email: item.email,
+              vehicleId: item.vehicle?.id,
+              vehicleModel: item.vehicleModel || item.vehicle?.model,
+              vehicleVin: item.vehicle?.vin,
+              licensePlate: item.vehicle?.licensePlate,
+              appointmentDate: item.appointmentDate,
+              status: mappedStatus,
+              services: item.serviceNames || [],
+              cost: item.total || 0,
+              notes: item.note || '',
+              checkList: item.checkList || [],
+              serviceCenterName: item.serviceCenterName,
+              assignedTechs: item.users || [],
+              description: item.description || '',
+              vehicleCondition: item.vehicleCondition || '',
+              remarks: item.remarks || '',
+              partUsage: item.partUsage || []
+            };
+          });
+          
+          // Loại bỏ duplicate dựa trên appointmentId
+          const existingIds = new Set(allDataForCount.map(apt => apt.id));
+          const uniqueWaitingMapped = waitingMapped.filter(apt => !existingIds.has(apt.id));
+          
+          // Kết hợp data từ cả 2 API
+          allDataForCount = [...allDataForCount, ...uniqueWaitingMapped];
+        } catch (err) {
+          console.error('❌ Lỗi khi lấy waiting appointments:', err);
+          // Nếu lỗi, chỉ dùng data hiện tại
+        }
+      }
+      
+      // Nếu activeStatus là 'all' hoặc các status khác (không phải 'waiting'), cần lấy thêm data từ getAppointmentsForStaff
+      if (activeStatus !== 'waiting' && activeStatus !== 'all') {
+        try {
+          const allData = await getAppointmentsForStaff();
+          const allMapped = allData.map(item => ({
+            id: item.appointmentId,
+            customerId: item.customerId,
+            customerName: item.customerName,
+            phone: item.phone,
+            email: item.email,
+            vehicleId: item.vehicle?.id,
+            vehicleModel: item.vehicleModel || item.vehicle?.model,
+            vehicleVin: item.vehicle?.vin,
+            licensePlate: item.vehicle?.licensePlate,
+            appointmentDate: item.appointmentDate,
+            status: (item.status || '').toLowerCase(),
+            services: item.serviceNames || [],
+            cost: item.total || 0,
+            notes: item.note || '',
+            checkList: item.checkList || [],
+            serviceCenterName: item.serviceCenterName,
+            assignedTechs: item.users || [],
+            description: item.description || ''
+          }));
+          
+          // Loại bỏ duplicate và merge
+          const existingIds = new Set(allDataForCount.map(apt => apt.id));
+          const uniqueAllMapped = allMapped.filter(apt => !existingIds.has(apt.id));
+          allDataForCount = [...allDataForCount, ...uniqueAllMapped];
+        } catch (err) {
+          console.error('❌ Lỗi khi lấy all appointments:', err);
+        }
+      }
+      
+      setAllAppointmentsData(allDataForCount);
+      
+      // Hiển thị data đã filter
       const filteredData = activeStatus === 'all' 
         ? mappedData 
-        : mappedData.filter(apt => apt.status === activeStatus);
+        : activeStatus === 'waiting'
+          ? mappedData // Đã filter từ API, tất cả đều là awaiting_pickup
+          : mappedData.filter(apt => apt.status === activeStatus);
       
-      console.log(`✅ Đã tải ${mappedData.length} phiếu, hiển thị ${filteredData.length}`);
+      console.log(`✅ Đã tải ${mappedData.length} phiếu với status: ${activeStatus}, hiển thị ${filteredData.length}`);
       setAppointments(filteredData);
       setSelectedAppointment(null);
       
@@ -289,28 +403,28 @@ function TechnicianDashboard() {
     }
   };
 
-  const handleCompleteWork = async (appointmentId) => {
-    if (!window.confirm('Xác nhận hoàn thành công việc này?\n\n⚠️ Lưu ý: Hãy đảm bảo bạn đã lưu thông tin bảo dưỡng (bấm nút "Lưu thông tin bảo dưỡng") trước khi hoàn thành.')) {
+  const handleMarkAsWaiting = async (appointmentId) => {
+    if (!window.confirm('Xác nhận chuyển đơn này sang trạng thái chờ?\n\n⚠️ Lưu ý: Hãy đảm bảo bạn đã lưu thông tin bảo dưỡng (bấm nút "Lưu thông tin bảo dưỡng") trước khi chuyển trạng thái.')) {
       return;
     }
     
     try {
       setActionLoading(true);
-      console.log('✔️ [Technician] Hoàn thành appointment #', appointmentId);
+      console.log('✔️ [Technician] Chuyển appointment sang waiting #', appointmentId);
       
-      // Gọi API PUT /api/appointments/{id}/done với data rỗng
-      await markAppointmentAsDone(appointmentId);
+      // Gọi API PUT /api/appointments/{id}/waiting với data rỗng
+      await markAppointmentAsWaiting(appointmentId);
       
-      console.log('✅ Appointment completed (done)');
-      showSuccess('Công việc đã hoàn thành!');
+      console.log('✅ Appointment marked as waiting');
+      showSuccess('Đã chuyển đơn sang trạng thái chờ!');
       
       // Refresh list
       await fetchAppointments();
       
     } catch (err) {
-      console.error('❌ Lỗi khi hoàn thành:', err);
+      console.error('❌ Lỗi khi chuyển trạng thái:', err);
       console.error('❌ Error response:', err.response?.data);
-      showError(err.response?.data?.message || 'Không thể hoàn thành công việc');
+      showError(err.response?.data?.message || 'Không thể chuyển trạng thái đơn');
     } finally {
       setActionLoading(false);
     }
@@ -851,8 +965,6 @@ function TechnicianDashboard() {
                     onChecklistChange={handleChecklistChange}
                     onVehicleConditionChange={handleVehicleConditionChange}
                     onReplaceClick={handleReplaceClick}
-                    partsUsed={maintenanceRecord.partsUsed}
-                    onPartsChange={handlePartsChange}
                     remarks={maintenanceRecord.remarks}
                     onRemarksChange={handleRemarksChange}
                     vehicleModel={selectedAppointment?.vehicleModel}
@@ -902,8 +1014,8 @@ function TechnicianDashboard() {
                 </div>
               )}
 
-              {/* Fallback: Show old checklist if no service description available */}
-              {!isEditingCondition && selectedAppointment.checkList && selectedAppointment.checkList.length > 0 && (
+              {/* Fallback: Show old checklist if no service description available - Không hiển thị cho waiting */}
+              {!isEditingCondition && selectedAppointment.status !== 'waiting' && selectedAppointment.checkList && selectedAppointment.checkList.length > 0 && (
                 <div className="detail-section">
                   <h3>Checklist</h3>
                   <div className="checklist-items">
@@ -950,6 +1062,64 @@ function TechnicianDashboard() {
                 </div>
               )}
 
+              {/* Suggested Parts Form - Hiển thị khi appointment đang trong tiến trình */}
+              {selectedAppointment.status === 'in_progress' && !isEditingCondition && (
+                <div className="detail-section">
+                  <SuggestedPartsForm
+                    appointmentId={selectedAppointment.id}
+                    vehicleModel={selectedAppointment.vehicleModel}
+                    onSuccess={() => {
+                      console.log('✅ Suggested parts submitted successfully');
+                      // Trigger reload của TechnicianSuggestedParts
+                      setSuggestedPartsRefreshKey(prev => prev + 1);
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Technician Suggested Parts - Hiển thị parts đã đề xuất và phản hồi của customer */}
+              {selectedAppointment.status === 'in_progress' && !isEditingCondition && (
+                <div className="detail-section">
+                  <TechnicianSuggestedParts 
+                    appointmentId={selectedAppointment.id}
+                    refreshTrigger={suggestedPartsRefreshKey}
+                  />
+                </div>
+              )}
+
+              {/* Appointment Parts Used - Linh kiện đã sử dụng từ database (read-only) */}
+              {selectedAppointment.status === 'in_progress' && !isEditingCondition && (
+                <div className="detail-section">
+                  <AppointmentPartsUsed 
+                    appointmentId={selectedAppointment.id}
+                  />
+                </div>
+              )}
+
+              {/* Parts Used Section - Thêm linh kiện đã sử dụng mới */}
+              {selectedAppointment.status === 'in_progress' && !isEditingCondition && (
+                <div className="detail-section">
+                  <PartsUsedSection
+                    partsUsed={maintenanceRecord.partsUsed}
+                    onPartsChange={handlePartsChange}
+                    vehicleModel={selectedAppointment?.vehicleModel}
+                    onSave={handleSaveCondition}
+                    actionLoading={actionLoading}
+                  />
+                </div>
+              )}
+
+              {/* Technician Suggested Parts - Chỉ hiển thị phản hồi cho trạng thái waiting */}
+              {selectedAppointment.status === 'waiting' && (
+                <div className="detail-section">
+                  <TechnicianSuggestedParts 
+                    appointmentId={selectedAppointment.id}
+                    refreshTrigger={suggestedPartsRefreshKey}
+                    showOnlyProcessed={true}
+                  />
+                </div>
+              )}
+
               {/* Action Buttons - BÊN TRÁI */}
               <div className="detail-actions-left">
                 {selectedAppointment.status === 'accepted' && (
@@ -974,7 +1144,7 @@ function TechnicianDashboard() {
                 {selectedAppointment.status === 'in_progress' && (
                   <button 
                     className="btn-complete-work"
-                    onClick={() => handleCompleteWork(selectedAppointment.id)}
+                    onClick={() => handleMarkAsWaiting(selectedAppointment.id)}
                     disabled={actionLoading}
                   >
                     {actionLoading ? (
@@ -984,8 +1154,8 @@ function TechnicianDashboard() {
                       </>
                     ) : (
                       <>
-                        <FaCheckCircle />
-                        Hoàn thành công việc
+                        <FaClock />
+                        Chuyển sang chờ
                       </>
                     )}
                   </button>

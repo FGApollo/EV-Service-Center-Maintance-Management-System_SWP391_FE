@@ -1,4 +1,5 @@
 import React from "react";
+import "./BookingContactStep.css";
 
 const BookingContactStep = ({ formData, handleInputChange }) => (
   <div className="booking-step-content">
