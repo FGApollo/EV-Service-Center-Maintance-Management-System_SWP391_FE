@@ -1,0 +1,113 @@
+/* BookingContactStep.css */
+
+.contact-form {
+  margin-top: 2rem;
+}
+
+.phone-input-group {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.country-code-select {
+  flex: 0 0 120px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 0.875rem 0.75rem;
+  color: #1f2937;
+  font-size: 0.95rem;
+}
+
+.country-code-select:disabled {
+  background: #f3f4f6;
+  color: #6b7280;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.phone-input-group .form-input {
+  flex: 1;
+}
+
+.readonly-badge {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 12px;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.privacy-notice {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.privacy-notice h4 {
+  color: #1f2937;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.privacy-notice p {
+  color: #6b7280;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+}
+
+.privacy-notice a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.privacy-notice a:hover {
+  text-decoration: underline;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.checkbox-item:last-child {
+  border-bottom: none;
+}
+
+.checkbox-item input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: #2563eb;
+  margin-top: 0.125rem;
+  cursor: pointer;
+}
+
+.checkbox-label {
+  flex: 1;
+  color: #374151;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  cursor: pointer;
+}

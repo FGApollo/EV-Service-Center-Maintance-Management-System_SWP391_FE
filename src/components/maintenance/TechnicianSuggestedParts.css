@@ -1,0 +1,257 @@
+.technician-suggested-parts-container {
+  margin-top: 24px;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.technician-suggested-parts-header {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.technician-suggested-parts-header h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2d3748;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.technician-suggested-parts-header h3 svg {
+  color: #667eea;
+}
+
+.technician-suggested-parts-description {
+  margin: 0;
+  font-size: 13px;
+  color: #718096;
+  line-height: 1.5;
+}
+
+.technician-suggested-parts-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.technician-suggested-parts-tabs .tab-button {
+  flex: 1;
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  color: #718096;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  margin-bottom: -2px;
+}
+
+.technician-suggested-parts-tabs .tab-button:hover {
+  color: #667eea;
+  background: #f7fafc;
+}
+
+.technician-suggested-parts-tabs .tab-button.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+  font-weight: 600;
+}
+
+.technician-suggested-parts-tabs .tab-button svg {
+  font-size: 14px;
+}
+
+.technician-suggested-parts-tabs .tab-badge {
+  background: #667eea;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 18px;
+  text-align: center;
+}
+
+.technician-suggested-parts-tabs .tab-button.active .tab-badge {
+  background: #5568d3;
+}
+
+.technician-suggested-parts-loading,
+.technician-suggested-parts-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #718096;
+}
+
+.technician-suggested-parts-loading .spinner {
+  animation: spin 1s linear infinite;
+  margin-bottom: 12px;
+  font-size: 32px;
+  color: #667eea;
+}
+
+.technician-suggested-parts-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.technician-suggested-parts-empty svg {
+  font-size: 48px;
+  color: #cbd5e0;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.technician-suggested-parts-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.technician-suggested-part-card {
+  background: #f8f9fa;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.2s;
+}
+
+.technician-suggested-part-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-color: #cbd5e0;
+}
+
+.technician-suggested-part-card.processed {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+
+.technician-suggested-part-card .part-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.technician-suggested-part-card .part-info h5 {
+  margin: 0 0 4px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.technician-suggested-part-card .part-description {
+  margin: 0;
+  font-size: 12px;
+  color: #718096;
+  line-height: 1.4;
+}
+
+.technician-suggested-part-card .status-badge {
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.technician-suggested-part-card .status-badge.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.technician-suggested-part-card .status-badge.accepted {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.technician-suggested-part-card .status-badge.cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.technician-suggested-part-card .status-badge svg {
+  font-size: 12px;
+}
+
+.technician-suggested-part-card .part-details {
+  margin-bottom: 0;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.technician-suggested-part-card .detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+
+.technician-suggested-part-card .detail-row.full-width {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.technician-suggested-part-card .detail-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.technician-suggested-part-card .detail-value {
+  font-size: 12px;
+  color: #2d3748;
+  text-align: right;
+}
+
+.technician-suggested-part-card .detail-value.total-price {
+  font-weight: 600;
+  color: #667eea;
+  font-size: 13px;
+}
+
+.technician-suggested-part-card .detail-value.note {
+  text-align: left;
+  font-style: italic;
+  color: #718096;
+  padding: 8px;
+  background: #f7fafc;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .technician-suggested-parts-list {
+    grid-template-columns: 1fr;
+  }
+}
+

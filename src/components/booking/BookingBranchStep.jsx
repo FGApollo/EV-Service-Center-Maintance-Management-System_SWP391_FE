@@ -1,108 +1,82 @@
 import React from "react";
+import { FaSpinner } from "react-icons/fa";
+import "./BookingBranchStep.css";
 
-const BookingBranchStep = ({ formData, handleInputChange, serviceCenters }) => (
+const BookingBranchStep = ({ formData, handleInputChange, serviceCenters, loading, error, onRetry }) => (
   <div className="booking-step-content">
     <div className="form-section">
       <h2>
         <span className="form-section-icon">📍</span>
         Chọn chi nhánh dịch vụ
       </h2>
-      <div
-        className="selection-grid"
-        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}
-      >
-        {serviceCenters.map((center) => (
-          <div
-            key={center.id}
-            className={`selection-card ${
-              formData.serviceCenterId === center.id ? "selected" : ""
-            }`}
-            onClick={() => handleInputChange("serviceCenterId", center.id)}
-            style={{
-              padding: "24px",
-              cursor: "pointer",
-              minHeight: "220px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "12px",
-            }}
-          >
+      
+      {loading ? (
+        <div className="branch-loading-state">
+          <FaSpinner className="spinner" />
+          <p>Đang tải danh sách chi nhánh...</p>
+        </div>
+      ) : error ? (
+        <div className="branch-error-state">
+          <p>❌ {error}</p>
+          {onRetry && (
+            <button className="retry-btn" onClick={onRetry}>
+              Thử lại
+            </button>
+          )}
+        </div>
+      ) : !serviceCenters || serviceCenters.length === 0 ? (
+        <div className="branch-empty-state">
+          <p>Không có chi nhánh nào</p>
+        </div>
+      ) : (
+        <div className="selection-grid branch-selection-grid">
+          {serviceCenters.map((center) => (
             <div
-              className="selection-card-header"
-              style={{ justifyContent: "space-between" }}
+              key={center.id}
+              className={`selection-card branch-card ${
+                formData.serviceCenterId === center.id ? "selected" : ""
+              }`}
+              onClick={() => handleInputChange("serviceCenterId", center.id)}
             >
-              <span
-                className="selection-card-icon"
-                style={{ fontSize: "32px" }}
-              >
-                {center.icon}
-              </span>
-              <input
-                type="radio"
-                name="serviceCenter"
-                className="selection-checkbox"
-                checked={formData.serviceCenterId === center.id}
-                onChange={() => {}}
-                style={{ width: "20px", height: "20px" }}
-              />
-            </div>
-            <h3
-              style={{
-                fontSize: "18px",
-                margin: "8px 0",
-                fontWeight: "600",
-              }}
-            >
-              {center.name}
-            </h3>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "8px",
-                fontSize: "14px",
-                color: "#666",
-              }}
-            >
-              <p
-                style={{
-                  margin: 0,
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "8px",
-                }}
-              >
-                <span>📍</span>
-                <span>
-                  {center.address}, {center.city}
+              <div className="selection-card-header branch-card-header">
+                <span className="selection-card-icon branch-card-icon">
+                  {center.icon || "🏢"}
                 </span>
-              </p>
-              <p
-                style={{
-                  margin: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                }}
-              >
-                <span>📞</span>
-                <span>{center.phone}</span>
-              </p>
-              <p
-                style={{
-                  margin: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                }}
-              >
-                <span>🕒</span>
-                <span>{center.workingHours}</span>
-              </p>
+                <input
+                  type="radio"
+                  name="serviceCenter"
+                  className="selection-checkbox branch-radio"
+                  checked={formData.serviceCenterId === center.id}
+                  onChange={() => {}}
+                />
+              </div>
+              <h3>
+                {center.name}
+              </h3>
+              <div className="branch-info">
+                <p className="branch-info-item">
+                  <span>📍</span>
+                  <span>
+                    {center.address}{center.city ? `, ${center.city}` : ''}
+                  </span>
+                </p>
+                {center.phone && (
+                  <p className="branch-info-item center">
+                    <span>📞</span>
+                    <span>{center.phone}</span>
+                  </p>
+                )}
+                {center.email && (
+                  <p className="branch-info-item center">
+                    <span>✉️</span>
+                    <span>{center.email}</span>
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   </div>
 );

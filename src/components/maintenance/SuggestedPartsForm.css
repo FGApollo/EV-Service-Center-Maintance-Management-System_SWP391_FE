@@ -1,0 +1,250 @@
+.suggested-parts-form-container {
+  margin-top: 24px;
+  padding: 20px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+}
+
+.suggested-parts-header {
+  margin-bottom: 16px;
+}
+
+.suggested-parts-header h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.suggested-parts-description {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #718096;
+  line-height: 1.5;
+}
+
+.toggle-suggested-parts-btn {
+  padding: 10px 16px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggle-suggested-parts-btn:hover {
+  background: #5568d3;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+.suggested-parts-form {
+  margin-top: 16px;
+}
+
+.suggested-parts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.suggested-part-item {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.2s;
+}
+
+.suggested-part-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-color: #cbd5e0;
+}
+
+.suggested-part-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.suggested-part-number {
+  font-weight: 600;
+  color: #667eea;
+  font-size: 14px;
+}
+
+.remove-suggested-part-btn {
+  background: none;
+  border: none;
+  color: #e53e3e;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-suggested-part-btn:hover {
+  background: #fed7d7;
+  color: #c53030;
+}
+
+.suggested-part-fields {
+  display: grid;
+  grid-template-columns: 1fr 120px;
+  gap: 12px;
+  align-items: start;
+}
+
+.suggested-part-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.suggested-part-field.full-width {
+  grid-column: 1 / -1;
+}
+
+.suggested-part-field label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.suggested-part-select,
+.suggested-part-quantity,
+.suggested-part-note {
+  padding: 10px 12px;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.suggested-part-select:focus,
+.suggested-part-quantity:focus,
+.suggested-part-note:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.suggested-part-note {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.loading-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  color: #718096;
+  font-size: 14px;
+}
+
+.loading-select .spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.suggested-parts-actions {
+  margin-bottom: 16px;
+}
+
+.add-suggested-part-btn {
+  padding: 10px 16px;
+  background: #48bb78;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.add-suggested-part-btn:hover {
+  background: #38a169;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(72, 187, 120, 0.3);
+}
+
+.suggested-parts-submit {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 2px solid #e2e8f0;
+}
+
+.submit-suggested-parts-btn {
+  width: 100%;
+  padding: 12px 24px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.submit-suggested-parts-btn:hover:not(:disabled) {
+  background: #5568d3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.submit-suggested-parts-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.suggested-parts-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #718096;
+  font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .suggested-part-fields {
+    grid-template-columns: 1fr;
+  }
+  
+  .suggested-part-field.full-width {
+    grid-column: 1;
+  }
+}
+

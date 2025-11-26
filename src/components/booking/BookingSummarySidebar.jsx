@@ -1,4 +1,5 @@
 import React from "react";
+import "./BookingSummarySidebar.css";
 
 const BookingSummarySidebar = ({
   getProgressPercentage,
@@ -47,9 +48,7 @@ const BookingSummarySidebar = ({
               </h4>
               <p>{formData.licensePlate}</p>
               {formData.mileage && (
-                <p
-                  style={{ fontSize: "14px", color: "#666", margin: "4px 0 0" }}
-                >
+                <p className="mileage-info">
                   Số km: {parseInt(formData.mileage, 10).toLocaleString()} km
                 </p>
               )}
@@ -74,13 +73,7 @@ const BookingSummarySidebar = ({
           <div className="sidebar-item">
             <div className="sidebar-item-content">
               <h4>{selectedCenter.name}</h4>
-              <p
-                style={{
-                  fontSize: "14px",
-                  color: "#666",
-                  margin: "4px 0 0 0",
-                }}
-              >
+              <p className="branch-city">
                 {selectedCenter.city}
               </p>
             </div>
@@ -105,13 +98,7 @@ const BookingSummarySidebar = ({
             <div key={service.id} className="sidebar-item">
               <div className="sidebar-item-content">
                 <h4>{service.name}</h4>
-                <p
-                  style={{
-                    margin: "4px 0 0",
-                    fontSize: "14px",
-                    color: "#4b5563",
-                  }}
-                >
+                <p className="service-price">
                   {formatCurrency(service.price || service.priceValue || 0)}
                 </p>
               </div>
@@ -157,8 +144,8 @@ const BookingSummarySidebar = ({
           <div className="sidebar-item">
             <div className="sidebar-item-content">
               <h4>{formData.fullName}</h4>
-              {formData.email && <p style={{ fontSize: "14px", color: "#666", margin: "4px 0 0" }}>{formData.email}</p>}
-              {formData.phone && <p style={{ fontSize: "14px", color: "#666", margin: "4px 0 0" }}>{formData.phone}</p>}
+              {formData.email && <p className="contact-info">{formData.email}</p>}
+              {formData.phone && <p className="contact-info">{formData.phone}</p>}
             </div>
             {currentStep > 5 && (
               <button

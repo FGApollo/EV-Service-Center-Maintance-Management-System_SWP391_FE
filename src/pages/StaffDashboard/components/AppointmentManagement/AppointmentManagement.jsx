@@ -3,17 +3,23 @@ import './AppointmentManagement.css';
 import { 
   FaClock, FaCheckCircle, FaTools, FaCheck, FaTimes, 
   FaCalendarAlt, FaUser, FaCar, FaPhone, FaEnvelope,
-  FaSpinner, FaSearch, FaUserPlus
+  FaSpinner, FaSearch, FaUserPlus, FaHandHolding
 } from 'react-icons/fa';
 import { 
   getAllAppointments, 
+  getAppointmentsByStatus,
   acceptAppointment, 
   cancelAppointment,
   startAppointmentProgress,
   completeAppointmentDone,
-  getAppointmentStatus
+  getAppointmentStatus,
+  handoverAppointment,
+  setAppointmentInProgress
 } from '../../../../api';
 import AssignTechnicianModal from './AssignTechnicianModal';
+import StaffSuggestedParts from '../../../../components/staff/StaffSuggestedParts';
+import InvoiceModal from '../../../../components/invoice/InvoiceModal';
+import InvoiceStatusSection from '../../../../components/invoice/InvoiceStatusSection';
 import { showSuccess, showError, showWarning } from '../../../../utils/toast';
 
 function AppointmentManagement() {
@@ -30,6 +36,7 @@ function AppointmentManagement() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
   // Định nghĩa các tab trạng thái
   const statusTabs = [
@@ -62,6 +69,13 @@ function AppointmentManagement() {
       apiStatus: 'in_progress'
     },
     { 
+      key: 'waiting', 
+      label: 'Chờ nhận xe', 
+      icon: <FaClock />, 
+      color: '#48bb78',
+      apiStatus: 'awaiting_pickup'
+    },
+    { 
       key: 'completed', 
       label: 'Đã hoàn thành', 
       icon: <FaCheck />, 
@@ -82,9 +96,9 @@ function AppointmentManagement() {
     fetchAppointments();
   }, [activeStatus]);
 
-  // Fetch chi tiết appointment khi chọn appointment (để lấy thông tin kỹ thuật viên)
+  // Fetch chi tiết appointment khi chọn appointment (để lấy thông tin kỹ thuật viên và hóa đơn)
   useEffect(() => {
-    if (selectedAppointment && ['accepted', 'in_progress', 'completed'].includes(selectedAppointment.status)) {
+    if (selectedAppointment && ['accepted', 'in_progress', 'completed', 'waiting'].includes(selectedAppointment.status)) {
       fetchAppointmentDetail(selectedAppointment.id);
     } else {
       setAppointmentDetail(null);
@@ -129,9 +143,109 @@ function AppointmentManagement() {
         console.error('❌ Lỗi khi đọc thông tin user:', e);
       }
       
-      // Gọi API thực tế
-      const data = await getAllAppointments();
-      console.log('📦 Dữ liệu từ API:', data);
+      // Gọi API thực tế - luôn cần lấy tất cả appointments để tính count
+      // Nếu là waiting thì dùng API riêng cho filtered data, nhưng vẫn cần tất cả để tính count
+      let data;
+      let allDataForCount = [];
+      
+      // Luôn lấy tất cả appointments để tính count
+      try {
+        const allAppointments = await getAllAppointments();
+        console.log('📦 [Staff] Tất cả appointments từ API:', allAppointments);
+        
+        // Map tất cả appointments để tính count
+        allDataForCount = (allAppointments || []).map(item => {
+          const mappedId = item.appointmentId || item.id || item.appointment_id;
+          let mappedStatus = (item.status || '').toLowerCase();
+          if (mappedStatus === 'awaiting_pickup') {
+            mappedStatus = 'waiting';
+          }
+          
+          return {
+            id: mappedId,
+            customerId: item.customerId,
+            customerName: item.fullName || item.customerName,
+            phone: item.phone,
+            email: item.email,
+            vehicleId: item.vehicleId || item.vehicle?.id,
+            vehicleModel: item.vehicleName || item.vehicleModel || item.vehicle?.model,
+            vehicleVin: item.vehicleVin || item.vehicle?.vin,
+            licensePlate: item.vehicleLicensePlate || item.vehicle?.licensePlate,
+            appointmentDate: item.appoimentDate || item.appointmentDate,
+            status: mappedStatus,
+            services: item.serviceType ? item.serviceType.split(',').map(s => s.trim()) : (item.serviceNames || []),
+            cost: item.cost || item.total || 0,
+            createAt: item.createAt,
+            centerId: item.centerId,
+            notes: item.note || ''
+          };
+        });
+        
+        // Filter theo centerId của staff
+        if (staffCenterId !== null && staffCenterId !== undefined) {
+          allDataForCount = allDataForCount.filter(apt => apt.centerId === staffCenterId);
+        }
+      } catch (err) {
+        console.error('❌ Lỗi khi lấy tất cả appointments:', err);
+      }
+      
+      // Lấy thêm waiting appointments nếu chưa có trong allDataForCount
+      try {
+        const waitingData = await getAppointmentsByStatus('awaiting_pickup');
+        const waitingMapped = (waitingData || []).map(item => {
+          let mappedStatus = (item.status || '').toLowerCase();
+          if (mappedStatus === 'awaiting_pickup') {
+            mappedStatus = 'waiting';
+          }
+          return {
+            id: item.appointmentId || item.id,
+            customerId: item.customerId,
+            customerName: item.customerName || item.fullName,
+            phone: item.phone,
+            email: item.email,
+            vehicleId: item.vehicleId || item.vehicle?.id,
+            vehicleModel: item.vehicleModel || item.vehicleName || item.vehicle?.model,
+            vehicleVin: item.vehicleVin || item.vehicle?.vin,
+            licensePlate: item.vehicleLicensePlate || item.vehicle?.licensePlate,
+            appointmentDate: item.appointmentDate || item.appoimentDate,
+            status: mappedStatus,
+            services: item.serviceNames || (item.serviceType ? item.serviceType.split(',').map(s => s.trim()) : []),
+            cost: item.total || item.cost || 0,
+            createAt: item.createAt,
+            centerId: item.centerId,
+            notes: item.note || '',
+            checkList: item.checkList || [],
+            description: item.description || '',
+            remarks: item.remarks || '',
+            vehicleCondition: item.vehicleCondition || '',
+            partUsage: item.partUsage || [],
+            users: item.users || []
+          };
+        });
+        
+        // Loại bỏ duplicate và merge vào allDataForCount
+        const existingIds = new Set(allDataForCount.map(apt => apt.id));
+        const uniqueWaitingMapped = waitingMapped.filter(apt => !existingIds.has(apt.id));
+        
+        // Filter theo centerId của staff
+        if (staffCenterId !== null && staffCenterId !== undefined) {
+          const filteredWaiting = uniqueWaitingMapped.filter(apt => apt.centerId === staffCenterId);
+          allDataForCount = [...allDataForCount, ...filteredWaiting];
+        } else {
+          allDataForCount = [...allDataForCount, ...uniqueWaitingMapped];
+        }
+      } catch (err) {
+        console.error('❌ Lỗi khi lấy waiting appointments:', err);
+      }
+      
+      // Lấy data để hiển thị (filtered)
+      if (activeStatus === 'waiting') {
+        console.log('📤 [Staff] Fetching appointments with status: awaiting_pickup');
+        data = await getAppointmentsByStatus('awaiting_pickup');
+      } else {
+        data = await getAllAppointments();
+      }
+      console.log('📦 Dữ liệu từ API (filtered):', data);
       
       if (!Array.isArray(data)) {
         console.error('❌ Data không phải array');
@@ -153,42 +267,122 @@ function AppointmentManagement() {
           console.warn('⚠️ Appointment without ID found:', item);
         }
         
+        // Map status: awaiting_pickup -> waiting
+        let mappedStatus = (item.status || '').toLowerCase();
+        if (mappedStatus === 'awaiting_pickup') {
+          mappedStatus = 'waiting';
+        }
+        
+        // Lấy centerId từ nhiều nguồn có thể
+        // API response có thể có centerId trực tiếp hoặc trong serviceCenter object
+        let centerId = item.centerId || 
+                      item.serviceCenterId ||
+                      (item.serviceCenter && typeof item.serviceCenter === 'object' ? item.serviceCenter.id : null) ||
+                      (item.serviceCenter && typeof item.serviceCenter === 'object' ? item.serviceCenter.centerId : null);
+        
+        // Nếu vẫn không có centerId, thử lấy từ serviceCenterName (có thể cần lookup)
+        // Hoặc có thể API không trả về centerId cho waiting appointments
+        if (!centerId && activeStatus === 'waiting') {
+          console.warn(`⚠️ [Staff] Waiting appointment ${mappedId} không có centerId:`, {
+            item: item,
+            serviceCenter: item.serviceCenter,
+            serviceCenterName: item.serviceCenterName
+          });
+        }
+        
+        // Debug log cho waiting appointments
+        if (activeStatus === 'waiting') {
+          console.log(`🔍 [Staff] Waiting appointment ${mappedId}:`, {
+            centerId: centerId,
+            staffCenterId: staffCenterId,
+            status: mappedStatus,
+            itemCenterId: item.centerId,
+            serviceCenterId: item.serviceCenterId,
+            serviceCenter: item.serviceCenter,
+            serviceCenterName: item.serviceCenterName
+          });
+        }
+        
         return {
           id: mappedId,
           customerId: item.customerId,
-          customerName: item.fullName,
+          customerName: item.customerName || item.fullName,
           phone: item.phone,
           email: item.email,
-          vehicleId: item.vehicleId,
-          vehicleModel: item.vehicleName,
-          vehicleVin: item.vehicleVin,
-          licensePlate: item.vehicleLicensePlate,
-          appointmentDate: item.appoimentDate, // Note: API có typo "appoimentDate"
-          status: item.status.toLowerCase(), // Normalize status to lowercase
-          services: item.serviceType ? item.serviceType.split(',').map(s => s.trim()) : [],
-          cost: item.cost,
+          vehicleId: item.vehicleId || item.vehicle?.id,
+          vehicleModel: item.vehicleModel || item.vehicleName || item.vehicle?.model,
+          vehicleVin: item.vehicleVin || item.vehicle?.vin,
+          licensePlate: item.vehicleLicensePlate || item.vehicle?.licensePlate,
+          appointmentDate: item.appointmentDate || item.appoimentDate, // Note: API có typo "appoimentDate"
+          status: mappedStatus,
+          services: item.serviceNames || (item.serviceType ? item.serviceType.split(',').map(s => s.trim()) : []),
+          cost: item.total || item.cost || 0,
           createAt: item.createAt,
-          centerId: item.centerId,
-          notes: '' // API không có field này
+          centerId: centerId, // Sử dụng centerId đã map
+          notes: item.note || '',
+          checkList: item.checkList || [],
+          description: item.description || '',
+          remarks: item.remarks || '',
+          vehicleCondition: item.vehicleCondition || '',
+          partUsage: item.partUsage || [],
+          users: item.users || []
         };
       });
       
       // ✅ FILTER theo centerId của staff
+      // Lưu ý: Đối với waiting appointments, có thể API không trả về centerId
+      // Nếu tất cả waiting appointments không có centerId, có thể cần hiển thị tất cả
       if (staffCenterId !== null && staffCenterId !== undefined) {
         const beforeFilter = mappedData.length;
-        mappedData = mappedData.filter(apt => apt.centerId === staffCenterId);
+        const appointmentsWithoutCenterId = mappedData.filter(apt => apt.centerId === null || apt.centerId === undefined);
+        
+        if (appointmentsWithoutCenterId.length > 0 && activeStatus === 'waiting') {
+          console.warn(`⚠️ [Staff] Có ${appointmentsWithoutCenterId.length} waiting appointments không có centerId. Có thể API không trả về centerId cho waiting appointments.`);
+          console.warn(`⚠️ [Staff] Sample appointment without centerId:`, appointmentsWithoutCenterId[0]);
+        }
+        
+        mappedData = mappedData.filter(apt => {
+          const aptCenterId = apt.centerId;
+          
+          // Nếu appointment không có centerId và đang ở tab waiting, có thể hiển thị tất cả
+          // (vì API có thể không trả về centerId cho waiting appointments)
+          if ((aptCenterId === null || aptCenterId === undefined) && activeStatus === 'waiting') {
+            console.warn(`⚠️ [Staff] Waiting appointment ${apt.id} không có centerId, nhưng vẫn hiển thị (có thể API không trả về)`);
+            return true; // Hiển thị nếu là waiting và không có centerId
+          }
+          
+          // Nếu không phải waiting và không có centerId, loại bỏ
+          if (aptCenterId === null || aptCenterId === undefined) {
+            return false;
+          }
+          
+          const matches = aptCenterId === staffCenterId;
+          if (!matches && activeStatus === 'waiting') {
+            console.log(`⚠️ [Staff] Waiting appointment ${apt.id} có centerId ${aptCenterId} không khớp với staff centerId ${staffCenterId}`);
+          }
+          return matches;
+        });
         console.log(`✅ Đã lọc theo chi nhánh ${staffCenterId}: ${beforeFilter} → ${mappedData.length} lịch hẹn`);
       } else {
         console.warn('⚠️ Không tìm thấy centerId của staff, hiển thị tất cả lịch hẹn');
       }
       
-      // Lưu tất cả data để tính count
-      setAllAppointmentsData(mappedData);
+      // Debug: Log mappedData sau khi filter
+      console.log(`📊 [Staff] Mapped data sau khi filter:`, mappedData);
+      console.log(`📊 [Staff] Số lượng appointments:`, mappedData.length);
+      if (mappedData.length > 0) {
+        console.log(`📊 [Staff] Sample appointment status:`, mappedData[0].status);
+      }
+      
+      // allDataForCount đã được tính ở trên, chỉ cần set vào state
+      setAllAppointmentsData(allDataForCount);
       
       // Filter theo status nếu không phải "all"
       const filteredData = activeStatus === 'all' 
         ? mappedData 
-        : mappedData.filter(apt => apt.status === activeStatus);
+        : activeStatus === 'waiting'
+          ? mappedData // Đã filter từ API, tất cả đều là awaiting_pickup
+          : mappedData.filter(apt => apt.status === activeStatus);
       
       console.log(`✅ Đã tải ${mappedData.length} lịch hẹn, hiển thị ${filteredData.length}`);
       setAppointments(filteredData);
@@ -290,6 +484,82 @@ function AppointmentManagement() {
     } catch (err) {
       console.error('❌ Lỗi khi hoàn thành lịch hẹn:', err);
       showError(err.response?.data?.message || 'Không thể hoàn thành lịch hẹn');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handler: Bàn giao và hoàn thành appointment
+  const handleHandoverAppointment = async (appointmentId) => {
+    if (!window.confirm('Xác nhận bàn giao và hoàn thành đơn này?\n\nĐơn sẽ được đánh dấu là đã hoàn thành và bàn giao cho khách hàng.')) {
+      return;
+    }
+    
+    try {
+      setActionLoading(true);
+      console.log('📤 Đang bàn giao appointment #', appointmentId);
+      
+      await handoverAppointment(appointmentId);
+      
+      console.log('✅ Đã bàn giao appointment thành công');
+      showSuccess('Đã bàn giao và hoàn thành đơn thành công!');
+      
+      // Reload data
+      await fetchAppointments();
+      
+    } catch (err) {
+      console.error('❌ Lỗi khi bàn giao appointment:', err);
+      showError(err.response?.data?.message || 'Không thể bàn giao đơn');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handler: Chuyển lại trạng thái đơn về in_progress
+  const handleSetInProgress = async (appointmentId) => {
+    if (!window.confirm('Xác nhận chuyển đơn này về trạng thái "Đang thực hiện"?\n\nĐơn sẽ được chuyển lại để technician tiếp tục xử lý.')) {
+      return;
+    }
+    
+    try {
+      setActionLoading(true);
+      console.log('🔧 Đang chuyển appointment về in_progress #', appointmentId);
+      
+      // Tìm appointment hiện tại để kiểm tra status
+      const currentAppointment = appointments.find(apt => apt.id === appointmentId);
+      const currentStatus = currentAppointment?.status;
+      
+      console.log('📊 Current appointment status:', currentStatus);
+      
+      // Nếu đang ở awaiting_pickup (waiting), có thể cần chuyển qua accepted trước
+      // Thử chuyển qua accepted trước, sau đó mới sang in_progress
+      if (currentStatus === 'waiting' || currentStatus === 'awaiting_pickup') {
+        console.log('⚠️ Appointment đang ở trạng thái waiting, thử chuyển qua accepted trước');
+        try {
+          await acceptAppointment(appointmentId);
+          console.log('✅ Đã chuyển sang accepted, tiếp tục chuyển sang in_progress');
+        } catch (acceptErr) {
+          console.warn('⚠️ Không thể chuyển sang accepted, thử chuyển trực tiếp sang in_progress:', acceptErr);
+        }
+      }
+      
+      await setAppointmentInProgress(appointmentId);
+      
+      console.log('✅ Đã chuyển appointment về in_progress thành công');
+      showSuccess('Đã chuyển đơn về trạng thái "Đang thực hiện"!');
+      
+      // Reload data
+      await fetchAppointments();
+      
+    } catch (err) {
+      console.error('❌ Lỗi khi chuyển trạng thái:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Không thể chuyển trạng thái đơn';
+      console.error('❌ Error details:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: errorMessage
+      });
+      showError(errorMessage);
     } finally {
       setActionLoading(false);
     }
@@ -635,7 +905,7 @@ function AppointmentManagement() {
                 )}
               </div>
 
-              {/* Thông tin kỹ thuật viên - chỉ hiển thị cho accepted, in_progress, completed */}
+              {/* Thông tin kỹ thuật viên - chỉ hiển thị cho accepted, in_progress, completed (KHÔNG hiển thị cho waiting) */}
               {['accepted', 'in_progress', 'completed'].includes(selectedAppointment.status) && (
                 <div className="detail-section">
                   <h3>Kỹ thuật viên được giao</h3>
@@ -680,6 +950,48 @@ function AppointmentManagement() {
                   )}
                 </div>
               )}
+
+              {/* Nút hiển thị hóa đơn - chỉ hiển thị cho waiting */}
+              {selectedAppointment.status === 'waiting' && (
+                <div className="detail-section">
+                  <h3>Hóa đơn</h3>
+                  <button 
+                    className="btn-view-invoice"
+                    onClick={() => setShowInvoiceModal(true)}
+                  >
+                    <FaCheckCircle />
+                    Xem hóa đơn
+                  </button>
+                </div>
+              )}
+              
+              {/* Invoice Modal */}
+              {showInvoiceModal && (
+                <InvoiceModal
+                  isOpen={showInvoiceModal}
+                  onClose={() => setShowInvoiceModal(false)}
+                  appointmentId={selectedAppointment.id}
+                  appointmentDetail={appointmentDetail}
+                />
+              )}
+
+              {/* Trạng thái hóa đơn - chỉ hiển thị cho waiting */}
+              {selectedAppointment.status === 'waiting' && appointmentDetail && appointmentDetail.invoices && (
+                <div className="detail-section">
+                  <InvoiceStatusSection 
+                    invoices={appointmentDetail.invoices || []}
+                    appointmentId={selectedAppointment.id}
+                  />
+                </div>
+              )}
+
+              {/* Linh kiện đề xuất thay thế - hiển thị cho tất cả appointments */}
+              <div className="detail-section">
+                <StaffSuggestedParts 
+                  appointmentId={selectedAppointment.id}
+                  showOnlyProcessed={selectedAppointment.status === 'waiting'}
+                />
+              </div>
 
               {activeStatus !== 'all' && (
                 <div className="detail-actions">
@@ -727,6 +1039,44 @@ function AppointmentManagement() {
                       {/* Không có nút action cho phần đang thực hiện */}
                     </>
                   )}
+                  {activeStatus === 'waiting' && (
+                    <>
+                      <button 
+                        className="btn-handover"
+                        onClick={() => handleHandoverAppointment(selectedAppointment.id)}
+                        disabled={actionLoading}
+                      >
+                        {actionLoading ? (
+                          <>
+                            <FaSpinner className="spinner" />
+                            Đang xử lý...
+                          </>
+                        ) : (
+                          <>
+                            <FaHandHolding />
+                            Bàn giao và hoàn thành
+                          </>
+                        )}
+                      </button>
+                      <button 
+                        className="btn-back-to-progress"
+                        onClick={() => handleSetInProgress(selectedAppointment.id)}
+                        disabled={actionLoading}
+                      >
+                        {actionLoading ? (
+                          <>
+                            <FaSpinner className="spinner" />
+                            Đang xử lý...
+                          </>
+                        ) : (
+                          <>
+                            <FaTools />
+                            Chuyển lại trạng thái đơn
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
                 </>
@@ -748,6 +1098,14 @@ function AppointmentManagement() {
         appointmentId={selectedAppointment?.id}
         onAssign={handleAssignTechnicians}
         existingTechnicians={appointmentDetail?.users || []}
+      />
+
+      {/* Invoice Modal */}
+      <InvoiceModal
+        isOpen={showInvoiceModal}
+        onClose={() => setShowInvoiceModal(false)}
+        appointmentId={selectedAppointment?.id}
+        appointmentDetail={appointmentDetail}
       />
     </div>
   );

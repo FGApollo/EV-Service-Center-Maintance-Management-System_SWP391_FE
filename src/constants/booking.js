@@ -131,26 +131,26 @@ export const services = [
 ];
 */
 
-export const serviceCenters = [
-  {
-    id: 1,
-    name: "Chi nhánh 1 - CarCare Quận 1",
-    address: "123 Lê Lợi, Quận 1",
-    city: "Hồ Chí Minh",
-    phone: "024-3456-7890",
-    workingHours: "Thứ 2 - Thứ 7: 8:00 - 18:00",
-    icon: "🏢",
-  },
-  {
-    id: 2,
-    name: "Chi nhánh 2 - CarCare Thủ Đức",
-    address: "456 Võ Văn Ngân, Thủ Đức",
-    city: "Hồ Chí Minh",
-    phone: "028-9876-5432",
-    workingHours: "Thứ 2 - Thứ 7: 8:00 - 18:00",
-    icon: "🏢",
-  },
-];
+// export const serviceCenters = [
+//   {
+//     id: 1,
+//     name: "Chi nhánh 1 - CarCare Quận 1",
+//     address: "123 Lê Lợi, Quận 1",
+//     city: "Hồ Chí Minh",
+//     phone: "024-3456-7890",
+//     workingHours: "Thứ 2 - Thứ 7: 8:00 - 18:00",
+//     icon: "🏢",
+//   },
+//   {
+//     id: 2,
+//     name: "Chi nhánh 2 - CarCare Thủ Đức",
+//     address: "456 Võ Văn Ngân, Thủ Đức",
+//     city: "Hồ Chí Minh",
+//     phone: "028-9876-5432",
+//     workingHours: "Thứ 2 - Thứ 7: 8:00 - 18:00",
+//     icon: "🏢",
+//   },
+// ];
 
 export const timeSlots = [
   "08:00",

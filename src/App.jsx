@@ -6,6 +6,7 @@ import BookingPage from "./pages/BookingPage.jsx";
 import PaymentReturn from "./pages/PaymentReturn.jsx";
 import Profile from "./pages/Profile.jsx";
 import MyCar from "./pages/MyCar.jsx";
+import SuggestedPartsPage from "./pages/SuggestedPartsPage.jsx";
 import StaffDashboard from "./pages/StaffDashboard";
 import TechnicianDashboard from "./pages/TechnicianDashboard.jsx";
 import Footer from "./components/Footer.jsx";
@@ -21,6 +22,7 @@ const PAGE_TO_PATH = {
   'payment-return': '/payment-return',
   profile: '/profile',
   mycar: '/mycar',
+  'suggested-parts': '/suggested-parts',
   staff: '/staff',
   manager: '/manager',
   technician: '/technician',
@@ -226,6 +228,8 @@ function App() {
             onNavigateWithVehicle={handleNavigateWithVehicle}
           />
         );
+      case 'suggested-parts':
+        return <SuggestedPartsPage onNavigate={handleNavigate} />;
       case 'staff':
         return <StaffDashboard onNavigate={handleNavigate} />;
       case 'technician':

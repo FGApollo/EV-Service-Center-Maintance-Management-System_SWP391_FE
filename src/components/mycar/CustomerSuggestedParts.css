@@ -1,0 +1,472 @@
+.customer-suggested-parts-toggle-container {
+  margin-top: 24px;
+}
+
+.toggle-suggested-parts-button {
+  width: 100%;
+  padding: 16px 20px;
+  background: #ffffff;
+  border: 2px solid #667eea;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #667eea;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.toggle-suggested-parts-button:hover {
+  background: #f7fafc;
+  border-color: #5568d3;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.toggle-suggested-parts-button svg:first-child {
+  font-size: 20px;
+}
+
+.toggle-suggested-parts-button .chevron-icon {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.parts-badge {
+  background: #667eea;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.customer-suggested-parts-container {
+  margin-top: 24px;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* When used in SuggestedPartsPage, remove extra padding/margin */
+.suggested-parts-page-main .customer-suggested-parts-container {
+  margin-top: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.suggested-parts-header {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.suggested-parts-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #2d3748;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.suggested-parts-header h3 svg {
+  color: #667eea;
+}
+
+.close-suggested-parts-button {
+  background: none;
+  border: none;
+  color: #718096;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-suggested-parts-button:hover {
+  background: #f7fafc;
+  color: #2d3748;
+}
+
+.suggested-parts-description {
+  margin: 0;
+  font-size: 14px;
+  color: #718096;
+  line-height: 1.6;
+}
+
+.suggested-parts-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 15px;
+  font-weight: 500;
+  color: #718096;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  margin-bottom: -2px;
+}
+
+.tab-button:hover {
+  color: #667eea;
+  background: #f7fafc;
+}
+
+.tab-button.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+  font-weight: 600;
+}
+
+.tab-button svg {
+  font-size: 16px;
+}
+
+.tab-badge {
+  background: #667eea;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 20px;
+  text-align: center;
+}
+
+.tab-button.active .tab-badge {
+  background: #5568d3;
+}
+
+.suggested-parts-loading,
+.suggested-parts-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #718096;
+}
+
+.suggested-parts-loading .spinner {
+  animation: spin 1s linear infinite;
+  margin-bottom: 12px;
+  font-size: 32px;
+  color: #667eea;
+}
+
+.suggested-parts-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.suggested-parts-empty svg {
+  font-size: 48px;
+  color: #cbd5e0;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.suggested-parts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.suggested-parts-appointment-group {
+  background: #f8f9fa;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.appointment-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.appointment-info h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.appointment-details {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: #718096;
+}
+
+.appointment-details span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.suggested-parts-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+/* Better spacing for full page */
+.suggested-parts-page-main .suggested-parts-items {
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 24px;
+}
+
+.suggested-part-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 20px;
+  transition: all 0.2s;
+  min-width: 0; /* Prevent grid overflow */
+}
+
+.suggested-part-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-color: #cbd5e0;
+}
+
+.suggested-part-card.processed {
+  opacity: 0.9;
+  background: #f8f9fa;
+}
+
+.suggested-part-card.processed:hover {
+  opacity: 1;
+  background: white;
+}
+
+.part-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.part-info h5 {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.part-description {
+  margin: 0;
+  font-size: 13px;
+  color: #718096;
+  line-height: 1.4;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-badge.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.accepted {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.part-details {
+  margin-bottom: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+
+.detail-row.full-width {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.detail-value {
+  font-size: 13px;
+  color: #2d3748;
+  text-align: right;
+}
+
+.detail-value.total-price {
+  font-weight: 600;
+  color: #667eea;
+  font-size: 14px;
+}
+
+.detail-value.note {
+  text-align: left;
+  font-style: italic;
+  color: #718096;
+  padding: 8px;
+  background: #f7fafc;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+.part-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.btn-accept,
+.btn-deny {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-accept {
+  background: #48bb78;
+  color: white;
+}
+
+.btn-accept:hover:not(:disabled) {
+  background: #38a169;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(72, 187, 120, 0.3);
+}
+
+.btn-deny {
+  background: #f56565;
+  color: white;
+}
+
+.btn-deny:hover:not(:disabled) {
+  background: #e53e3e;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(245, 101, 101, 0.3);
+}
+
+.btn-accept:disabled,
+.btn-deny:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-accept .spinner,
+.btn-deny .spinner {
+  animation: spin 1s linear infinite;
+}
+
+.part-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #92400e;
+}
+
+.part-warning svg {
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .suggested-parts-items {
+    grid-template-columns: 1fr;
+  }
+  
+  .appointment-details {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .part-actions {
+    flex-direction: column;
+  }
+  
+  .btn-accept,
+  .btn-deny {
+    width: 100%;
+  }
+}
+

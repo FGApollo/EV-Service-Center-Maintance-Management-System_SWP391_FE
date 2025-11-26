@@ -1,0 +1,25 @@
+/* BookingSummarySidebar.css */
+
+.mileage-info {
+  font-size: 14px;
+  color: #666;
+  margin: 4px 0 0;
+}
+
+.branch-city {
+  font-size: 14px;
+  color: #666;
+  margin: 4px 0 0 0;
+}
+
+.service-price {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.contact-info {
+  font-size: 14px;
+  color: #666;
+  margin: 4px 0 0;
+}
