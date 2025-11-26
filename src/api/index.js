@@ -968,6 +968,20 @@ export const createPartPayment = async (appointmentId) => {
 };
 
 /* --------------------------------
+   🔄 RETURN PARTS API
+---------------------------------- */
+
+// Hoàn lại linh kiện đã sử dụng (✅ Cần token)
+// API: PUT /api/return-parts/{appointmentId}
+// Hoàn lại tất cả linh kiện đã sử dụng cho đơn đó và cộng lại vào kho
+export const returnParts = async (appointmentId) => {
+  console.log(`🔄 [API] PUT /api/return-parts/${appointmentId}`);
+  const res = await axiosClient.put(`/api/return-parts/${appointmentId}`);
+  console.log('✅ [API] Parts returned successfully:', res.data);
+  return res.data;
+};
+
+/* --------------------------------
    🧹 TIỆN ÍCH
 ---------------------------------- */
 

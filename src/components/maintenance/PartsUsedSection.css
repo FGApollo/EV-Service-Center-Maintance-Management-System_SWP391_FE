@@ -324,6 +324,45 @@
   }
 }
 
+/* Remarks Section */
+.parts-remarks-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 2px solid #e2e8f0;
+}
+
+.parts-remarks-label {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 10px;
+}
+
+.parts-remarks-textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #cbd5e0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #2d3748;
+  background: white;
+  resize: vertical;
+  min-height: 100px;
+  transition: all 0.2s ease;
+}
+
+.parts-remarks-textarea::placeholder {
+  color: #a0aec0;
+}
+
+.parts-remarks-textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .parts-used-header {

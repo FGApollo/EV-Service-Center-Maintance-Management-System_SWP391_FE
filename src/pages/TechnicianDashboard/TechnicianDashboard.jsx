@@ -4,7 +4,7 @@ import {
   FaClock, FaCheckCircle, FaTools, FaCheck, 
   FaCalendarAlt, FaUser, FaCar, FaPhone,
   FaSpinner, FaSearch, FaClipboardList, FaPlus, FaTimesCircle,
-  FaSignOutAlt
+  FaSignOutAlt, FaUndo
 } from 'react-icons/fa';
 import { 
   getAppointmentsForStaff,
@@ -14,7 +14,8 @@ import {
   createMaintenanceRecord,
   markAppointmentAsWaiting,
   getServiceTypes,
-  updatePartUsage
+  updatePartUsage,
+  returnParts
 } from '../../api';
 import { showSuccess, showError, showWarning } from '../../utils/toast';
 import { getCurrentCenterId } from '../../utils/centerFilter';
@@ -425,6 +426,33 @@ function TechnicianDashboard() {
       console.error('❌ Lỗi khi chuyển trạng thái:', err);
       console.error('❌ Error response:', err.response?.data);
       showError(err.response?.data?.message || 'Không thể chuyển trạng thái đơn');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReturnParts = async (appointmentId) => {
+    if (!window.confirm('Xác nhận hoàn lại tất cả linh kiện đã sử dụng?\n\n⚠️ Lưu ý: Tất cả linh kiện đã sử dụng cho đơn này sẽ được hoàn lại vào kho và trừ khỏi linh kiện đã sử dụng.')) {
+      return;
+    }
+    
+    try {
+      setActionLoading(true);
+      console.log('🔄 [Technician] Hoàn lại linh kiện cho appointment #', appointmentId);
+      
+      // Gọi API PUT /api/return-parts/{appointmentId}
+      await returnParts(appointmentId);
+      
+      console.log('✅ Parts returned successfully');
+      showSuccess('Đã hoàn lại linh kiện vào kho thành công!');
+      
+      // Refresh list để cập nhật dữ liệu
+      await fetchAppointments();
+      
+    } catch (err) {
+      console.error('❌ Lỗi khi hoàn lại linh kiện:', err);
+      console.error('❌ Error response:', err.response?.data);
+      showError(err.response?.data?.message || 'Không thể hoàn lại linh kiện');
     } finally {
       setActionLoading(false);
     }
@@ -1105,6 +1133,8 @@ function TechnicianDashboard() {
                     vehicleModel={selectedAppointment?.vehicleModel}
                     onSave={handleSaveCondition}
                     actionLoading={actionLoading}
+                    remarks={maintenanceRecord.remarks}
+                    onRemarksChange={handleRemarksChange}
                   />
                 </div>
               )}
@@ -1142,23 +1172,42 @@ function TechnicianDashboard() {
                   </button>
                 )}
                 {selectedAppointment.status === 'in_progress' && (
-                  <button 
-                    className="btn-complete-work"
-                    onClick={() => handleMarkAsWaiting(selectedAppointment.id)}
-                    disabled={actionLoading}
-                  >
-                    {actionLoading ? (
-                      <>
-                        <FaSpinner className="spinner" />
-                        Đang xử lý...
-                      </>
-                    ) : (
-                      <>
-                        <FaClock />
-                        Chuyển sang chờ
-                      </>
-                    )}
-                  </button>
+                  <>
+                    <button 
+                      className="btn-return-parts"
+                      onClick={() => handleReturnParts(selectedAppointment.id)}
+                      disabled={actionLoading}
+                    >
+                      {actionLoading ? (
+                        <>
+                          <FaSpinner className="spinner" />
+                          Đang xử lý...
+                        </>
+                      ) : (
+                        <>
+                          <FaUndo />
+                          Hoàn lại linh kiện
+                        </>
+                      )}
+                    </button>
+                    <button 
+                      className="btn-complete-work"
+                      onClick={() => handleMarkAsWaiting(selectedAppointment.id)}
+                      disabled={actionLoading}
+                    >
+                      {actionLoading ? (
+                        <>
+                          <FaSpinner className="spinner" />
+                          Đang xử lý...
+                        </>
+                      ) : (
+                        <>
+                          <FaClock />
+                          Chuyển sang chờ
+                        </>
+                      )}
+                    </button>
+                  </>
                 )}
               </div>
             </>

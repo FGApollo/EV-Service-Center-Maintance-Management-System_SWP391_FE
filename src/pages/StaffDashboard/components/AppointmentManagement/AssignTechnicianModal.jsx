@@ -12,6 +12,16 @@ function AssignTechnicianModal({ isOpen, onClose, appointmentId, onAssign, exist
 
   useEffect(() => {
     if (isOpen) {
+      // Validate appointmentId before proceeding
+      if (!appointmentId) {
+        console.error('❌ AssignTechnicianModal: appointmentId is missing!', {
+          appointmentId,
+          isOpen
+        });
+        return;
+      }
+      
+      console.log('✅ AssignTechnicianModal opened for appointment:', appointmentId);
       fetchTechnicians();
       
       // Pre-select technicians đã được giao trước đó
@@ -22,7 +32,7 @@ function AssignTechnicianModal({ isOpen, onClose, appointmentId, onAssign, exist
         console.log('✅ Pre-selected technicians:', existingIds);
       }
     }
-  }, [isOpen, existingTechnicians]);
+  }, [isOpen, appointmentId, existingTechnicians]);
 
   const fetchTechnicians = async () => {
     try {
@@ -101,6 +111,13 @@ function AssignTechnicianModal({ isOpen, onClose, appointmentId, onAssign, exist
       return;
     }
 
+    // Validate appointmentId
+    if (!appointmentId) {
+      console.error('❌ Appointment ID is missing');
+      showError('Không tìm thấy mã lịch hẹn. Vui lòng thử lại.');
+      return;
+    }
+
     const isEditing = existingTechnicians.length > 0;
 
     try {
@@ -144,6 +161,12 @@ function AssignTechnicianModal({ isOpen, onClose, appointmentId, onAssign, exist
   };
 
   if (!isOpen) return null;
+
+  // Validate appointmentId before rendering
+  if (!appointmentId) {
+    console.error('❌ AssignTechnicianModal: Cannot render without appointmentId');
+    return null;
+  }
 
   const isEditing = existingTechnicians.length > 0;
 

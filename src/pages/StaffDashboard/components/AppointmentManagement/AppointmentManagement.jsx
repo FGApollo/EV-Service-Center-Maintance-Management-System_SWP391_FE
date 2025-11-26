@@ -23,7 +23,11 @@ import InvoiceStatusSection from '../../../../components/invoice/InvoiceStatusSe
 import { showSuccess, showError, showWarning } from '../../../../utils/toast';
 
 function AppointmentManagement() {
-  const [activeStatus, setActiveStatus] = useState('all');
+  // Lấy activeStatus từ localStorage hoặc mặc định là 'all'
+  const [activeStatus, setActiveStatus] = useState(() => {
+    const savedStatus = localStorage.getItem('staffAppointmentActiveStatus');
+    return savedStatus || 'all';
+  });
   const [appointments, setAppointments] = useState([]);
   const [allAppointmentsData, setAllAppointmentsData] = useState([]); // Store all data for counting
   const [loading, setLoading] = useState(false);
@@ -688,7 +692,11 @@ function AppointmentManagement() {
             <button
               key={tab.key}
               className={`status-tab ${activeStatus === tab.key ? 'active' : ''}`}
-              onClick={() => setActiveStatus(tab.key)}
+              onClick={() => {
+                setActiveStatus(tab.key);
+                // Lưu tab đang chọn vào localStorage
+                localStorage.setItem('staffAppointmentActiveStatus', tab.key);
+              }}
               style={{
                 '--tab-color': tab.color
               }}
@@ -985,13 +993,15 @@ function AppointmentManagement() {
                 </div>
               )}
 
-              {/* Linh kiện đề xuất thay thế - hiển thị cho tất cả appointments */}
-              <div className="detail-section">
-                <StaffSuggestedParts 
-                  appointmentId={selectedAppointment.id}
-                  showOnlyProcessed={selectedAppointment.status === 'waiting'}
-                />
-              </div>
+              {/* Linh kiện đề xuất thay thế - hiển thị cho tất cả appointments trừ pending và accepted */}
+              {selectedAppointment.status !== 'pending' && selectedAppointment.status !== 'accepted' && (
+                <div className="detail-section">
+                  <StaffSuggestedParts 
+                    appointmentId={selectedAppointment.id}
+                    showOnlyProcessed={selectedAppointment.status === 'waiting'}
+                  />
+                </div>
+              )}
 
               {activeStatus !== 'all' && (
                 <div className="detail-actions">
@@ -1093,7 +1103,7 @@ function AppointmentManagement() {
 
       {/* Assign Technician Modal */}
       <AssignTechnicianModal
-        isOpen={showAssignModal}
+        isOpen={showAssignModal && selectedAppointment?.id}
         onClose={() => setShowAssignModal(false)}
         appointmentId={selectedAppointment?.id}
         onAssign={handleAssignTechnicians}
