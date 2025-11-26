@@ -680,6 +680,20 @@ export const getPaymentMethods = async () => {
   return res.data;
 };
 
+// Lấy danh sách hóa đơn (✅ Cần token - Manager/Admin)
+// API: GET /api/management/reports/invoices
+export const getInvoices = async () => {
+  const res = await axiosClient.get("/api/management/reports/invoices");
+  return res.data;
+};
+
+// Lấy chi tiết hóa đơn (✅ Cần token - Manager/Admin)
+// API: GET /api/management/reports/invoices/{invoiceId}
+export const getInvoiceDetail = async (invoiceId) => {
+  const res = await axiosClient.get(`/api/management/reports/invoices/${invoiceId}`);
+  return res.data;
+};
+
 /* --------------------------------
    🔔 REMINDER APIs (Test)
 ---------------------------------- */
