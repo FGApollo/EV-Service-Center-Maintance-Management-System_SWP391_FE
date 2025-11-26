@@ -13,6 +13,7 @@ import BookingBranchStep from "../components/booking/BookingBranchStep";
 import BookingServicesStep from "../components/booking/BookingServicesStep";
 import BookingScheduleStep from "../components/booking/BookingScheduleStep";
 import BookingContactStep from "../components/booking/BookingContactStep";
+import BookingPaymentStep from "../components/booking/BookingPaymentStep";
 import BookingSummarySidebar from "../components/booking/BookingSummarySidebar";
 import { useToastContext } from "../contexts/ToastContext";
 
@@ -35,7 +36,9 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
     fullName: '',
     email: '',
     phone: '',
-    agreeToTerms: false
+    agreeToTerms: false,
+    // Step 6: Payment Method (phương thức thanh toán)
+    paymentMethod: 'online' // 'online' hoặc 'counter'
   });
 
   // State cho danh sách xe và thông tin xe được chọn
@@ -516,7 +519,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
     setShowVehicleDropdown(false);
   };
 
-  const totalSteps = 5;
+  const totalSteps = 6;
 
   const formatCurrency = (value) => {
     if (!value || Number.isNaN(value)) {
@@ -706,26 +709,43 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
       
       console.log('✅ Đặt lịch thành công:', response);
       
-      // Kiểm tra xem có URL thanh toán từ backend không (VNPay, MoMo, etc.)
-      const paymentUrl = response.url || response.paymentUrl || response.paymentLink;
-      
-      if (paymentUrl) {
-        console.log('🔗 Redirecting to payment URL:', paymentUrl);
-        toast.showSuccess('Đặt lịch thành công! Đang chuyển đến trang thanh toán...');
-        // Redirect đến VNPay sandbox hoặc payment gateway khác
+      // Xử lý thanh toán dựa trên phương thức đã chọn
+      if (formData.paymentMethod === 'online') {
+        // Thanh toán online - Kiểm tra xem có URL thanh toán từ backend không (VNPay, MoMo, etc.)
+        const paymentUrl = response.url || response.paymentUrl || response.paymentLink;
+        
+        if (paymentUrl) {
+          console.log('🔗 Redirecting to payment URL:', paymentUrl);
+          toast.showSuccess('Đặt lịch thành công! Đang chuyển đến trang thanh toán...');
+          // Redirect đến VNPay sandbox hoặc payment gateway khác
+          setTimeout(() => {
+            window.location.href = paymentUrl;
+          }, 1500);
+          return;
+        }
+        
+        // Nếu không có payment URL, redirect đến payment-return với thông tin đặt lịch
+        const returnUrl = `/payment-return?status=success&amount=${totalSelectedPrice}&orderId=${appointmentId || 'N/A'}&appointmentId=${appointmentId || ''}&message=Đặt lịch bảo dưỡng thành công`;
+        
+        toast.showSuccess('Đặt lịch thành công! Đang chuyển đến trang xác nhận...');
         setTimeout(() => {
-          window.location.href = paymentUrl;
+          window.location.href = returnUrl;
         }, 1500);
-        return;
+      } else {
+        // Thanh toán tại quầy - Hiển thị thông báo thành công và redirect về trang chủ hoặc booking history
+        const successMessage = `Đặt lịch thành công!\n\nBạn đã đặt lịch bảo dưỡng thành công.\n\nSố tiền: ${totalSelectedPrice.toLocaleString('vi-VN')} VNĐ\n\nVui lòng đến quầy để thanh toán khi nhận xe.`;
+        
+        toast.showSuccess(successMessage);
+        
+        // Redirect về trang chủ hoặc trang lịch sử đặt lịch sau khi hiển thị toast
+        setTimeout(() => {
+          if (onNavigate) {
+            onNavigate('home');
+          } else {
+            window.location.href = '/';
+          }
+        }, 2000);
       }
-      
-      // Nếu không có payment URL, redirect đến payment-return với thông tin đặt lịch
-      const returnUrl = `/payment-return?status=success&amount=${totalSelectedPrice}&orderId=${appointmentId || 'N/A'}&appointmentId=${appointmentId || ''}&message=Đặt lịch bảo dưỡng thành công`;
-      
-      toast.showSuccess('Đặt lịch thành công! Đang chuyển đến trang xác nhận...');
-      setTimeout(() => {
-        window.location.href = returnUrl;
-      }, 1500);
       
     } catch (error) {
       console.error('Lỗi khi đặt lịch:', error);
@@ -809,6 +829,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
       case 3: return 'Chọn dịch vụ';
       case 4: return 'Lịch hẹn';
       case 5: return 'Chi tiết cá nhân';
+      case 6: return 'Phương thức thanh toán';
       default: return '';
     }
   };
@@ -820,6 +841,7 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
       case 3: return 'Chọn dịch vụ phù hợp cho xe của bạn.';
       case 4: return 'Kiểm tra các cuộc hẹn có sẵn và chọn một cuộc hẹn phù hợp với lịch trình của bạn';
       case 5: return 'Chúng tôi chỉ cần một số thông tin về bạn.';
+      case 6: return 'Chọn phương thức thanh toán phù hợp với bạn.';
       default: return '';
     }
   };
@@ -927,7 +949,8 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
               (currentStep === 2 && !formData.serviceCenterId) ||
               (currentStep === 3 && formData.selectedServices.length === 0) ||
               (currentStep === 4 && (!formData.selectedDate || !formData.selectedTime)) ||
-              (currentStep === 5 && (!formData.fullName || !formData.email || !formData.phone || !formData.agreeToTerms))
+              (currentStep === 5 && (!formData.fullName || !formData.email || !formData.phone || !formData.agreeToTerms)) ||
+              (currentStep === 6 && !formData.paymentMethod)
             }
           >
             {currentStep === totalSteps ? 'Hoàn thành' : 'Tiếp tục'}
@@ -1002,6 +1025,12 @@ function BookingPage({ onNavigate, prefilledVehicle }) {
           )}
           {currentStep === 5 && (
             <BookingContactStep
+              formData={formData}
+              handleInputChange={handleInputChange}
+            />
+          )}
+          {currentStep === 6 && (
+            <BookingPaymentStep
               formData={formData}
               handleInputChange={handleInputChange}
             />

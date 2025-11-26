@@ -360,7 +360,13 @@ const CustomerSuggestedParts = ({ isOpen: externalIsOpen, onToggle: externalOnTo
           </div>
         ) : (
           <div className="suggested-parts-list">
-            {Object.entries(suggestedPartsByAppointment).map(([appointmentId, data]) => {
+            {Object.entries(suggestedPartsByAppointment)
+              .sort(([idA], [idB]) => {
+                const numA = parseInt(idA) || 0;
+                const numB = parseInt(idB) || 0;
+                return numB - numA; // Sắp xếp giảm dần (số lớn hơn ở trên)
+              })
+              .map(([appointmentId, data]) => {
           const { appointment, parts } = data;
           
           return (
@@ -506,7 +512,13 @@ const CustomerSuggestedParts = ({ isOpen: externalIsOpen, onToggle: externalOnTo
           </div>
         ) : (
           <div className="suggested-parts-list">
-            {Object.entries(processedPartsByAppointment).map(([appointmentId, data]) => {
+            {Object.entries(processedPartsByAppointment)
+              .sort(([idA], [idB]) => {
+                const numA = parseInt(idA) || 0;
+                const numB = parseInt(idB) || 0;
+                return numB - numA; // Sắp xếp giảm dần (số lớn hơn ở trên)
+              })
+              .map(([appointmentId, data]) => {
               const { appointment, parts } = data;
               
               return (

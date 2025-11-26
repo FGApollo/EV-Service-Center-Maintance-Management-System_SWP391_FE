@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FaTimes, FaPrint, FaSpinner, FaMoneyBillWave, FaCreditCard } from 'react-icons/fa';
 import { getCustomerInvoice, getAllParts, createCashPayment, createPartPayment, getAppointmentStatus } from '../../api';
 import { useToastContext } from '../../contexts/ToastContext';
@@ -11,6 +11,8 @@ const InvoiceModal = ({ isOpen, onClose, appointmentId, appointmentDetail = null
   const [error, setError] = useState(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [invoiceId, setInvoiceId] = useState(null);
+  const [appointmentInvoices, setAppointmentInvoices] = useState([]);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
   const toast = useToastContext();
 
   const fetchInvoice = async () => {
@@ -82,19 +84,29 @@ const InvoiceModal = ({ isOpen, onClose, appointmentId, appointmentDetail = null
       if (!appointmentDetail) {
         fetchAppointmentDetail();
       } else {
-        // Extract invoiceId from appointmentDetail.invoices
+        // Store invoices from appointmentDetail
         if (appointmentDetail.invoices && appointmentDetail.invoices.length > 0) {
-          // Get the first invoice ID (or the one for parts)
-          const partInvoice = appointmentDetail.invoices.find(inv => 
-            inv.status && (inv.status.toLowerCase() === 'pending' || inv.status.toLowerCase() === 'unpaid')
-          ) || appointmentDetail.invoices[0];
-          setInvoiceId(partInvoice.invoiceId);
+          setAppointmentInvoices(appointmentDetail.invoices);
+          // Get unpaid invoices
+          const unpaidInvs = appointmentDetail.invoices.filter(inv => 
+            inv.status && (inv.status.toLowerCase() !== 'paid' && inv.status.toLowerCase() !== 'completed')
+          );
+          // If there are unpaid invoices, select the first one
+          if (unpaidInvs.length > 0) {
+            setSelectedInvoiceId(unpaidInvs[0].invoiceId);
+            setInvoiceId(unpaidInvs[0].invoiceId);
+          } else {
+            // Otherwise, use the first invoice
+            setInvoiceId(appointmentDetail.invoices[0].invoiceId);
+          }
         }
       }
     } else {
       setInvoice(null);
       setError(null);
       setInvoiceId(null);
+      setAppointmentInvoices([]);
+      setSelectedInvoiceId(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, appointmentId, appointmentDetail]);
@@ -103,16 +115,88 @@ const InvoiceModal = ({ isOpen, onClose, appointmentId, appointmentDetail = null
     try {
       const data = await getAppointmentStatus(appointmentId);
       if (data.invoices && data.invoices.length > 0) {
-        // Get the first invoice ID (or the one for parts)
-        const partInvoice = data.invoices.find(inv => 
-          inv.status && (inv.status.toLowerCase() === 'pending' || inv.status.toLowerCase() === 'unpaid')
-        ) || data.invoices[0];
-        setInvoiceId(partInvoice.invoiceId);
+        setAppointmentInvoices(data.invoices);
+        // Get unpaid invoices
+        const unpaidInvs = data.invoices.filter(inv => 
+          inv.status && (inv.status.toLowerCase() !== 'paid' && inv.status.toLowerCase() !== 'completed')
+        );
+        // If there are unpaid invoices, select the first one
+        if (unpaidInvs.length > 0) {
+          setSelectedInvoiceId(unpaidInvs[0].invoiceId);
+          setInvoiceId(unpaidInvs[0].invoiceId);
+        } else {
+          // Otherwise, use the first invoice
+          setInvoiceId(data.invoices[0].invoiceId);
+        }
       }
     } catch (err) {
       console.error('❌ Lỗi khi tải chi tiết appointment:', err);
     }
   };
+
+  // Helper function to check if invoice is paid
+  const isInvoicePaid = (invoiceStatus) => {
+    if (!invoiceStatus) return false;
+    const status = invoiceStatus.toLowerCase();
+    return status === 'paid' || status === 'completed';
+  };
+
+  // Get unpaid invoices
+  const unpaidInvoices = useMemo(() => {
+    if (!appointmentInvoices || appointmentInvoices.length === 0) return [];
+    return appointmentInvoices.filter(inv => !isInvoicePaid(inv.status));
+  }, [appointmentInvoices]);
+
+  // Calculate unpaid amount from invoices
+  const unpaidAmount = useMemo(() => {
+    // If a specific invoice is selected, use that invoice's amount
+    if (selectedInvoiceId) {
+      const selectedInvoice = appointmentInvoices.find(inv => inv.invoiceId === selectedInvoiceId);
+      if (selectedInvoice) {
+        return parseFloat(selectedInvoice.totalAmount) || 0;
+      }
+    }
+
+    // If no invoice selected but there are unpaid invoices, calculate total
+    if (unpaidInvoices.length > 0) {
+      // If only one unpaid invoice, use its amount
+      if (unpaidInvoices.length === 1) {
+        return parseFloat(unpaidInvoices[0].totalAmount) || 0;
+      }
+      // If multiple unpaid invoices, calculate total
+      return unpaidInvoices.reduce((sum, inv) => sum + (parseFloat(inv.totalAmount) || 0), 0);
+    }
+
+    // Fallback: calculate from parts if no invoice data
+    if (invoice && invoice.parts && invoice.parts.length > 0) {
+      return invoice.parts.reduce((sum, p) => {
+        const quantity = p.quantity || p.quantityUsed || 0;
+        const unitCost = parseFloat(p.unitCost) || parseFloat(p.price) || 0;
+        return sum + (quantity * unitCost);
+      }, 0);
+    }
+    return 0;
+  }, [appointmentInvoices, invoice, selectedInvoiceId, unpaidInvoices]);
+
+  // Get service invoice status
+  const serviceInvoiceStatus = useMemo(() => {
+    if (!appointmentInvoices || appointmentInvoices.length === 0) return null;
+    // Find invoice for services (usually the first one or one with service name)
+    const serviceInvoice = appointmentInvoices.find(inv => 
+      inv.serviceName && inv.serviceName.toLowerCase().includes('bảo dưỡng')
+    ) || appointmentInvoices[0];
+    return serviceInvoice ? isInvoicePaid(serviceInvoice.status) : null;
+  }, [appointmentInvoices]);
+
+  // Get parts invoice status
+  const partsInvoiceStatus = useMemo(() => {
+    if (!appointmentInvoices || appointmentInvoices.length === 0) return null;
+    // Find invoice for parts (usually one without service name or with parts)
+    const partsInvoice = appointmentInvoices.find(inv => 
+      !inv.serviceName || !inv.serviceName.toLowerCase().includes('bảo dưỡng')
+    ) || appointmentInvoices.find(inv => !isInvoicePaid(inv.status));
+    return partsInvoice ? isInvoicePaid(partsInvoice.status) : null;
+  }, [appointmentInvoices]);
 
   const handlePrint = () => {
     if (!appointmentId) {
@@ -128,28 +212,36 @@ const InvoiceModal = ({ isOpen, onClose, appointmentId, appointmentDetail = null
     window.open(downloadUrl, '_blank');
   };
 
+  const handleInvoiceSelect = (invoiceId) => {
+    setSelectedInvoiceId(invoiceId);
+    setInvoiceId(invoiceId);
+  };
+
   const handleCashPayment = async () => {
-    if (!invoiceId) {
-      toast.showError('Không tìm thấy mã hóa đơn. Vui lòng thử lại.');
+    const targetInvoiceId = selectedInvoiceId || invoiceId;
+    if (!targetInvoiceId) {
+      toast.showError('Vui lòng chọn hóa đơn cần thanh toán.');
       return;
     }
 
+    const selectedInvoice = appointmentInvoices.find(inv => inv.invoiceId === targetInvoiceId);
+    const amount = selectedInvoice ? parseFloat(selectedInvoice.totalAmount) || 0 : unpaidAmount;
+
     if (!window.confirm('Xác nhận thanh toán bằng tiền mặt?\n\nSố tiền: ' + 
-      (invoice.parts.reduce((sum, p) => {
-        const quantity = p.quantity || p.quantityUsed || 0;
-        const unitCost = parseFloat(p.unitCost) || parseFloat(p.price) || 0;
-        return sum + (quantity * unitCost);
-      }, 0)).toLocaleString('vi-VN') + ' VNĐ')) {
+      amount.toLocaleString('vi-VN') + ' VNĐ')) {
       return;
     }
 
     try {
       setPaymentLoading(true);
-      console.log('💵 Đang xử lý thanh toán tiền mặt cho invoice:', invoiceId);
-      await createCashPayment(invoiceId);
+      console.log('💵 Đang xử lý thanh toán tiền mặt cho invoice:', targetInvoiceId);
+      await createCashPayment(targetInvoiceId);
       toast.showSuccess('Thanh toán tiền mặt thành công!');
-      // Reload invoice to update status
+      // Reload invoice and appointment detail to update status
       await fetchInvoice();
+      await fetchAppointmentDetail();
+      // Reset selection
+      setSelectedInvoiceId(null);
       // Close modal after successful payment
       setTimeout(() => {
         onClose();
@@ -163,16 +255,19 @@ const InvoiceModal = ({ isOpen, onClose, appointmentId, appointmentDetail = null
   };
 
   const handleBankTransfer = async () => {
+    const targetInvoiceId = selectedInvoiceId || invoiceId;
+    if (!targetInvoiceId) {
+      toast.showError('Vui lòng chọn hóa đơn cần thanh toán.');
+      return;
+    }
+
     if (!appointmentId) {
       toast.showError('Không tìm thấy mã đơn hàng. Vui lòng thử lại.');
       return;
     }
 
-    const amount = invoice.parts.reduce((sum, p) => {
-      const quantity = p.quantity || p.quantityUsed || 0;
-      const unitCost = parseFloat(p.unitCost) || parseFloat(p.price) || 0;
-      return sum + (quantity * unitCost);
-    }, 0);
+    const selectedInvoice = appointmentInvoices.find(inv => inv.invoiceId === targetInvoiceId);
+    const amount = selectedInvoice ? parseFloat(selectedInvoice.totalAmount) || 0 : unpaidAmount;
 
     if (!window.confirm('Xác nhận thanh toán bằng chuyển khoản?\n\nBạn sẽ được chuyển đến trang thanh toán online.\n\nSố tiền: ' + 
       amount.toLocaleString('vi-VN') + ' VNĐ')) {
@@ -181,7 +276,8 @@ const InvoiceModal = ({ isOpen, onClose, appointmentId, appointmentDetail = null
 
     try {
       setPaymentLoading(true);
-      console.log('💳 Đang tạo thanh toán chuyển khoản cho appointment:', appointmentId);
+      console.log('💳 Đang tạo thanh toán chuyển khoản cho appointment:', appointmentId, 'invoice:', targetInvoiceId);
+      // Note: API might need invoiceId in the request, check API documentation
       const response = await createPartPayment(appointmentId);
       
       // API response structure: { paymentId, invoiceId, amount, method, message, paymentUrl, paymentType }
@@ -208,6 +304,7 @@ const InvoiceModal = ({ isOpen, onClose, appointmentId, appointmentDetail = null
       setPaymentLoading(false);
     }
   };
+
 
   if (!isOpen) return null;
 
@@ -366,9 +463,17 @@ const InvoiceModal = ({ isOpen, onClose, appointmentId, appointmentDetail = null
                 <div className="summary-row paid-row">
                   <div className="summary-label-group">
                     <span className="summary-label">Tổng dịch vụ:</span>
-                    <span className="paid-badge">Đã thanh toán</span>
+                    {serviceInvoiceStatus !== null ? (
+                      serviceInvoiceStatus ? (
+                        <span className="paid-badge">Đã thanh toán</span>
+                      ) : (
+                        <span className="payment-due-badge">Chưa thanh toán</span>
+                      )
+                    ) : (
+                      <span className="paid-badge">Đã thanh toán</span>
+                    )}
                   </div>
-                  <span className="summary-value paid-value">
+                  <span className={`summary-value ${serviceInvoiceStatus === false ? 'payment-due-value' : 'paid-value'}`}>
                     {(invoice.services?.reduce((sum, s) => sum + (parseFloat(s.price) || 0), 0) || 0).toLocaleString('vi-VN')} VNĐ
                   </span>
                 </div>
@@ -378,9 +483,17 @@ const InvoiceModal = ({ isOpen, onClose, appointmentId, appointmentDetail = null
                     <div className="summary-row payment-due-row">
                       <div className="summary-label-group">
                         <span className="summary-label">Tổng linh kiện:</span>
-                        <span className="payment-due-badge">Cần thanh toán</span>
+                        {partsInvoiceStatus !== null ? (
+                          partsInvoiceStatus ? (
+                            <span className="paid-badge">Đã thanh toán</span>
+                          ) : (
+                            <span className="payment-due-badge">Chưa thanh toán</span>
+                          )
+                        ) : (
+                          <span className="payment-due-badge">Cần thanh toán</span>
+                        )}
                       </div>
-                      <span className="summary-value payment-due-value">
+                      <span className={`summary-value ${partsInvoiceStatus === false ? 'payment-due-value' : 'paid-value'}`}>
                         {(invoice.parts.reduce((sum, p) => {
                           // API returns: { partId, partName, quantity, price }
                           const quantity = p.quantity || p.quantityUsed || 0;
@@ -412,23 +525,65 @@ const InvoiceModal = ({ isOpen, onClose, appointmentId, appointmentDetail = null
                 )}
               </div>
 
-              {/* Payment Due Section */}
-              {invoice.parts && invoice.parts.length > 0 && (
+              {/* Payment Due Section - Only show if there's unpaid amount */}
+              {unpaidAmount > 0 && (
                 <>
+                  {/* Invoice Selection - Only show if there are multiple unpaid invoices */}
+                  {unpaidInvoices.length > 1 && (
+                    <div className="invoice-selection-section">
+                      <h4 className="invoice-selection-title">Chọn hóa đơn cần thanh toán:</h4>
+                      <div className="invoice-selection-list">
+                        {unpaidInvoices.map((inv) => {
+                          const isSelected = selectedInvoiceId === inv.invoiceId;
+                          const invAmount = parseFloat(inv.totalAmount) || 0;
+                          return (
+                            <div
+                              key={inv.invoiceId}
+                              className={`invoice-selection-item ${isSelected ? 'selected' : ''}`}
+                              onClick={() => handleInvoiceSelect(inv.invoiceId)}
+                            >
+                              <div className="invoice-selection-radio">
+                                <input
+                                  type="radio"
+                                  name="invoice-select"
+                                  checked={isSelected}
+                                  onChange={() => handleInvoiceSelect(inv.invoiceId)}
+                                />
+                              </div>
+                              <div className="invoice-selection-info">
+                                <div className="invoice-selection-id">
+                                  <strong>Hóa đơn #{inv.invoiceId}</strong>
+                                  {inv.serviceName && (
+                                    <span className="invoice-selection-service">
+                                      {inv.serviceName}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="invoice-selection-amount">
+                                  {invAmount.toLocaleString('vi-VN')} VNĐ
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="invoice-payment-due">
                     <div className="payment-due-header">
                       <span className="payment-due-icon">💳</span>
                       <div>
                         <h3 className="payment-due-title">Số tiền cần thanh toán</h3>
-                        <p className="payment-due-subtitle">Chỉ thanh toán phần linh kiện sửa chữa thêm</p>
+                        <p className="payment-due-subtitle">
+                          {unpaidInvoices.length > 1 && selectedInvoiceId
+                            ? 'Số tiền của hóa đơn đã chọn'
+                            : 'Chỉ thanh toán phần linh kiện sửa chữa thêm'}
+                        </p>
                       </div>
                     </div>
                     <div className="payment-due-amount">
-                      {(invoice.parts.reduce((sum, p) => {
-                        const quantity = p.quantity || p.quantityUsed || 0;
-                        const unitCost = parseFloat(p.unitCost) || parseFloat(p.price) || 0;
-                        return sum + (quantity * unitCost);
-                      }, 0)).toLocaleString('vi-VN')} VNĐ
+                      {unpaidAmount.toLocaleString('vi-VN')} VNĐ
                     </div>
                   </div>
 

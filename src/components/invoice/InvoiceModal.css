@@ -298,26 +298,26 @@
   font-style: italic;
 }
 
-.summary-row {
+.invoice-summary .summary-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 12px 0;
 }
 
-.summary-label-group {
+.invoice-summary .summary-label-group {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.summary-label {
+.invoice-summary .summary-label {
   font-size: 15px;
   font-weight: 500;
   color: #4a5568;
 }
 
-.summary-value {
+.invoice-summary .summary-value {
   font-size: 16px;
   font-weight: 600;
   color: #2d3748;
@@ -397,6 +397,94 @@
   font-size: 18px;
   font-weight: 700;
   color: #2d3748;
+}
+
+/* Invoice Selection Section */
+.invoice-selection-section {
+  margin: 24px 0;
+  padding: 20px;
+  background: #f7fafc;
+  border-radius: 12px;
+  border: 2px solid #e2e8f0;
+}
+
+.invoice-selection-title {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.invoice-selection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.invoice-selection-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.invoice-selection-item:hover {
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+}
+
+.invoice-selection-item.selected {
+  border-color: #667eea;
+  background: #edf2f7;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.invoice-selection-radio {
+  flex-shrink: 0;
+}
+
+.invoice-selection-radio input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #667eea;
+}
+
+.invoice-selection-info {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.invoice-selection-id {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.invoice-selection-id strong {
+  font-size: 15px;
+  color: #2d3748;
+}
+
+.invoice-selection-service {
+  font-size: 13px;
+  color: #718096;
+  font-style: italic;
+}
+
+.invoice-selection-amount {
+  font-size: 16px;
+  font-weight: 600;
+  color: #667eea;
+  white-space: nowrap;
 }
 
 /* Payment Due Section - Highlighted */
@@ -549,6 +637,17 @@
   box-shadow: 0 6px 12px rgba(102, 126, 234, 0.3);
 }
 
+.btn-payment-counter {
+  background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+  color: white;
+}
+
+.btn-payment-counter:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dd6b20 0%, #c05621 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(237, 137, 54, 0.3);
+}
+
 .btn-payment .spinner {
   animation: spin 1s linear infinite;
 }
@@ -588,6 +687,16 @@
   .btn-payment {
     width: 100%;
     min-width: unset;
+  }
+
+  .invoice-selection-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .invoice-selection-amount {
+    align-self: flex-end;
   }
 }
 

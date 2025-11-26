@@ -226,17 +226,6 @@ const MaintenanceChecklist = ({
       </div>
 
 
-      {/* Remarks */}
-      <div className="remarks-section">
-        <label className="remarks-label">Ghi chú / Tình trạng chung:</label>
-        <textarea
-          className="remarks-textarea"
-          placeholder="Nhập tình trạng chung sau khi hoàn thành đơn..."
-          rows="4"
-          value={remarks}
-          onChange={(e) => onRemarksChange(e.target.value)}
-        />
-      </div>
     </div>
   );
 };

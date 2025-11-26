@@ -19,7 +19,9 @@ const PartsUsedSection = ({
   onPartsChange,
   vehicleModel = null,
   onSave = null,
-  actionLoading = false
+  actionLoading = false,
+  remarks = '',
+  onRemarksChange = null
 }) => {
   const [parts, setParts] = useState([]);
   const [partsLoading, setPartsLoading] = useState(false);
@@ -264,6 +266,20 @@ const PartsUsedSection = ({
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Ghi chú / Tình trạng chung */}
+      {onRemarksChange && (
+        <div className="parts-remarks-section">
+          <label className="parts-remarks-label">Ghi chú / Tình trạng chung:</label>
+          <textarea
+            className="parts-remarks-textarea"
+            placeholder="Nhập tình trạng chung sau khi hoàn thành đơn..."
+            rows="4"
+            value={remarks}
+            onChange={(e) => onRemarksChange(e.target.value)}
+          />
         </div>
       )}
 

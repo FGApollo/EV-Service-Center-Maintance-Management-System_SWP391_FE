@@ -78,43 +78,50 @@ const InvoiceStatusSection = ({ invoices = [], appointmentId = null }) => {
         )}
       </div>
 
-      <div className="invoice-status-list">
-        {invoices.map((invoice, index) => (
-          <div key={invoice.invoiceId || index} className="invoice-status-item">
-            <div className="invoice-status-main">
-              <div className="invoice-status-info">
-                <div className="invoice-id">
-                  <strong>Hóa đơn #{invoice.invoiceId || index + 1}</strong>
+      <div className="invoice-status-content">
+        <div className="invoice-status-list">
+          {invoices
+            .sort((a, b) => {
+              const idA = parseInt(a.invoiceId) || 0;
+              const idB = parseInt(b.invoiceId) || 0;
+              return idB - idA; // Sắp xếp giảm dần (số lớn hơn ở trên)
+            })
+            .map((invoice, index) => (
+            <div key={invoice.invoiceId || index} className="invoice-status-item">
+              <div className="invoice-status-main">
+                <div className="invoice-status-info">
+                  <div className="invoice-id">
+                    <strong>Hóa đơn #{invoice.invoiceId || index + 1}</strong>
+                  </div>
+                  {invoice.serviceName && (
+                    <div className="invoice-service">
+                      Dịch vụ: {invoice.serviceName}
+                    </div>
+                  )}
+                  <div className="invoice-amount">
+                    Số tiền: <span className="amount-value">{parseFloat(invoice.totalAmount || 0).toLocaleString('vi-VN')} VNĐ</span>
+                  </div>
+                  {invoice.paymentDate && (
+                    <div className="invoice-payment-date">
+                      Ngày thanh toán: {formatDate(invoice.paymentDate)}
+                    </div>
+                  )}
+                  {invoice.createdAt && (
+                    <div className="invoice-created-date">
+                      Ngày tạo: {formatDate(invoice.createdAt)}
+                    </div>
+                  )}
                 </div>
-                {invoice.serviceName && (
-                  <div className="invoice-service">
-                    Dịch vụ: {invoice.serviceName}
-                  </div>
-                )}
-                <div className="invoice-amount">
-                  Số tiền: <span className="amount-value">{parseFloat(invoice.totalAmount || 0).toLocaleString('vi-VN')} VNĐ</span>
+                <div className="invoice-status-badge-container">
+                  {getStatusBadge(invoice.status)}
                 </div>
-                {invoice.paymentDate && (
-                  <div className="invoice-payment-date">
-                    Ngày thanh toán: {formatDate(invoice.paymentDate)}
-                  </div>
-                )}
-                {invoice.createdAt && (
-                  <div className="invoice-created-date">
-                    Ngày tạo: {formatDate(invoice.createdAt)}
-                  </div>
-                )}
-              </div>
-              <div className="invoice-status-badge-container">
-                {getStatusBadge(invoice.status)}
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      {/* Summary */}
-      <div className="invoice-status-summary">
+        {/* Summary */}
+        <div className="invoice-status-summary">
         <div className="summary-item">
           <span className="summary-label">Tổng số hóa đơn:</span>
           <span className="summary-value">{invoices.length}</span>
@@ -133,6 +140,7 @@ const InvoiceStatusSection = ({ invoices = [], appointmentId = null }) => {
             <span className="summary-value unpaid">{unpaidAmount.toLocaleString('vi-VN')} VNĐ</span>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
