@@ -50,7 +50,7 @@ export const ServiceTypesTable = ({ serviceTypes, searchQuery, onEdit, onDelete 
             <tr>
               <th>Mã gói</th>
               <th>Tên gói bảo dưỡng</th>
-              <th>Mô tả</th>
+              <th>Các bước gói bảo dưỡng</th>
               <th>Giá</th>
               <th>Thời gian ước tính</th>
               <th>Hành động</th>

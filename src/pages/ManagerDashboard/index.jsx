@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './ManagerDashboard.css';
 import { 
   FaUserTie, FaWarehouse, FaMoneyBillWave, FaChartLine, FaClipboardList, FaTools,
-  FaSearch, FaSignOutAlt, FaBars, FaTimes, FaHome
+  FaSearch, FaSignOutAlt, FaBars, FaTimes, FaHome, FaFileInvoice
 } from 'react-icons/fa';
 import { getCurrentUser, getCurrentCenterId } from '../../utils/centerFilter';
 import { ROLES } from '../../constants/roles';
@@ -15,6 +15,7 @@ import { PartsTab } from './components/Parts';
 import { FinanceTab } from './components/Finance';
 import { WorkLogTab } from './components/WorkLog';
 import { MaintenanceRecordTab } from './components/MaintenanceRecord';
+import { InvoicesTab } from './components/Invoices';
 
 /**
  * MANAGER DASHBOARD
@@ -199,6 +200,14 @@ function ManagerDashboard({ onNavigate }) {
             <FaMoneyBillWave className="nav-icon" />
             {!sidebarCollapsed && <span>Tài chính</span>}
           </button>
+          <button 
+            className={`nav-item ${activeTab === 'invoices' ? 'active' : ''}`}
+            onClick={() => handleTabChange('invoices')}
+            title="Hóa đơn"
+          >
+            <FaFileInvoice className="nav-icon" />
+            {!sidebarCollapsed && <span>Hóa đơn</span>}
+          </button>
         </nav>
 
         <div className="sidebar-footer">
@@ -225,6 +234,7 @@ function ManagerDashboard({ onNavigate }) {
               {activeTab === 'maintenance' && 'Quy trình Bảo dưỡng'}
               {activeTab === 'parts' && 'Quản lý Phụ tùng'}
               {activeTab === 'finance' && 'Tài chính & Báo cáo'}
+              {activeTab === 'invoices' && 'Quản lý Hóa đơn'}
             </h1>
           </div>
 
@@ -272,6 +282,7 @@ function ManagerDashboard({ onNavigate }) {
           {activeTab === 'maintenance' && <MaintenanceRecordTab />}
           {activeTab === 'parts' && <PartsTab />}
           {activeTab === 'finance' && <FinanceTab />}
+          {activeTab === 'invoices' && <InvoicesTab />}
         </div>
       </main>
     </div>

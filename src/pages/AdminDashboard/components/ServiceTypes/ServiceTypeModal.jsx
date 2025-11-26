@@ -96,7 +96,7 @@ export const ServiceTypeModal = ({ show, onClose, onSave, serviceType, mode = 'a
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-container" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>{mode === 'add' ? '➕ Thêm gói bảo dưỡng mới' : '✏️ Chỉnh sửa gói bảo dưỡng'}</h2>
+          <h2>{mode === 'add' ? 'Thêm gói bảo dưỡng mới' : 'Chỉnh sửa gói bảo dưỡng'}</h2>
           <button className="close-btn" onClick={onClose} disabled={saving}>
             <FaTimes />
           </button>
@@ -120,7 +120,7 @@ export const ServiceTypeModal = ({ show, onClose, onSave, serviceType, mode = 'a
           </div>
 
           <div className="form-group">
-            <label>Mô tả</label>
+            <label>Các bước gói bảo dưỡng</label>
             <textarea
               name="description"
               value={formData.description}

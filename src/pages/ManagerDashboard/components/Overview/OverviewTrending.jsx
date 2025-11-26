@@ -62,7 +62,7 @@ export const OverviewTrending = ({ stats }) => {
       {renderTrendingServiceTable(stats.trendingServicesLastMonth, 'Dịch vụ phổ biến (THÁNG NÀY)')}
       
       <SimpleSection 
-        title="Phụ tùng trong kho" 
+        title="Phụ tùng phổ biến (ALL TIME)" 
         icon={<FaWarehouse />}
         className="trending-section-item compact"
       >

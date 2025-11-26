@@ -33,8 +33,7 @@ export const useOverview = () => {
         revenue,
         trendingServices,
         trendingServicesLastMonth,
-        parts,
-        inventoryData,
+        trendingParts,
         staffAndTechnicians
       ] = await Promise.all([
         CenterAPI.getAppointments().catch(err => {
@@ -53,12 +52,8 @@ export const useOverview = () => {
           console.error('❌ [getTrendingServicesLastMonth] Error:', err);
           return [];
         }),
-        API.getAllParts().catch(err => {
-          console.error('❌ [getAllParts] Error:', err);
-          return [];
-        }),
-        API.getInventoryParts().catch(err => {
-          console.error('❌ [getInventoryParts] Error:', err);
+        API.getTrendingParts().catch(err => {
+          console.error('❌ [getTrendingParts] Error:', err);
           return [];
         }),
         API.getStaffAndTechnician().catch(err => {
@@ -72,8 +67,7 @@ export const useOverview = () => {
       console.log('   - Revenue:', revenue);
       console.log('   - Trending Services:', trendingServices);
       console.log('   - Trending Services Last Month:', trendingServicesLastMonth);
-      console.log('   - Parts:', parts?.length || 0);
-      console.log('   - Inventory:', inventoryData?.length || 0);
+      console.log('   - Trending Parts:', trendingParts);
       console.log('   - Staff & Technicians:', staffAndTechnicians?.length || 0);
 
       // Separate technicians and staff from API response
@@ -136,49 +130,25 @@ export const useOverview = () => {
         console.warn('⚠️ [useOverview] No trending services (last month) data from database');
       }
 
-      // Create inventory map từ inventory API
-      const inventoryMap = {};
-      if (Array.isArray(inventoryData)) {
-        inventoryData.forEach(item => {
-          // Handle different possible response structures
-          const partId = item.partId || item.part?.id || item.id;
-          const quantity = item.quantityUsed || item.quantity || item.quantityInStock || 0;
-          
-          if (partId) {
-            inventoryMap[partId] = quantity;
-          }
-        });
-      } else if (inventoryData && typeof inventoryData === 'object') {
-        // Handle case where API returns object with partId as keys
-        Object.keys(inventoryData).forEach(key => {
-          const item = inventoryData[key];
-          const partId = item.partId || item.part?.id || key;
-          const quantity = item.quantityUsed || item.quantity || item.quantityInStock || 0;
-          if (partId) {
-            inventoryMap[partId] = quantity;
-          }
-        });
-      }
-      
-      console.log('📦 [useOverview] Inventory map:', inventoryMap);
-
-      // Format parts data từ database (API: getAllParts)
-      // Sử dụng số lượng từ inventory API thay vì từ inventories trong part object
+      // Format trending parts data từ database (API: getTrendingParts)
+      // Response format: [{ "Dầu EV Basic 0W-20 Model A": 133 }, { "Tire Set Model A": 9 }, ...]
       let trendingPartsFormatted = [];
-      if (Array.isArray(parts) && parts.length > 0) {
-        trendingPartsFormatted = parts.map(part => ({
-          id: part.id,
-          name: part.name || 'N/A',
-          description: part.description || '',
-          unitPrice: part.unitPrice || 0,
-          minStockLevel: part.minStockLevel || 0,
-          // Sử dụng số lượng từ inventory API
-          quantity: inventoryMap[part.id] || 0,
-          quantityInStock: inventoryMap[part.id] || 0
-        }));
-        console.log('✅ [useOverview] Parts from database with inventory:', trendingPartsFormatted.length, 'parts');
+      if (Array.isArray(trendingParts) && trendingParts.length > 0) {
+        trendingPartsFormatted = trendingParts.map((part, index) => {
+          // Mỗi item là object với 1 key-value pair: { "Part Name": quantity }
+          const partName = Object.keys(part)[0];
+          const quantity = part[partName];
+          
+          return {
+            id: index + 1,
+            name: partName || 'N/A',
+            quantity: quantity || 0,
+            quantityInStock: quantity || 0
+          };
+        });
+        console.log('✅ [useOverview] Trending parts from database:', trendingPartsFormatted.length, 'parts');
       } else {
-        console.warn('⚠️ [useOverview] No parts data from database');
+        console.warn('⚠️ [useOverview] No trending parts data from database');
       }
       
       // Profit data - sử dụng revenue data làm base
